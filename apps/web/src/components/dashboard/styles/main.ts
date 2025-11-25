@@ -7,7 +7,7 @@ export const MainContainer = styled.main`
   margin-bottom: 10px;
 `;
 
-export const EmptyState = styled.div`
+export const EmptyStateWrapper = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;

@@ -1,3 +1,4 @@
+import React from "react";
 import { LeftSection, RightSection, NavbarContainer } from "./styles/navbar";
 
 import Image from "../image/Image";
@@ -7,13 +8,20 @@ import PlusIcon from "../icons/plus";
 import NotificationCenterIcon from "../icons/notificationCenter";
 import SettingsIcon from "../icons/settings";
 import LogOutIcon from "../icons/logout";
+import { usePopupStore } from "../popups/popup.store";
+import UploadPopup from "../popups/upload/UploadPopup";
 
 const Navbar = () => {
+  const uploadRef = React.useRef<HTMLButtonElement>(null);
+
+  const activateUploadPopup = usePopupStore((state) => state.toggleUploadPopup);
+
   return (
     <NavbarContainer>
+      <UploadPopup anchorRef={uploadRef} />
       <LeftSection>
         <Image src="/logo.svg" alt="Logo" width={135} height={90} />
-        <NavButton onClick={() => console.log("Plus clicked")}>
+        <NavButton ref={uploadRef} onClick={activateUploadPopup}>
           <PlusIcon />
         </NavButton>
       </LeftSection>

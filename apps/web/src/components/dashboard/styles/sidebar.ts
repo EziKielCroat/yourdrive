@@ -94,4 +94,9 @@ export const UpgradeButton = styled.button`
   cursor: pointer;
   transition: 0.15s ease;
   color: #363840;
+
+  &:hover {
+    background: #363840;
+    color: white;
+  }
 `;

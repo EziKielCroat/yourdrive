@@ -1,25 +1,30 @@
-import FilesIcon from "../../../shared/icons/files";
-import {
-  EmptyState,
-  EmptyStateDescription,
-  EmptyStateTitle,
-  MainContainer,
-} from "../../styles/main";
+import { MainContainer } from "../../styles/main";
+import EmptyState from "./EmptyState";
 
 const Main = () => {
+  const currentPage = "default"; // this will later be determined by the app's state or routing
   const hasFiles = false; // will later on check if user has uploaded any files with their account
+
+  const emptyStateText = {
+    default: {
+      title: "No files uploaded yet",
+      description: "Start by uploading files here.",
+    },
+    shared: {
+      title: "No shared files",
+      description: "Files shared with you will appear here.",
+    },
+  };
 
   if (!hasFiles) {
     return (
-      <MainContainer>
-        <EmptyState>
-          <FilesIcon color="#363840" height="40px" width="40px" />
-          <EmptyStateTitle>No files uploaded yet</EmptyStateTitle>
-          <EmptyStateDescription>
-            Start by uploading files here.
-          </EmptyStateDescription>
-        </EmptyState>
-      </MainContainer>
+      <EmptyState
+        text={
+          currentPage === "shared"
+            ? emptyStateText.shared
+            : emptyStateText.default
+        }
+      />
     );
   }
 
