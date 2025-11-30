@@ -2,11 +2,11 @@ import React from "react";
 import { usePopupStore } from "../popup.store";
 import { useClickOutside } from "../../hooks/useOutsideClick";
 import PopupPortal from "../../Portal/Portal";
+import { PopupItems, PopupWrapper } from "../styles/general";
 
 interface UploadPopupProps {
-  anchorRef: React.RefObject<HTMLButtonElement>;
+  anchorRef: React.RefObject<HTMLButtonElement | null> | null;
 }
-
 const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   const isOpen = usePopupStore((s) => s.isUploadPopupOpen);
   const closeUploadPopup = usePopupStore((s) => s.closeUploadPopup);
@@ -32,23 +32,17 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
 
   return (
     <PopupPortal>
-      <div
+      <PopupWrapper
         ref={popupRef}
         style={{
-          position: "fixed",
           top: coords.top,
           left: coords.left,
-          background: "white",
-          padding: 12,
-          borderRadius: 6,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-          zIndex: 9999,
         }}
       >
-        <p style={{ cursor: "pointer", margin: "4px 0" }}>Nova mapa</p>
-        <p style={{ cursor: "pointer", margin: "4px 0" }}>Prijenos datoteke</p>
-        <p style={{ cursor: "pointer", margin: "4px 0" }}>Prijenos mape</p>
-      </div>
+        <PopupItems>Nova mapa</PopupItems>
+        <PopupItems>Prijenos datoteke</PopupItems>
+        <PopupItems>Prijenos mape</PopupItems>
+      </PopupWrapper>
     </PopupPortal>
   );
 };
