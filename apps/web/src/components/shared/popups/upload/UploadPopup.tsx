@@ -2,7 +2,15 @@ import React from "react";
 import { usePopupStore } from "../popup.store";
 import { useClickOutside } from "../../hooks/useOutsideClick";
 import PopupPortal from "../../Portal/Portal";
-import { PopupItems, PopupWrapper } from "../styles/general";
+import {
+  PopupIcon,
+  PopupItems,
+  PopupText,
+  PopupWrapper,
+} from "../styles/general";
+import UploadFolderIcon from "../../icons/uploadFolder";
+import NewFolderIcon from "../../icons/newFolder";
+import FileUploadIcon from "../../icons/FileUpload";
 
 interface UploadPopupProps {
   anchorRef: React.RefObject<HTMLButtonElement | null> | null;
@@ -28,6 +36,12 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     closeUploadPopup()
   );
 
+  const uploadOptions = [
+    { icon: NewFolderIcon, text: "Nova mapa" },
+    { icon: FileUploadIcon, text: "Prijenos datoteke" },
+    { icon: UploadFolderIcon, text: "Prijenos mape" },
+  ];
+
   if (!isOpen) return null;
 
   return (
@@ -39,9 +53,18 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
           left: coords.left,
         }}
       >
-        <PopupItems>Nova mapa</PopupItems>
-        <PopupItems>Prijenos datoteke</PopupItems>
-        <PopupItems>Prijenos mape</PopupItems>
+        {uploadOptions.map((option, index) => {
+          const Icon = option.icon;
+
+          return (
+            <PopupItems key={index}>
+              <PopupIcon>
+                <Icon color="#535355" />
+              </PopupIcon>
+              <PopupText>{option.text}</PopupText>
+            </PopupItems>
+          );
+        })}
       </PopupWrapper>
     </PopupPortal>
   );

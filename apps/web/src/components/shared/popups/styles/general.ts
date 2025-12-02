@@ -14,7 +14,20 @@ export const PopupWrapper = styled.div`
 
 export const PopupItems = styled.div`
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  padding: 12px 6px;
+  align-items: center;
   gap: 8px;
   cursor: pointer;
+`;
+
+export const PopupIcon = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+export const PopupText = styled.span`
+  font-size: 15px;
+  color: #363840;
 `;
