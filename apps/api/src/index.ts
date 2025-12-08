@@ -25,6 +25,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
