@@ -6,6 +6,7 @@ import RecycleBinIcon from "../../../shared/icons/recycle";
 import SharedWithYouIcon from "../../../shared/icons/sharedWithYou";
 import StarIcon from "../../../shared/icons/starred";
 import { Navigation, NavItem } from "../../styles/sidebar";
+import { ROUTES } from "../../../../router/router";
 
 type NavProps = { color: string; isActive: boolean };
 
@@ -13,21 +14,21 @@ const NavigationMenu = () => {
   const DEFAULT_COLOR = "#363840";
 
   const navigationItems = [
-    { label: "Home", link: "/", Icon: HomeIcon },
-    { label: "Your Files", link: "/your-files", Icon: FilesIcon },
+    { label: "Home", link: ROUTES.DASHBOARD, Icon: HomeIcon },
+    { label: "Your Files", link: ROUTES.YOUR_FILES, Icon: FilesIcon },
     {
       label: "Shared With You",
-      link: "/shared-with-you",
+      link: ROUTES.SHARED_WITH_YOU,
       Icon: SharedWithYouIcon,
     },
-    { label: "Recycle Bin", link: "/recycle-bin", Icon: RecycleBinIcon },
-    { label: "Devices", link: "/devices", Icon: DevicesIcon },
+    { label: "Recycle Bin", link: ROUTES.RECYCLE_BIN, Icon: RecycleBinIcon },
+    { label: "Devices", link: ROUTES.DEVICES, Icon: DevicesIcon },
     {
       label: "Recently Edited",
-      link: "/recently-edited",
+      link: ROUTES.RECENTLY_EDITED,
       Icon: RecentlyEditedIcon,
     },
-    { label: "Favorited", link: "/favorited", Icon: StarIcon },
+    { label: "Favorited", link: ROUTES.FAVORITED, Icon: StarIcon },
   ];
 
   const currentPath =
@@ -36,7 +37,8 @@ const NavigationMenu = () => {
   return (
     <Navigation>
       {navigationItems.map(({ label, link, Icon }) => {
-        const isActive = link === currentPath;
+        const isActive = currentPath === link;
+
         const navProps: NavProps = {
           color: isActive ? "#fff" : DEFAULT_COLOR,
           isActive,

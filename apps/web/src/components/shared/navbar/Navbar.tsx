@@ -10,11 +10,13 @@ import SettingsIcon from "../icons/settings";
 import LogOutIcon from "../icons/logout";
 import { usePopupStore } from "../popups/popup.store";
 import UploadPopup from "../popups/upload/UploadPopup";
+import { useAuthStore } from "../../../store/authStore";
 
 const Navbar = () => {
   const uploadRef = React.useRef<HTMLButtonElement>(null);
 
   const activateUploadPopup = usePopupStore((state) => state.toggleUploadPopup);
+  const logout = useAuthStore((state) => state.logout);
 
   return (
     <NavbarContainer>
@@ -33,7 +35,7 @@ const Navbar = () => {
         <NavButton onClick={() => console.log("Settings clicked")}>
           <SettingsIcon />
         </NavButton>
-        <NavButton onClick={() => console.log("Log Out clicked")}>
+        <NavButton onClick={logout}>
           <LogOutIcon />
         </NavButton>
       </RightSection>

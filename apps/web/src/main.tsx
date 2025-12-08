@@ -1,11 +1,14 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 import "./index.css";
+import ReactDOM from "react-dom/client";
+import { RouterProvider } from "@tanstack/react-router";
+import { router } from "./router/router";
+import { useAuthStore } from "./store/authStore";
 
-import App from "./App.tsx";
+const auth = {
+  isLoggedIn: () => !!localStorage.getItem("token"),
+  logout: () => useAuthStore.getState().logout(),
+};
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <RouterProvider router={router} context={{ auth }} />
 );

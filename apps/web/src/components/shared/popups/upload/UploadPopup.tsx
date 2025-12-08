@@ -113,15 +113,15 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   if (!isOpen) return null;
 
   const uploadOptions = [
-    { icon: NewFolderIcon, text: "Nova mapa", onClick: handleNewFolder },
+    { icon: NewFolderIcon, text: "New Map", onClick: handleNewFolder },
     {
       icon: FileUploadIcon,
-      text: "Prijenos datoteke",
+      text: "File Upload",
       onClick: handleFileUploadClick,
     },
     {
       icon: UploadFolderIcon,
-      text: "Prijenos mape",
+      text: "Folder Upload",
       onClick: handleFolderUploadClick,
     },
   ];

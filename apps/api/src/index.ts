@@ -1,19 +1,30 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+import helmet from "helmet";
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { Pool } from "pg";
-import dotenv from "dotenv";
+
+import authRoutes from "./routes/auth.routes";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
-
+app.use(cookieParser());
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -93,6 +104,8 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
       .json({ success: false, error: "Upload failed", details: err });
   }
 });
+
+app.use("/api/auth", authRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "API is healthy" });

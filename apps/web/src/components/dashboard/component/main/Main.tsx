@@ -1,9 +1,13 @@
+import { Outlet } from "@tanstack/react-router";
 import { MainContainer } from "../../styles/main";
 import EmptyState from "./EmptyState";
+import { ROUTES } from "../../../../router/router";
 
 const Main = () => {
-  const currentPage = "default"; // this will later be determined by the app's state or routing
-  const hasFiles = false; // will later on check if user has uploaded any files with their account
+  const hasFiles = false;
+  const currentPath = window.location.pathname;
+  const currentPage =
+    currentPath === ROUTES.SHARED_WITH_YOU ? "shared" : "default";
 
   const emptyStateText = {
     default: {
@@ -30,7 +34,7 @@ const Main = () => {
 
   return (
     <MainContainer>
-      <h1>Your Files</h1>
+      <Outlet />
     </MainContainer>
   );
 };
