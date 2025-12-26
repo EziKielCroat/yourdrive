@@ -4,6 +4,7 @@ import { useAuthStore } from "../../../../../store/authStore";
 import FilesTable, {
   type FileItem,
 } from "../../../../shared/files_table/FilesTable";
+import { useFileSearch } from "../../../../shared/hooks/useFileSearch";
 
 interface ApiFile {
   id: string;
@@ -22,6 +23,10 @@ const RecentFiles: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+
+  // Use the search hook to filter files
+  const { filteredFiles, hasActiveFilters, activeFilterCount } =
+    useFileSearch(files);
 
   useEffect(() => {
     const fetchRecentFiles = async () => {
@@ -119,13 +124,37 @@ const RecentFiles: React.FC = () => {
     // TODO: Implement context menu
   };
 
+  // Determine empty state message based on filters
+  const getEmptyMessage = () => {
+    if (hasActiveFilters) {
+      return "No files match your filters";
+    }
+    return "No recent files";
+  };
+
+  const getEmptySubtext = () => {
+    if (hasActiveFilters) {
+      return "Try adjusting your search or filter criteria";
+    }
+    return "Files you upload or interact with will appear here";
+  };
+
   return (
     <Container>
+      {hasActiveFilters && (
+        <FilterIndicator>
+          Showing {filteredFiles.length} of {files.length} files
+          {activeFilterCount > 0 &&
+            ` (${activeFilterCount} filter${
+              activeFilterCount > 1 ? "s" : ""
+            } active)`}
+        </FilterIndicator>
+      )}
       <FilesTable
-        files={files}
+        files={filteredFiles}
         loading={loading}
-        emptyMessage="No recent files"
-        emptySubtext="Files you upload or interact with will appear here"
+        emptyMessage={getEmptyMessage()}
+        emptySubtext={getEmptySubtext()}
         onFileClick={handleFileClick}
         onFileSelect={handleFileSelect}
         onFileContextMenu={handleFileContextMenu}
@@ -139,6 +168,16 @@ const RecentFiles: React.FC = () => {
 
 const Container = styled.div`
   margin-top: 24px;
+`;
+
+const FilterIndicator = styled.div`
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  display: inline-block;
 `;
 
 export default RecentFiles;
