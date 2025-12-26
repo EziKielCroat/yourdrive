@@ -55,12 +55,24 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     if (!files.length) return;
 
     const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      const filePath = preserveStructure
-        ? file.webkitRelativePath || file.name
-        : file.name;
-      formData.append("files", file, filePath);
+
+    const folderPaths: Record<string, string> = {};
+
+    Array.from(files).forEach((file, index) => {
+      const relativePath = (file as any).webkitRelativePath || "";
+
+      if (preserveStructure && relativePath) {
+        const folderPath =
+          relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
+        folderPaths[index.toString()] = folderPath;
+      }
+
+      formData.append("files", file);
     });
+
+    if (preserveStructure) {
+      formData.append("folderPaths", JSON.stringify(folderPaths));
+    }
 
     try {
       setUploading(true);
@@ -106,6 +118,9 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
 
     try {
       console.log(`Uploading folder with ${files.length} files`);
+      Array.from(files).forEach((file) => {
+        console.log("File path:", (file as any).webkitRelativePath);
+      });
       await uploadToBackend(files, true);
       console.log("Folder uploaded successfully");
     } catch (err) {
