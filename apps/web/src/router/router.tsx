@@ -11,6 +11,11 @@ import LandingPage from "../components/landing/Landing";
 import LoginPage from "../components/login/Login";
 import RegisterPage from "../components/register/Register";
 import Dashboard from "../components/dashboard/Dashboard";
+import AboutUs from "../components/aboutus/AboutUs";
+import Pricing from "../components/pricing/Pricing";
+
+import HelpCenter from "../components/helpcenter/HelpCenter";
+import HowItWorks from "../components/howitworks/HowItWorks";
 
 import YourFiles from "../components/dashboard/component/yourFiles/YourFiles";
 import SharedWithYou from "../components/dashboard/component/sharedWithYou/SharedWithYou";
@@ -22,6 +27,10 @@ import Home from "../components/dashboard/component/main/Home";
 
 export const ROUTES = {
   HOME: "/",
+  ABOUTUS: "/aboutus",
+  PRICING: "/pricing",
+  HOWITWORKS: "/howitworks",
+  HELPCENTER: "/helpcenter",
   LOGIN: "/login",
   REGISTER: "/register",
   DASHBOARD: "/dashboard",
@@ -93,6 +102,30 @@ const dashboardIndexRoute = createRoute({
   component: Home,
 });
 
+const aboutUsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/aboutus",
+  component: AboutUs,
+});
+
+const howItWorksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/howitworks",
+  component: HowItWorks,
+});
+
+const pricingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pricing",
+  component: Pricing,
+});
+
+const helpCenterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/helpcenter",
+  component: HelpCenter,
+});
+
 const yourFilesRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: "/your-files",
@@ -133,6 +166,10 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   registerRoute,
+  aboutUsRoute,
+  howItWorksRoute,
+  pricingRoute,
+  helpCenterRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
     yourFilesRoute,
