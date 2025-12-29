@@ -42,17 +42,14 @@ function matchesFileType(file: FileItem, fileTypeFilter: string): boolean {
   return category === fileTypeFilter;
 }
 
-function matchesPerson(
-  file: FileItem,
-  personFilter: SearchFilters["person"]
-): boolean {
+function matchesPerson(file: FileItem, personFilter: string | null): boolean {
   if (!personFilter) return true;
 
-  // Match by owner ID or name
-  return (
-    file.owner.name === personFilter.name ||
-    (personFilter.isYou && file.owner.isYou)
-  );
+  if (personFilter === "me") {
+    return file.owner.isYou === true;
+  }
+
+  return file.owner.name === personFilter;
 }
 
 function matchesLastModified(
@@ -61,7 +58,6 @@ function matchesLastModified(
 ): boolean {
   if (lastModifiedFilter === "all") return true;
 
-  // Parse the lastInteraction string (e.g., "Today", "Yesterday", "3 days ago", "24/12/2024")
   const now = new Date();
   const interaction = file.lastInteraction.toLowerCase();
 
@@ -168,24 +164,87 @@ function matchesAdvancedFilters(
   file: FileItem,
   filters: SearchFilters
 ): boolean {
-  // Size filters
-  if (filters.minSize !== undefined && file.size < filters.minSize) {
-    return false;
+  if (!filters.advanced) {
+    return true;
   }
 
-  if (filters.maxSize !== undefined && file.size > filters.maxSize) {
-    return false;
+  const advanced = filters.advanced;
+
+  if (advanced.location !== "all") {
+    switch (advanced.location) {
+      case "my-files":
+        if (!file.owner.isYou) return false;
+        break;
+      case "shared-with-me":
+        if (file.owner.isYou) return false;
+        break;
+      case "starred":
+        // Assuming im going to add a `starred` property to FileItem
+        if (!(file as any).starred) return false;
+        break;
+      case "trash":
+        // Assuming im going to add a `trashed` property to FileItem
+        if (!(file as any).trashed) return false;
+        break;
+      case "specific-folder":
+        // TODO need to implement folder matching logic
+        // For now, this is a placeholder
+        break;
+    }
   }
 
-  // Date range filter (if you add createdAt or modifiedAt to FileItem)
-  // if (filters.dateRange) {
-  //   const fileDate = new Date(file.createdAt);
-  //   if (fileDate < filters.dateRange.start || fileDate > filters.dateRange.end) {
-  //     return false;
-  //   }
-  // }
+  if (advanced.modifiedAfter) {
+    const afterDate = new Date(advanced.modifiedAfter);
+    const fileDate = new Date(file.lastInteraction);
+    if (fileDate < afterDate) {
+      return false;
+    }
+  }
+
+  if (advanced.modifiedBefore) {
+    const beforeDate = new Date(advanced.modifiedBefore);
+    const fileDate = new Date(file.lastInteraction);
+    if (fileDate > beforeDate) {
+      return false;
+    }
+  }
+
+  const fileSizeInBytes = file.size || 0;
+
+  if (advanced.minSize) {
+    const minSizeInBytes = convertToBytes(
+      parseFloat(advanced.minSize),
+      advanced.minSizeUnit
+    );
+    if (fileSizeInBytes < minSizeInBytes) {
+      return false;
+    }
+  }
+
+  if (advanced.maxSize) {
+    const maxSizeInBytes = convertToBytes(
+      parseFloat(advanced.maxSize),
+      advanced.maxSizeUnit
+    );
+    if (fileSizeInBytes > maxSizeInBytes) {
+      return false;
+    }
+  }
 
   return true;
+}
+
+function convertToBytes(size: number, unit: string): number {
+  switch (unit) {
+    case "KB":
+      return size * 1024;
+    case "MB":
+      return size * 1024 * 1024;
+    case "GB":
+      return size * 1024 * 1024 * 1024;
+    default:
+      return size;
+  }
 }
 
 export function useFileSearch(files: FileItem[]) {
@@ -198,7 +257,6 @@ export function useFileSearch(files: FileItem[]) {
     }
 
     return files.filter((file) => {
-      // Apply all filters
       return (
         matchesQuery(file, filters.query) &&
         matchesFileType(file, filters.fileType) &&
@@ -209,17 +267,28 @@ export function useFileSearch(files: FileItem[]) {
     });
   }, [files, filters, hasActiveFilters]);
 
+  const calculateActiveFilterCount = () => {
+    let count = 0;
+
+    if (filters.query !== "") count++;
+    if (filters.fileType !== "all") count++;
+    if (filters.person !== null) count++;
+    if (filters.lastModified !== "all") count++;
+
+    if (filters.advanced) {
+      if (filters.advanced.location !== "all") count++;
+      if (filters.advanced.modifiedAfter !== null) count++;
+      if (filters.advanced.modifiedBefore !== null) count++;
+      if (filters.advanced.minSize !== null) count++;
+      if (filters.advanced.maxSize !== null) count++;
+    }
+
+    return count;
+  };
+
   return {
     filteredFiles,
     hasActiveFilters: hasActiveFilters(),
-    activeFilterCount: [
-      filters.query !== "",
-      filters.fileType !== "all",
-      filters.person !== null,
-      filters.lastModified !== "all",
-      filters.minSize !== undefined,
-      filters.maxSize !== undefined,
-      filters.dateRange !== undefined,
-    ].filter(Boolean).length,
+    activeFilterCount: calculateActiveFilterCount(),
   };
 }

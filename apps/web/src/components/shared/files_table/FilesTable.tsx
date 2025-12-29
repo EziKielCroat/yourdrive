@@ -18,6 +18,8 @@ export interface FileItem {
   };
   size?: number;
   selected?: boolean;
+  starred?: boolean;
+  trashed?: boolean;
 }
 
 interface FilesTableProps {

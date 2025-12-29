@@ -15,18 +15,22 @@ export interface PersonFilter {
   isYou: boolean;
 }
 
+interface AdvancedFilters {
+  location: string;
+  modifiedAfter: string | null;
+  modifiedBefore: string | null;
+  minSize: string | null;
+  minSizeUnit: string;
+  maxSize: string | null;
+  maxSizeUnit: string;
+}
+
 export interface SearchFilters {
   query: string;
   fileType: FileTypeFilter;
-  person: PersonFilter | null;
+  person: string | null;
   lastModified: LastModifiedFilter;
-  // Advanced filters can be added here
-  minSize?: number;
-  maxSize?: number;
-  dateRange?: {
-    start: Date;
-    end: Date;
-  };
+  advanced: AdvancedFilters | null;
 }
 
 interface SearchState {
@@ -35,20 +39,27 @@ interface SearchState {
   setFileType: (fileType: FileTypeFilter) => void;
   setPerson: (person: PersonFilter | null) => void;
   setLastModified: (lastModified: LastModifiedFilter) => void;
-  setAdvancedFilters: (
-    filters: Partial<
-      Omit<SearchFilters, "query" | "fileType" | "person" | "lastModified">
-    >
-  ) => void;
+  setAdvancedFilters: (filters: Partial<AdvancedFilters>) => void;
   resetFilters: () => void;
   hasActiveFilters: () => boolean;
 }
+
+const defaultAdvancedFilters: AdvancedFilters = {
+  location: "all",
+  modifiedAfter: null,
+  modifiedBefore: null,
+  minSize: null,
+  minSizeUnit: "MB",
+  maxSize: null,
+  maxSizeUnit: "MB",
+};
 
 const defaultFilters: SearchFilters = {
   query: "",
   fileType: "all",
   person: null,
   lastModified: "all",
+  advanced: null,
 };
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -66,7 +77,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
   setPerson: (person) =>
     set((state) => ({
-      filters: { ...state.filters, person },
+      filters: { ...state.filters, person: person?.id || null },
     })),
 
   setLastModified: (lastModified) =>
@@ -76,21 +87,33 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
   setAdvancedFilters: (advancedFilters) =>
     set((state) => ({
-      filters: { ...state.filters, ...advancedFilters },
+      filters: {
+        ...state.filters,
+        advanced: {
+          ...(state.filters.advanced || defaultAdvancedFilters),
+          ...advancedFilters,
+        },
+      },
     })),
 
   resetFilters: () => set({ filters: defaultFilters }),
 
   hasActiveFilters: () => {
     const { filters } = get();
-    return (
+    const hasBasicFilters =
       filters.query !== "" ||
       filters.fileType !== "all" ||
       filters.person !== null ||
-      filters.lastModified !== "all" ||
-      filters.minSize !== undefined ||
-      filters.maxSize !== undefined ||
-      filters.dateRange !== undefined
-    );
+      filters.lastModified !== "all";
+
+    const hasAdvancedFilters =
+      filters.advanced !== null &&
+      (filters.advanced.location !== "all" ||
+        filters.advanced.modifiedAfter !== null ||
+        filters.advanced.modifiedBefore !== null ||
+        filters.advanced.minSize !== null ||
+        filters.advanced.maxSize !== null);
+
+    return hasBasicFilters || hasAdvancedFilters;
   },
 }));
