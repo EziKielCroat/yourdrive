@@ -2,7 +2,7 @@ import styled from "styled-components";
 
 export const OverviewContainer = styled.div`
     width: 70%;
-    height: 855px;
+    height: 800px;
     margin: auto;
     display: flex;
     flex-direction: column;
@@ -29,7 +29,7 @@ export const DetailDesc = styled.div`
     line-height: 50px;
     font-style: normal;
     font-size: 40px;
-    color: #000000;
+    color: #363840;
 `;
 export const ItemCont = styled.div`
     flex: 1;
