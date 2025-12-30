@@ -11,6 +11,8 @@ import LogOutIcon from "../icons/logout";
 import { usePopupStore } from "../popups/popup.store";
 import UploadPopup from "../popups/upload/UploadPopup";
 import { useAuthStore } from "../../../store/authStore";
+import { redirect } from "@tanstack/react-router";
+import { ROUTES } from "../../../router/router";
 
 const Navbar = () => {
   const uploadRef = React.useRef<HTMLButtonElement>(null);
@@ -32,7 +34,7 @@ const Navbar = () => {
         <NavButton onClick={() => console.log("Notification Center clicked")}>
           <NotificationCenterIcon />
         </NavButton>
-        <NavButton onClick={() => console.log("Settings clicked")}>
+        <NavButton onClick={() => redirect({ to: ROUTES.SETTINGS })}>
           <SettingsIcon />
         </NavButton>
         <NavButton onClick={logout}>

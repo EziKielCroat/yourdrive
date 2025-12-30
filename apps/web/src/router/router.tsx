@@ -32,6 +32,7 @@ export const ROUTES = {
   DEVICES: "/dashboard/devices",
   RECENTLY_EDITED: "/dashboard/recently-edited",
   FAVORITED: "/dashboard/favorited",
+  SETTINGS: "/dashboard/settings",
 } as const;
 
 function RootComponent() {
