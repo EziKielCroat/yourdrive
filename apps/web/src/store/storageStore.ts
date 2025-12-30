@@ -16,7 +16,7 @@ interface StorageState {
 // 15 GB in bytes
 const DEFAULT_TOTAL_BYTES = 15 * 1024 * 1024 * 1024;
 
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
 
   const k = 1024;

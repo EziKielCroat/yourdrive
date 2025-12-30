@@ -15,14 +15,32 @@ import NewFolderIcon from "../../icons/newFolder";
 import FileUploadIcon from "../../icons/FileUpload";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
+import UploadStatusModal from "./UploadStatusModal";
 
 interface UploadPopupProps {
   anchorRef: React.RefObject<HTMLButtonElement | null> | null;
 }
 
+interface UploadFile {
+  name: string;
+  size: number;
+  progress: number;
+  status: "pending" | "uploading" | "complete" | "error";
+  error?: string;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(i >= 2 ? 1 : 0)} ${sizes[i]}`;
+}
+
 const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const addUsage = useStorageStore((s) => s.addUsage);
+  const refreshStorage = useStorageStore((s) => s.refreshStorage);
 
   const isOpen = usePopupStore((s) => s.isUploadPopupOpen);
   const closeUploadPopup = usePopupStore((s) => s.closeUploadPopup);
@@ -32,7 +50,9 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const [uploading, setUploading] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [totalProgress, setTotalProgress] = useState(0);
 
   useEffect(() => {
     if (isOpen && anchorRef?.current) {
@@ -75,6 +95,19 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
       return;
     }
 
+    closeUploadPopup();
+
+    const uploadFilesList: UploadFile[] = Array.from(files).map((file) => ({
+      name: file.name,
+      size: file.size,
+      progress: 0,
+      status: "pending" as const,
+    }));
+
+    setUploadFiles(uploadFilesList);
+    setShowUploadModal(true);
+    setTotalProgress(0);
+
     const formData = new FormData();
     const folderPaths: Record<string, string> = {};
 
@@ -95,8 +128,13 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     }
 
     try {
-      setUploading(true);
-      const response = await fetch("/api/files/upload", {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setUploadFiles((prev) =>
+        prev.map((f) => ({ ...f, status: "uploading" as const }))
+      );
+
+      const response = await fetch("http://localhost:3000/api/files/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -111,16 +149,31 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
       const result = await response.json();
       console.log("Upload successful:", result);
 
-      // Add uploaded file sizes to storage usage
+      setUploadFiles((prev) =>
+        prev.map((f) => ({ ...f, status: "complete" as const, progress: 100 }))
+      );
+      setTotalProgress(100);
+
       addUsage(totalSize);
+
+      // TODO: Refresh storage and trigger app-wide refresh (in background)
+      refreshStorage(accessToken).then(() => {
+        window.dispatchEvent(new CustomEvent("files-updated"));
+      });
 
       return result;
     } catch (error) {
       console.error("Upload error:", error);
+
+      setUploadFiles((prev) =>
+        prev.map((f) => ({
+          ...f,
+          status: "error" as const,
+          error: "Upload failed",
+        }))
+      );
+
       throw error;
-    } finally {
-      setUploading(false);
-      closeUploadPopup();
     }
   };
 
@@ -129,13 +182,7 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     if (!files?.length) return;
 
     try {
-      console.log(
-        "Uploading file:",
-        files[0].name,
-        `(${formatBytes(files[0].size)})`
-      );
       await uploadToBackend(files, false);
-      console.log("File uploaded successfully");
     } catch (err) {
       console.error("Failed to upload file:", err);
     } finally {
@@ -147,22 +194,8 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     const files = e.target.files;
     if (!files?.length) return;
 
-    const totalSize = Array.from(files).reduce(
-      (sum, file) => sum + file.size,
-      0
-    );
-
     try {
-      console.log(
-        `Uploading folder with ${files.length} files (${formatBytes(
-          totalSize
-        )})`
-      );
-      Array.from(files).forEach((file) => {
-        console.log("File path:", (file as any).webkitRelativePath);
-      });
       await uploadToBackend(files, true);
-      console.log("Folder uploaded successfully");
     } catch (err) {
       console.error("Failed to upload folder:", err);
     } finally {
@@ -170,7 +203,16 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     }
   };
 
-  if (!isOpen) return null;
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    setUploadFiles([]);
+    setTotalProgress(0);
+  };
+
+  console.log("UploadPopup render:", {
+    showUploadModal,
+    filesCount: uploadFiles.length,
+  });
 
   const uploadOptions = [
     { icon: NewFolderIcon, text: "New Map", onClick: handleNewFolder },
@@ -188,22 +230,30 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
 
   return (
     <>
-      <PopupPortal>
-        <PopupWrapper
-          ref={popupRef}
-          style={{ top: coords.top, left: coords.left }}
-        >
-          {uploadOptions.map(({ icon: Icon, text, onClick }, i) => (
-            <PopupItems key={i} tabIndex={0} onClick={onClick}>
-              <PopupIcon>
-                <Icon color="#535355" />
-              </PopupIcon>
-              <PopupText>{text}</PopupText>
-            </PopupItems>
-          ))}
-          {uploading && <PopupText>Uploading…</PopupText>}
-        </PopupWrapper>
-      </PopupPortal>
+      {isOpen && (
+        <PopupPortal>
+          <PopupWrapper
+            ref={popupRef}
+            style={{ top: coords.top, left: coords.left }}
+          >
+            {uploadOptions.map(({ icon: Icon, text, onClick }, i) => (
+              <PopupItems key={i} tabIndex={0} onClick={onClick}>
+                <PopupIcon>
+                  <Icon color="#535355" />
+                </PopupIcon>
+                <PopupText>{text}</PopupText>
+              </PopupItems>
+            ))}
+          </PopupWrapper>
+        </PopupPortal>
+      )}
+
+      <UploadStatusModal
+        isOpen={showUploadModal}
+        files={uploadFiles}
+        onClose={handleCloseUploadModal}
+        totalProgress={totalProgress}
+      />
 
       <input
         type="file"
@@ -224,16 +274,5 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     </>
   );
 };
-
-// Helper function to format bytes
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${(bytes / Math.pow(k, i)).toFixed(i >= 2 ? 1 : 0)} ${sizes[i]}`;
-}
 
 export default UploadPopup;
