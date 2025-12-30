@@ -28,10 +28,10 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
         </NContLeft>
         <NContRight>
           {!isLoggedIn() ? (<>
-            <LandingButton variant="primary" size="sm">Register</LandingButton>
-            <LandingButton variant="secondary" size="sm">Login</LandingButton>
+            <LandingButton variant="primary" size="sm" purp="register">Register</LandingButton>
+            <LandingButton variant="secondary" size="sm" purp="login">Login</LandingButton>
           </>) : (<>
-            <LandingButton variant="secondary" size="sm">Dashboard</LandingButton>
+            <LandingButton variant="secondary" size="sm" purp="dashboard">Dashboard</LandingButton>
           </>)
           }
         </NContRight>

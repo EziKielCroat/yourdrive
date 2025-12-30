@@ -11,4 +11,13 @@ export const GlobalReset = createGlobalStyle`
     overflow-x: hidden;  /* stop horizontal scroll */
     overflow-y: auto;   /* allow vertical scroll */
   }
+
+  @font-face {
+    font-family: "Forma DJR Display";
+    src: url("../../../../../../public/fonts/FormaDJRDisplay-Bold-Testing.woff2") format("woff2"),
+         url("../../../../../../public/fonts/FormaDJRDisplay-Bold-Testing.woff") format("woff");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
 `;
