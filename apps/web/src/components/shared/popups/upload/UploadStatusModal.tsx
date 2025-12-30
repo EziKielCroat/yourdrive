@@ -1,5 +1,7 @@
 import styled, { keyframes } from "styled-components";
 import { createPortal } from "react-dom";
+import FileUploadIcon from "../../icons/fileUpload";
+import { FileIcon as FileUploadedIcon } from "../../icons/file";
 
 interface UploadFile {
   name: string;
@@ -301,11 +303,11 @@ const UploadStatusModal: React.FC<UploadStatusModalProps> = ({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "complete":
-        return "✓";
+        return <FileUploadedIcon />;
       case "error":
         return "✕";
       case "uploading":
-        return "↑";
+        return <FileUploadIcon />;
       default:
         return "•";
     }

@@ -12,7 +12,7 @@ import {
 
 import UploadFolderIcon from "../../icons/uploadFolder";
 import NewFolderIcon from "../../icons/newFolder";
-import FileUploadIcon from "../../icons/FileUpload";
+import FileUploadIcon from "../../icons/fileUpload";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
 import UploadStatusModal from "./UploadStatusModal";
