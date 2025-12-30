@@ -3,6 +3,7 @@ import { create } from "zustand";
 interface StorageState {
   usedBytes: number;
   totalBytes: number;
+  hasUserUploadedFolder: boolean;
   setUsed: (bytes: number) => void;
   addUsage: (bytes: number) => void;
   removeUsage: (bytes: number) => void;
@@ -28,6 +29,7 @@ function formatBytes(bytes: number): string {
 export const useStorageStore = create<StorageState>((set, get) => ({
   usedBytes: 0,
   totalBytes: DEFAULT_TOTAL_BYTES,
+  hasUserUploadedFolder: false,
 
   setUsed: (bytes) => set({ usedBytes: bytes }),
 
@@ -55,37 +57,55 @@ export const useStorageStore = create<StorageState>((set, get) => ({
       throw new Error("Access token is required to refresh storage");
     }
 
-    set({ loading: true });
-
     try {
-      // Fetch all usage from backend
-      const response = await fetch("/api/files/usage", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      // TODO: funkcija ajme optimizirat hitno
+      const usageResponse = await fetch(
+        "http://localhost:3000/api/files/usage",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch files: ${response.statusText}`);
+      if (!usageResponse.ok) {
+        throw new Error(`Failed to fetch usage: ${usageResponse.statusText}`);
       }
 
-      const data = await response.json();
-      const totalUsed = data.usage.totalSize;
+      const usageData = await usageResponse.json();
+      const totalUsed = usageData.usage.totalSize;
+
+      const foldersResponse = await fetch(
+        "http://localhost:3000/api/files/folders",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!foldersResponse.ok) {
+        throw new Error(
+          `Failed to fetch folders: ${foldersResponse.statusText}`
+        );
+      }
+
+      const foldersData = await foldersResponse.json();
+      const hasUploadedFolder =
+        foldersData.folders && foldersData.folders.length > 0;
 
       set({
         usedBytes: totalUsed,
-        loading: false,
-        lastUpdated: new Date(),
+        hasUserUploadedFolder: hasUploadedFolder,
       });
 
       console.log(
         `Storage refreshed: ${formatBytes(totalUsed)} / ${formatBytes(
           get().totalBytes
-        )}`
+        )}, Has folders: ${hasUploadedFolder}`
       );
     } catch (error) {
       console.error("Failed to refresh storage:", error);
-      set({ loading: false });
       throw error;
     }
   },
