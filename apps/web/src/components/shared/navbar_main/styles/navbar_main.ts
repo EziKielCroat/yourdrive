@@ -29,10 +29,13 @@ export const NavLink = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family : 'Inter', sans-serif;
   font-style: normal;
-  line-height: 1.5;
-  font-weight: 400;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: -0.35px;
+  color: #2E3038;
 
   a {
     
@@ -44,7 +47,7 @@ export const NavLink = styled.div`
     &::after {
       content: "";
       position: absolute;
-      bottom: 0;
+      bottom: -3px;
       left: 50%;
       transform: translateX(-50%);
       width: 0%;
