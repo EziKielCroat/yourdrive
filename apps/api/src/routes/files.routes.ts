@@ -16,10 +16,12 @@ const pool = new Pool({
 
 const s3Client = new S3Client({
   endpoint: process.env.B2_ENDPOINT,
-  region: process.env.B2_REGION,
+  region: "eu-central-003",
+  forcePathStyle: true,
+  useArnRegion: false,
   credentials: {
-    accessKeyId: process.env.B2_KEY_ID!,
-    secretAccessKey: process.env.B2_APPLICATION_KEY!,
+    accessKeyId: process.env.B2_KEY_ID ?? "",
+    secretAccessKey: process.env.B2_APPLICATION_KEY ?? "",
   },
 });
 
