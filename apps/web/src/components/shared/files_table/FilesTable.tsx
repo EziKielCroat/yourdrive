@@ -30,6 +30,7 @@ interface FilesTableProps {
   onFileClick?: (file: FileItem) => void;
   onFileSelect?: (file: FileItem, selected: boolean) => void;
   onFileContextMenu?: (file: FileItem, event: React.MouseEvent) => void;
+  onFilePreview?: (file: FileItem) => void;
   selectedFiles?: Set<string>;
   showOwner?: boolean;
   showLocation?: boolean;
@@ -44,6 +45,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
   onFileClick,
   onFileSelect,
   onFileContextMenu,
+  onFilePreview,
   selectedFiles = new Set(),
   showOwner = true,
   showLocation = true,
@@ -60,7 +62,13 @@ const FilesTable: React.FC<FilesTableProps> = ({
   };
 
   const handleRowClick = (file: FileItem) => {
-    onFileClick?.(file);
+    // If preview handler is provided and this is a file (not folder), use preview
+    if (onFilePreview && file.type === "file") {
+      onFilePreview(file);
+    } else if (onFileClick) {
+      // Otherwise use the regular click handler
+      onFileClick(file);
+    }
   };
 
   const handleCheckboxChange = (

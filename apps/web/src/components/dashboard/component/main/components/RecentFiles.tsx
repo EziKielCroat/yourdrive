@@ -5,6 +5,7 @@ import FilesTable, {
   type FileItem,
 } from "../../../../shared/files_table/FilesTable";
 import { useFileSearch } from "../../../../shared/hooks/useFileSearch";
+import FilePreview from "../../../../shared/filesPreview/FilesPreview";
 
 interface ApiFile {
   id: string;
@@ -23,6 +24,7 @@ const RecentFiles: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   // Use the search hook to filter files
   const { filteredFiles, hasActiveFilters, activeFilterCount } =
@@ -96,9 +98,12 @@ const RecentFiles: React.FC = () => {
     }
   };
 
-  const handleFileClick = (file: FileItem) => {
-    console.log("Open file:", file.name);
-    // TODO: Implement file preview/download
+  const handleFilePreview = (file: FileItem) => {
+    setPreviewFile(file);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewFile(null);
   };
 
   const handleFileSelect = (file: FileItem, selected: boolean) => {
@@ -155,13 +160,21 @@ const RecentFiles: React.FC = () => {
         loading={loading}
         emptyMessage={getEmptyMessage()}
         emptySubtext={getEmptySubtext()}
-        onFileClick={handleFileClick}
+        onFilePreview={handleFilePreview}
         onFileSelect={handleFileSelect}
         onFileContextMenu={handleFileContextMenu}
         selectedFiles={selectedFiles}
         showOwner={true}
         showLocation={true}
       />
+      {previewFile && (
+        <FilePreview
+          fileId={previewFile.id}
+          fileName={previewFile.name}
+          mimeType={previewFile.mimeType}
+          onClose={handleClosePreview}
+        />
+      )}
     </Container>
   );
 };

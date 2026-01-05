@@ -7,6 +7,8 @@ import { Pool } from "pg";
 
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const filesRoutes = express.Router();
 
@@ -83,7 +85,6 @@ filesRoutes.post(
           const timestamp = Date.now();
           const originalName = file.originalname;
 
-          // Get folder path from the parsed metadata
           const folderPath = folderPaths[index.toString()] || "";
 
           // Build S3 key with folder structure
@@ -195,8 +196,6 @@ filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    // Get unique top-level folders with file counts and total sizes
-    // This extracts the first segment of folder_path as the "root" folder
     const result = await pool.query(
       `SELECT 
         CASE 
@@ -213,7 +212,6 @@ filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
       [req.userId]
     );
 
-    // Aggregate by root folder (top-level folder name)
     const folderMap = new Map<
       string,
       { fileCount: number; totalSize: number; subfolders: Set<string> }
@@ -228,7 +226,6 @@ filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
         return;
       }
 
-      // Get the root folder (first segment)
       const rootFolder = folderPath.split("/")[0];
 
       if (!folderMap.has(rootFolder)) {
@@ -243,13 +240,11 @@ filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
       folder.fileCount += parseInt(row.file_count, 10);
       folder.totalSize += parseInt(row.total_size, 10);
 
-      // Track subfolders for potential nested view
       if (folderPath !== rootFolder) {
         folder.subfolders.add(folderPath);
       }
     });
 
-    // Convert to array format
     const folders = Array.from(folderMap.entries()).map(([name, data]) => ({
       name,
       path: name,
@@ -288,7 +283,6 @@ filesRoutes.delete(
 
       const { fileId } = req.params;
 
-      // Get file info
       const fileResult = await pool.query(
         `SELECT s3_key FROM user_files WHERE id = $1 AND user_id = $2`,
         [fileId, req.userId]
@@ -308,7 +302,6 @@ filesRoutes.delete(
       //   Key: s3Key,
       // }));
 
-      // Delete from database
       await pool.query(
         `DELETE FROM user_files WHERE id = $1 AND user_id = $2`,
         [fileId, req.userId]
@@ -363,5 +356,83 @@ filesRoutes.get("/usage", authMiddleware, async (req: AuthRequest, res) => {
     });
   }
 });
+
+filesRoutes.get(
+  "/download/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Authentication required",
+        });
+      }
+
+      const { fileId } = req.params;
+
+      const fileResult = await pool.query(
+        `SELECT id, original_name, s3_key, mime_type, size
+         FROM user_files
+         WHERE id = $1 AND user_id = $2`,
+        [fileId, req.userId]
+      );
+
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "File not found",
+        });
+      }
+
+      const file = fileResult.rows[0];
+
+      const command = new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: file.s3_key,
+      });
+
+      const signedUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: 3600, // 1 hour
+      });
+
+      res.json({
+        success: true,
+        file: {
+          id: file.id,
+          name: file.original_name,
+          mimeType: file.mime_type,
+          size: file.size,
+          downloadUrl: signedUrl,
+        },
+      });
+
+      // Option 2: Stream preko servera
+
+      // const getObjectCommand = new GetObjectCommand({
+      //   Bucket: BUCKET_NAME,
+      //   Key: file.s3_key,
+      // });
+      //
+      // const { Body, ContentType } = await s3Client.send(getObjectCommand);
+      //
+      // res.setHeader('Content-Type', ContentType || file.mime_type);
+      // res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
+      //
+      // if (Body instanceof require('stream').Readable) {
+      //   Body.pipe(res);
+      // } else {
+      //   res.status(500).json({ success: false, error: 'Invalid file stream' });
+      // }
+    } catch (err) {
+      console.error("Error downloading file:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to download file",
+        details: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+);
 
 export default filesRoutes;
