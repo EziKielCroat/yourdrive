@@ -23,7 +23,7 @@ const Description: React.FC = () => {
       </ImageWrapper>
     </DescCont>
     </>
-  );
-};
+    );
+}
 
 export default Description;

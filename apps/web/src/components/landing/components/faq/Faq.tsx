@@ -68,6 +68,6 @@ const Faq: React.FC = () => {
       </QCont>
     </FaqCont>
   );
-};
+}
 
 export default Faq;

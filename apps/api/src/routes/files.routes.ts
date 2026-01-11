@@ -68,59 +68,73 @@ filesRoutes.post(
 
       const files = Array.isArray(req.files) ? req.files : [];
 
-      const uploadPromises = files.map(async (file: Express.Multer.File) => {
-        const timestamp = Date.now();
-        const path = file.originalname;
+      // Parse folder paths from request body (sent as JSON string)
+      let folderPaths: Record<string, string> = {};
+      if (req.body.folderPaths) {
+        try {
+          folderPaths = JSON.parse(req.body.folderPaths);
+        } catch (e) {
+          console.error("Failed to parse folderPaths:", e);
+        }
+      }
 
-        const s3Key = `users/${user.email}/${timestamp}_${path}`;
+      const uploadPromises = files.map(
+        async (file: Express.Multer.File, index: number) => {
+          const timestamp = Date.now();
+          const originalName = file.originalname;
 
-        const uploadParams = {
-          Bucket: BUCKET_NAME,
-          Key: s3Key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-          Metadata: {
-            originalName: file.originalname,
-            uploadDate: new Date().toISOString(),
-            userId: user.id,
-            userEmail: user.email,
-          },
-        };
+          // Get folder path from the parsed metadata
+          const folderPath = folderPaths[index.toString()] || "";
 
-        const parallelUpload = new Upload({
-          client: s3Client,
-          params: uploadParams,
-        });
+          // Build S3 key with folder structure
+          const s3Key = folderPath
+            ? `users/${user.email}/${folderPath}/${timestamp}_${originalName}`
+            : `users/${user.email}/${timestamp}_${originalName}`;
 
-        await parallelUpload.done();
+          const uploadParams = {
+            Bucket: BUCKET_NAME,
+            Key: s3Key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            Metadata: {
+              originalName: originalName,
+              uploadDate: new Date().toISOString(),
+              userId: user.id,
+              userEmail: user.email,
+              folderPath: folderPath,
+            },
+          };
 
-        const webkitPath = (file as any).webkitRelativePath || "";
-        const folderPath = webkitPath
-          ? webkitPath.substring(0, webkitPath.lastIndexOf("/"))
-          : "";
+          const parallelUpload = new Upload({
+            client: s3Client,
+            params: uploadParams,
+          });
 
-        await pool.query(
-          `INSERT INTO user_files (user_id, user_email, original_name, s3_key, folder_path, size, mime_type)
+          await parallelUpload.done();
+
+          await pool.query(
+            `INSERT INTO user_files (user_id, user_email, original_name, s3_key, folder_path, size, mime_type)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            user.id,
-            user.email,
-            file.originalname,
+            [
+              user.id,
+              user.email,
+              originalName,
+              s3Key,
+              folderPath,
+              file.size,
+              file.mimetype,
+            ]
+          );
+
+          return {
+            originalName: originalName,
             s3Key,
             folderPath,
-            file.size,
-            file.mimetype,
-          ]
-        );
-
-        return {
-          originalName: file.originalname,
-          s3Key,
-          folderPath,
-          size: file.size,
-          mimeType: file.mimetype,
-        };
-      });
+            size: file.size,
+            mimeType: file.mimetype,
+          };
+        }
+      );
 
       const results = await Promise.all(uploadPromises);
 
@@ -167,6 +181,95 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to fetch files",
+    });
+  }
+});
+
+// Get user's folders (aggregated from file paths)
+filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    // Get unique top-level folders with file counts and total sizes
+    // This extracts the first segment of folder_path as the "root" folder
+    const result = await pool.query(
+      `SELECT 
+        CASE 
+          WHEN folder_path = '' OR folder_path IS NULL THEN NULL
+          ELSE SPLIT_PART(folder_path, '/', 1)
+        END as root_folder,
+        folder_path,
+        COUNT(*) as file_count,
+        SUM(size) as total_size
+       FROM user_files
+       WHERE user_id = $1
+       GROUP BY folder_path
+       ORDER BY COUNT(*) DESC`,
+      [req.userId]
+    );
+
+    // Aggregate by root folder (top-level folder name)
+    const folderMap = new Map<
+      string,
+      { fileCount: number; totalSize: number; subfolders: Set<string> }
+    >();
+
+    result.rows.forEach((row) => {
+      const folderPath = row.folder_path || "";
+
+      if (!folderPath) {
+        // Files without a folder path - skip for "Suggested Folders"
+        // Or you can include them as "My Files" / "Unsorted"
+        return;
+      }
+
+      // Get the root folder (first segment)
+      const rootFolder = folderPath.split("/")[0];
+
+      if (!folderMap.has(rootFolder)) {
+        folderMap.set(rootFolder, {
+          fileCount: 0,
+          totalSize: 0,
+          subfolders: new Set(),
+        });
+      }
+
+      const folder = folderMap.get(rootFolder)!;
+      folder.fileCount += parseInt(row.file_count, 10);
+      folder.totalSize += parseInt(row.total_size, 10);
+
+      // Track subfolders for potential nested view
+      if (folderPath !== rootFolder) {
+        folder.subfolders.add(folderPath);
+      }
+    });
+
+    // Convert to array format
+    const folders = Array.from(folderMap.entries()).map(([name, data]) => ({
+      name,
+      path: name,
+      fileCount: data.fileCount,
+      totalSize: data.totalSize,
+      hasSubfolders: data.subfolders.size > 0,
+    }));
+
+    // Sort by file count descending
+    folders.sort((a, b) => b.fileCount - a.fileCount);
+
+    res.json({
+      success: true,
+      folders,
+    });
+  } catch (err) {
+    console.error("Error fetching folders:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch folders",
     });
   }
 });
@@ -224,4 +327,41 @@ filesRoutes.delete(
     }
   }
 );
+
+filesRoutes.get("/usage", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        COUNT(*) as total_files,
+        COALESCE(SUM(size), 0) as total_size
+       FROM user_files
+       WHERE user_id = $1`,
+      [req.userId]
+    );
+
+    const stats = result.rows[0];
+
+    res.json({
+      success: true,
+      usage: {
+        totalFiles: parseInt(stats.total_files, 10),
+        totalSize: parseInt(stats.total_size, 10),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching usage stats:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch usage statistics",
+    });
+  }
+});
+
 export default filesRoutes;

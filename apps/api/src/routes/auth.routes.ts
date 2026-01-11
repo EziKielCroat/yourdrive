@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { AuthService } from "../services/auth.service";
 import { authMiddleware, AuthRequest } from "../middleware/auth.middleware";
+import { DeviceService } from "../services/device.service";
 
 const authRoutes = express.Router();
 
@@ -52,6 +53,17 @@ authRoutes.post("/login", loginLimiter, async (req: Request, res: Response) => {
   try {
     const result = await AuthService.login(req.body);
 
+    const deviceInfo = {
+      userAgent: req.headers["user-agent"] || "",
+      ip: req.ip || (req.headers["x-forwarded-for"] as string) || "",
+    };
+
+    const device = await DeviceService.trackDevice(
+      result.user.id,
+      deviceInfo,
+      req.body.deviceName
+    );
+
     res.cookie("refreshToken", result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -60,10 +72,19 @@ authRoutes.post("/login", loginLimiter, async (req: Request, res: Response) => {
       path: "/",
     });
 
+    res.cookie("deviceId", device.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+      path: "/",
+    });
+
     res.json({
       success: true,
       user: result.user,
       accessToken: result.accessToken,
+      currentDevice: device,
     });
   } catch (error: any) {
     if (error.name === "ZodError") {
@@ -178,5 +199,103 @@ authRoutes.get("/status", async (req: Request, res: Response) => {
     });
   }
 });
+
+authRoutes.get(
+  "/device/current",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const deviceId = req.cookies.deviceId;
+
+      if (!deviceId) {
+        return res.status(404).json({
+          success: false,
+          error: "No device information found",
+        });
+      }
+
+      const device = await DeviceService.getDevice(deviceId, req.userId!);
+
+      res.json({
+        success: true,
+        device,
+      });
+    } catch (error: any) {
+      res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+);
+
+authRoutes.get(
+  "/devices",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const devices = await DeviceService.getUserDevices(req.userId!);
+
+      res.json({
+        success: true,
+        devices,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+);
+
+authRoutes.patch(
+  "/device/:deviceId/name",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+      const { name } = req.body;
+
+      const device = await DeviceService.updateDeviceName(
+        deviceId,
+        req.userId!,
+        name
+      );
+
+      res.json({
+        success: true,
+        device,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+);
+
+authRoutes.delete(
+  "/device/:deviceId",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { deviceId } = req.params;
+
+      await DeviceService.removeDevice(deviceId, req.userId!);
+
+      res.json({
+        success: true,
+        message: "Device removed successfully",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+);
 
 export default authRoutes;

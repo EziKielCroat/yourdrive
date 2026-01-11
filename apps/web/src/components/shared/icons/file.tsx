@@ -1,6 +1,6 @@
 import { type JSX } from "react";
 
-const FileIcon = ({
+export const FileIcon = ({
   color = "#CAE7FD",
   width = "9",
   height = "11",

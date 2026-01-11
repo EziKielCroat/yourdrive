@@ -7,8 +7,21 @@ const API_URL = "http://localhost:3000/api";
 interface User {
   id: string;
   email: string;
-  name?: string;
+  name: string | null;
   emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Device {
+  id: string;
+  device_name: string;
+  device_type: string;
+  browser: string;
+  os: string;
+  last_active: string;
+  created_at: string;
+  is_current: boolean;
 }
 
 interface AuthState {
@@ -17,6 +30,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  currentDevice: Device | null;
+  devices: Device[];
+
+  setUser: (user: User | null) => void;
+  setAccessToken: (token: string | null) => void;
+  setIsAuthenticated: (isAuth: boolean) => void;
+  setCurrentDevice: (device: Device | null) => void;
+  setDevices: (devices: Device[]) => void;
 
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
@@ -24,6 +45,9 @@ interface AuthState {
   refreshToken: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+
+  fetchCurrentDevice: (accessToken: string) => Promise<void>;
+  fetchDevices: (accessToken: string) => Promise<void>;
 }
 
 interface LoginResponse {
@@ -66,9 +90,17 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
+      currentDevice: null,
+      devices: [],
       isAuthenticated: false,
       isLoading: false,
       error: null,
+
+      setUser: (user) => set({ user }),
+      setAccessToken: (token) => set({ accessToken: token }),
+      setIsAuthenticated: (isAuth) => set({ isAuthenticated: isAuth }),
+      setCurrentDevice: (device) => set({ currentDevice: device }),
+      setDevices: (devices) => set({ devices }),
 
       login: async (email: string, password: string): Promise<void> => {
         set({ isLoading: true, error: null });
@@ -127,6 +159,8 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             accessToken: null,
             isAuthenticated: false,
+            currentDevice: null,
+            devices: [],
             error: null,
           });
         }
@@ -176,6 +210,42 @@ export const useAuthStore = create<AuthState>()(
             );
             await get().logout();
           }
+        }
+      },
+
+      fetchCurrentDevice: async (accessToken: string) => {
+        try {
+          const response = await fetch(`${API_URL}/auth/device/current`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            credentials: "include",
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            set({ currentDevice: data.device });
+          }
+        } catch (error) {
+          console.error("Failed to fetch current device:", error);
+        }
+      },
+
+      fetchDevices: async (accessToken: string) => {
+        try {
+          const response = await fetch(`${API_URL}/auth/devices`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            credentials: "include",
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            set({ devices: data.devices });
+          }
+        } catch (error) {
+          console.error("Failed to fetch devices:", error);
         }
       },
 
