@@ -49,7 +49,7 @@ const Footer: React.FC = () => {
         </IconText>
         <BottomCont>
           <RightsText>
-            © 2025 YourDrive. All rights reserved.
+            © 2026 YourDrive. All rights reserved.
           </RightsText>
           <SocialsWrapper>
             <Image src="/Images/github.svg" width={20} height={20}></Image>

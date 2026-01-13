@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-router": "^1.146.0",
     "@nutrient-sdk/viewer": "^1.10.0",
-    "@tanstack/react-router": "^1.140.0",
     "axios": "^1.13.2",
     "lucide-react": "^0.562.0",
     "motion": "^12.23.25",

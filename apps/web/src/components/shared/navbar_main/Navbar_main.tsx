@@ -3,7 +3,9 @@ import { NavbarContainer, NContLeft, NavLink, NavLinkCont, NContRight } from "./
 import Image from "../image/Image";
 import LandingButton from "../landingbutton/LandingButton";
 import { useAuthStore } from "../../../store/authStore";
-
+import {
+  Link,
+} from "@tanstack/react-router";
 
 type NavbarMainProps = {
     
@@ -20,10 +22,10 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
         <NContLeft>
           <Image src="/logo.svg" alt="Logo" width={135} height={90} />
           <NavLinkCont>
-            <NavLink><a href="/aboutus">About Us</a></NavLink>
-            <NavLink><a href="/pricing">Pricing</a></NavLink>
-            <NavLink><a href="/howitworks">How It Works</a></NavLink>
-            <NavLink><a href="/helpcenter">Help Center</a></NavLink>
+            <NavLink><Link to="/aboutus">About Us</Link></NavLink>
+            <NavLink><Link to="/pricing">Pricing</Link></NavLink>
+            <NavLink><Link to="/howitworks">How It Works</Link></NavLink>
+            <NavLink><Link to="/helpcenter">Help Center</Link></NavLink>
           </NavLinkCont>
         </NContLeft>
         <NContRight>
