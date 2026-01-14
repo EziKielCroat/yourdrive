@@ -37,11 +37,9 @@ export const ItemCont = styled.div`
     width: 100%;
 `;
 export const ImgCont = styled.div`
-    margin: auto;
     display: flex;
-    width: fit-content;
+    width: auto;
     align-items: center;
-    justify-content: center;
 `;
 export const Item = styled.div`
     display: flex;

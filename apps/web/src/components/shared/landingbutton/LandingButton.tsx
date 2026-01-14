@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useMemo } from "react";
+import React, { forwardRef, useEffect } from "react";
 import { useAuthStore } from "../../../store/authStore";
 
 type Variant = "primary" | "secondary" | "ghost";

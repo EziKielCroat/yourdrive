@@ -6,6 +6,7 @@ interface PopupState {
   isPersonPopupOpen: boolean;
   isLastModifiedPopupOpen: boolean;
   isAdvancedPopupOpen: boolean;
+  isNotificationPopupOpen: boolean;
 
   toggleUploadPopup: () => void;
   closeUploadPopup: () => void;
@@ -17,6 +18,8 @@ interface PopupState {
   closeLastModifiedPopup: () => void;
   toggleAdvancedPopup: () => void;
   closeAdvancedPopup: () => void;
+  toggleNotificationPopup: () => void;
+  closeNotificationPopup: () => void;
 }
 
 export const usePopupStore = create<PopupState>((set) => ({
@@ -25,6 +28,7 @@ export const usePopupStore = create<PopupState>((set) => ({
   isPersonPopupOpen: false,
   isLastModifiedPopupOpen: false,
   isAdvancedPopupOpen: false,
+  isNotificationPopupOpen: false,
 
   toggleUploadPopup: () =>
     set((state) => {
@@ -71,5 +75,14 @@ export const usePopupStore = create<PopupState>((set) => ({
   closeAdvancedPopup: () =>
     set(() => ({
       isAdvancedPopupOpen: false,
+    })),
+
+  toggleNotificationPopup: () =>
+    set((state) => ({
+      isNotificationPopupOpen: !state.isNotificationPopupOpen,
+    })),
+  closeNotificationPopup: () =>
+    set(() => ({
+      isNotificationPopupOpen: false,
     })),
 }));

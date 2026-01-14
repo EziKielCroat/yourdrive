@@ -27,7 +27,7 @@ export const BlueHeroText = styled.div`
     font-family: "Forma DJR Display";
     font-weight: 500;
     font-size: 96px;
-    color: #1F9AFE;
+    color: #0366d6;
 `;
 export const ShortDesc = styled.div`
     flex: 1;

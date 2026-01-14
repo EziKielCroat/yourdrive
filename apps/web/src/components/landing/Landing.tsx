@@ -13,8 +13,7 @@ import { GlobalReset } from "./styles/landing";
 const LandingPage: React.FC = () => {
   return (
     <>
-      <GlobalReset/>
-      <Navbar_main/>
+      <Navbar_main type='landing'/>
       <Hero />
       <Overview />
       <Tryout />

@@ -17,12 +17,16 @@
     "@aws-sdk/client-s3": "^3.940.0",
     "@aws-sdk/lib-storage": "^3.940.0",
     "@aws-sdk/s3-request-presigner": "^3.940.0",
+    "@monaco-editor/react": "^4.7.0",
     "express": "^5.2.1",
     "framer-motion": "^12.23.25",
     "multer": "^2.0.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
-    "@types/multer": "^2.0.0"
+    "@types/multer": "^2.0.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/styled-components": "^5.1.36"
   }
 }

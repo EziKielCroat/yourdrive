@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import axios, { AxiosError } from "axios";
+import { hardReload } from "../lib/hardReload";
 
 const API_URL = "http://localhost:3000/api";
 
@@ -163,6 +164,8 @@ export const useAuthStore = create<AuthState>()(
             devices: [],
             error: null,
           });
+
+          hardReload();
         }
       },
 

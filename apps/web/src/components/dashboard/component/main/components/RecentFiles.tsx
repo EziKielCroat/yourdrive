@@ -5,6 +5,10 @@ import FilesTable, {
   type FileItem,
 } from "../../../../shared/files_table/FilesTable";
 import { useFileSearch } from "../../../../shared/hooks/useFileSearch";
+import FilePreview from "../../../../shared/filesPreview/FilesPreview";
+
+import { FILES_REFRESH_EVENT } from "../../../../../events/fileEvents";
+import { useEvent } from "../../../../../events/useEvent";
 
 interface ApiFile {
   id: string;
@@ -16,6 +20,41 @@ interface ApiFile {
   created_at: string;
 }
 
+const getEmptyMessage = (hasActiveFilters: boolean): string => {
+  if (hasActiveFilters) {
+    return "No files match your filters";
+  }
+  return "No recent files";
+};
+
+const getEmptySubtext = (hasActiveFilters: boolean): string => {
+  if (hasActiveFilters) {
+    return "Try adjusting your search or filter criteria";
+  }
+  return "Files you upload or interact with will appear here";
+};
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return "Today";
+  } else if (diffDays === 1) {
+    return "Yesterday";
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    });
+  }
+};
+
 const RecentFiles: React.FC = () => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
@@ -23,82 +62,17 @@ const RecentFiles: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
-  // Use the search hook to filter files
   const { filteredFiles, hasActiveFilters, activeFilterCount } =
     useFileSearch(files);
 
-  useEffect(() => {
-    const fetchRecentFiles = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/files?limit=10&sort=recent", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch files");
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-          const transformedFiles: FileItem[] = data.files.map(
-            (file: ApiFile) => ({
-              id: file.id,
-              name: file.original_name,
-              type: "file" as const,
-              mimeType: file.mime_type,
-              lastInteraction: formatDate(file.created_at),
-              lastInteractionType: "uploaded" as const,
-              location: file.folder_path || "Your Files",
-              owner: {
-                name: user?.name || user?.email || "You",
-                isYou: true,
-              },
-              size: file.size,
-            })
-          );
-          setFiles(transformedFiles);
-        }
-      } catch (err) {
-        console.error("Error fetching recent files:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (accessToken) {
-      fetchRecentFiles();
-    }
-  }, [accessToken, user]);
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return "Today";
-    } else if (diffDays === 1) {
-      return "Yesterday";
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
-      return date.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "numeric",
-        year: "numeric",
-      });
-    }
+  const handleFilePreview = (file: FileItem) => {
+    setPreviewFile(file);
   };
 
-  const handleFileClick = (file: FileItem) => {
-    console.log("Open file:", file.name);
-    // TODO: Implement file preview/download
+  const handleClosePreview = () => {
+    setPreviewFile(null);
   };
 
   const handleFileSelect = (file: FileItem, selected: boolean) => {
@@ -124,20 +98,57 @@ const RecentFiles: React.FC = () => {
     // TODO: Implement context menu
   };
 
-  // Determine empty state message based on filters
-  const getEmptyMessage = () => {
-    if (hasActiveFilters) {
-      return "No files match your filters";
+  const fetchRecentFiles = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/files?limit=10&sort=recent", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch files");
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        const transformedFiles: FileItem[] = data.files.map(
+          (file: ApiFile) => ({
+            id: file.id,
+            name: file.original_name,
+            type: "file" as const,
+            mimeType: file.mime_type,
+            lastInteraction: formatDate(file.created_at),
+            lastInteractionType: "uploaded" as const,
+            location: file.folder_path || "Your Files",
+            owner: {
+              name: user?.name || user?.email || "You",
+              isYou: true,
+            },
+            size: file.size,
+            url: file.s3_key,
+          })
+        );
+        setFiles(transformedFiles);
+      }
+    } catch (err) {
+      console.error("Error fetching recent files:", err);
+    } finally {
+      setLoading(false);
     }
-    return "No recent files";
   };
 
-  const getEmptySubtext = () => {
-    if (hasActiveFilters) {
-      return "Try adjusting your search or filter criteria";
+  useEffect(() => {
+    if (accessToken) {
+      fetchRecentFiles();
     }
-    return "Files you upload or interact with will appear here";
-  };
+  }, [accessToken, user]);
+
+  useEvent(FILES_REFRESH_EVENT, () => {
+    fetchRecentFiles();
+  });
 
   return (
     <Container>
@@ -153,15 +164,23 @@ const RecentFiles: React.FC = () => {
       <FilesTable
         files={filteredFiles}
         loading={loading}
-        emptyMessage={getEmptyMessage()}
-        emptySubtext={getEmptySubtext()}
-        onFileClick={handleFileClick}
+        emptyMessage={getEmptyMessage(hasActiveFilters)}
+        emptySubtext={getEmptySubtext(hasActiveFilters)}
+        onFilePreview={handleFilePreview}
         onFileSelect={handleFileSelect}
         onFileContextMenu={handleFileContextMenu}
         selectedFiles={selectedFiles}
         showOwner={true}
         showLocation={true}
       />
+      {previewFile && (
+        <FilePreview
+          fileId={previewFile.id}
+          fileName={previewFile.name}
+          mimeType={previewFile.mimeType}
+          onClose={handleClosePreview}
+        />
+      )}
     </Container>
   );
 };

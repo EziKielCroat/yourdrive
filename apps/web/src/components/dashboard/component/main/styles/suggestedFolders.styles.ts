@@ -105,3 +105,131 @@ export const EmptySubtext = styled.div`
   color: #80868b;
   margin-top: 4px;
 `;
+
+export const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 12px;
+  padding: 0;
+
+  &:hover {
+    background-color: #f1f3f4;
+  }
+
+  &:active {
+    background-color: #e8eaed;
+  }
+`;
+
+export const BackIcon = styled.span`
+  font-size: 20px;
+  color: #5f6368;
+  line-height: 1;
+`;
+
+export const PreviewContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+export const Section = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+export const SectionTitle = styled.h3`
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px 0;
+`;
+
+export const ItemsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+export const FolderItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f8f9fa;
+  }
+
+  &:active {
+    background-color: #f1f3f4;
+  }
+`;
+
+export const FileItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f8f9fa;
+  }
+
+  &:active {
+    background-color: #f1f3f4;
+  }
+`;
+
+export const FileIconWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+export const FileIcon = styled.span`
+  font-size: 20px;
+  line-height: 1;
+`;
+
+export const FileDetails = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+`;
+
+export const ItemName = styled.span`
+  font-size: 14px;
+  color: #202124;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+`;
+
+export const FileSize = styled.span`
+  font-size: 12px;
+  color: #5f6368;
+  flex-shrink: 0;
+`;

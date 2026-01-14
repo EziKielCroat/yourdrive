@@ -17,6 +17,7 @@ import {
   EmptySubtext,
 } from "../styles/suggestedFolders.styles";
 import FilesIcon from "../../../../shared/icons/files";
+import FolderPreviewModal from "./FolderPreviewModal";
 
 interface Folder {
   name: string;
@@ -30,25 +31,20 @@ const SuggestedFolders: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
 
   useEffect(() => {
     const fetchFolders = async () => {
       try {
         setLoading(true);
         const response = await fetch("/api/files/folders", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch folders");
-        }
+        if (!response.ok) throw new Error("Failed to fetch folders");
 
         const data = await response.json();
-        if (data.success) {
-          setFolders(data.folders);
-        }
+        if (data.success) setFolders(data.folders);
       } catch (err) {
         console.error("Error fetching folders:", err);
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -57,9 +53,7 @@ const SuggestedFolders: React.FC = () => {
       }
     };
 
-    if (accessToken) {
-      fetchFolders();
-    }
+    if (accessToken) fetchFolders();
   }, [accessToken]);
 
   const formatSize = (bytes: number): string => {
@@ -68,11 +62,6 @@ const SuggestedFolders: React.FC = () => {
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-  };
-
-  const handleFolderClick = (folder: Folder) => {
-    console.log("Navigate to folder:", folder.path);
-    // TODO: Implement navigation to folder view
   };
 
   if (loading) {
@@ -112,34 +101,40 @@ const SuggestedFolders: React.FC = () => {
   }
 
   return (
-    <Container>
-      <Header>
-        <Title>Suggested Folders</Title>
-      </Header>
-      <FoldersGrid>
-        {folders.slice(0, 6).map((folder) => (
-          <FolderCard
-            key={folder.path}
-            onClick={() => handleFolderClick(folder)}
-          >
-            <FolderIconWrapper>
-              <FilesIcon color="#5f6368" />
-            </FolderIconWrapper>
-            <FolderInfo>
-              <FolderName title={folder.name}>{folder.name}</FolderName>
-              <FolderMeta>
-                {folder.fileCount} {folder.fileCount === 1 ? "file" : "files"}
-                {" ("}
-                {formatSize(folder.totalSize)}
-                {")"}
-              </FolderMeta>
-            </FolderInfo>
-          </FolderCard>
-        ))}
-      </FoldersGrid>
-    </Container>
+    <>
+      <Container>
+        <Header>
+          <Title>Suggested Folders</Title>
+        </Header>
+        <FoldersGrid>
+          {folders.slice(0, 6).map((folder) => (
+            <FolderCard
+              key={folder.path}
+              onClick={() => setSelectedFolder(folder)}
+            >
+              <FolderIconWrapper>
+                <FilesIcon color="#5f6368" />
+              </FolderIconWrapper>
+              <FolderInfo>
+                <FolderName title={folder.name}>{folder.name}</FolderName>
+                <FolderMeta>
+                  {folder.fileCount} {folder.fileCount === 1 ? "file" : "files"}{" "}
+                  ({formatSize(folder.totalSize)})
+                </FolderMeta>
+              </FolderInfo>
+            </FolderCard>
+          ))}
+        </FoldersGrid>
+      </Container>
+
+      {selectedFolder && (
+        <FolderPreviewModal
+          folder={selectedFolder}
+          onClose={() => setSelectedFolder(null)}
+        />
+      )}
+    </>
   );
 };
 
-// Styled Components
 export default SuggestedFolders;

@@ -13,10 +13,6 @@ export const GlobalReset = createGlobalStyle`
     background-color: #ffffffff;
   }
 
-  
-  
-
-
   @font-face {
     font-family: "Forma DJR Display";
     src: url("../../../../../../public/fonts/FormaDJRDisplay-Bold-Testing.woff2") format("woff2"),

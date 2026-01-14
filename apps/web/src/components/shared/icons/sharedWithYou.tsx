@@ -2,12 +2,16 @@ import { type JSX } from "react";
 
 const SharedWithYouIcon = ({
   color = "#CAE7FD",
+  height = "18",
+  width = "18",
 }: {
   color?: string;
+  height?: string | number;
+  width?: string | number;
 }): JSX.Element => (
   <svg
-    width="18"
-    height="18"
+    width={width}
+    height={height}
     viewBox="0 0 18 18"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
