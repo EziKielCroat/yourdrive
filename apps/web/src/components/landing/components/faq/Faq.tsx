@@ -47,11 +47,12 @@ const Faq: React.FC = () => {
   ];
 
   return (
+    <>
+    
     <FaqCont>
-      <DetailDesc style={{ marginBottom: "5%" }}>
+      <DetailDesc style={{ marginBottom: "6.5%", margin:"auto", width:"fit-content"}}>
         Frequently asked questions
       </DetailDesc>
-
       <QCont>
         {faqs.map((item, i) => (
           <Question key={i}>
@@ -67,6 +68,7 @@ const Faq: React.FC = () => {
         ))}
       </QCont>
     </FaqCont>
+  </>
   );
 }
 

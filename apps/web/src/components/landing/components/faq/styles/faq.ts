@@ -5,17 +5,21 @@ export const FaqCont = styled.div`
     min-height: 507px;
     margin: auto;
     margin-top: 150px;
+    
 `;
 
 export const QCont = styled.div`
-    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 `;
 export const Question = styled.div`
     display: flex;
+    flex: 1;
     flex-direction: column;
     height: auto;
     width: 80%;
-    margin: 2% 0% 2% 0%;
+    margin: 1% 0% 1% 0%;
     padding: 2% 0% 2% 0%;
     border-bottom: 1px solid #E3E4E9;
 `;

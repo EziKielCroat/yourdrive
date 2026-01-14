@@ -2,7 +2,7 @@ import styled from "styled-components";
 
 export const OverviewContainer = styled.div`
     width: 70%;
-    height: 800px;
+    height: 250px;
     margin: auto;
     display: flex;
     flex-direction: column;
@@ -37,9 +37,11 @@ export const ItemCont = styled.div`
     width: 100%;
 `;
 export const ImgCont = styled.div`
+    margin: auto;
     display: flex;
-    width: auto;
+    width: fit-content;
     align-items: center;
+    justify-content: center;
 `;
 export const Item = styled.div`
     display: flex;

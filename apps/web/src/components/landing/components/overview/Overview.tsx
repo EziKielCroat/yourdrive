@@ -16,10 +16,10 @@ const Overview: React.FC = () => {
         <Item><Image src="/SvgIcons/IP.svg" width={18} height={18} />Instant previews</Item>
         <Item><Image src="/SvgIcons/US.svg" width={18} height={18} />Universal Search</Item>
       </ItemCont>
-      <ImgCont>
-        <Image src="/Images/skibidi.png" width={1116} height={550} />
-      </ImgCont>
     </OverviewContainer>
+    <ImgCont>
+        <Image src="/Images/skibidi.png" width={1116} height={550} />
+    </ImgCont>
     </>
   );
 };
