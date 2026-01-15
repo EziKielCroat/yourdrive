@@ -1,13 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { useRef, type RefObject } from "react";
+import styled from "styled-components";
 import { usePopupStore } from "../popup.store";
 import { useClickOutside } from "../../hooks/useOutsideClick";
 import { usePopupPosition } from "../../hooks/usePopupPosition";
 
-import {
-  PopupContainer,
-  PopupItem,
-} from "../../../dashboard/component/main/styles/filterPopup.styles";
+import { PopupContainer } from "../../../dashboard/component/main/styles/filterPopup.styles";
 
 import WarningIcon from "../../icons/warning";
 import InfoIcon from "../../icons/info";
@@ -27,6 +25,21 @@ const NOTIFICATION_ICONS = {
   info: InfoIcon,
   warning: WarningIcon,
   alert: WarningIcon,
+};
+
+const NOTIFICATION_COLORS = {
+  info: {
+    bg: "#E3F2FD",
+    icon: "#1976D2",
+  },
+  warning: {
+    bg: "#FFF3E0",
+    icon: "#F57C00",
+  },
+  alert: {
+    bg: "#FFEBEE",
+    icon: "#D32F2F",
+  },
 };
 
 const notificationsMock: NotificationItem[] = [
@@ -74,44 +87,126 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({ anchorRef }) => {
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
-        width: "260px",
-        padding: "8px 0",
+        width: "320px",
+        padding: "0",
         display: "flex",
         flexDirection: "column",
-        gap: "2px",
+        gap: "0",
       }}
     >
-      {notificationsMock.length === 0 && (
-        <PopupItem $selected={false}>No notifications</PopupItem>
-      )}
+      <NotificationHeader>Notifications</NotificationHeader>
 
-      {notificationsMock.map((noti) => {
-        const Icon = NOTIFICATION_ICONS[noti.type];
+      <NotificationList>
+        {notificationsMock.length === 0 && (
+          <EmptyState>No new notifications</EmptyState>
+        )}
 
-        return (
-          <PopupItem
-            key={noti.id}
-            $selected={false}
-            style={{
-              display: "flex",
-              gap: "12px",
-              alignItems: "flex-start",
-              padding: "10px 14px",
-            }}
-          >
-            <Icon color="#535355" />
+        {notificationsMock.map((noti) => {
+          const Icon = NOTIFICATION_ICONS[noti.type];
+          const colors = NOTIFICATION_COLORS[noti.type];
 
-            <div>
-              <div style={{ fontWeight: 600 }}>{noti.message}</div>
-              <div style={{ fontSize: "12px", color: "#888" }}>
-                {noti.timestamp}
-              </div>
-            </div>
-          </PopupItem>
-        );
-      })}
+          return (
+            <NotificationItem key={noti.id}>
+              <IconWrapper $bgColor={colors.bg}>
+                <Icon color={colors.icon} />
+              </IconWrapper>
+
+              <NotificationContent>
+                <NotificationMessage>{noti.message}</NotificationMessage>
+                <NotificationTime>{noti.timestamp}</NotificationTime>
+              </NotificationContent>
+            </NotificationItem>
+          );
+        })}
+      </NotificationList>
     </PopupContainer>
   );
 };
 
 export default NotificationPopup;
+
+const NotificationHeader = styled.div`
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const NotificationList = styled.div`
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+`;
+
+const EmptyState = styled.div`
+  padding: 32px 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+`;
+
+const NotificationItem = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: #f9fafb;
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+  }
+`;
+
+const IconWrapper = styled.div<{ $bgColor: string }>`
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background-color: ${(props) => props.$bgColor};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const NotificationContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`;
+
+const NotificationMessage = styled.div`
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 500;
+  line-height: 1.4;
+`;
+
+const NotificationTime = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+`;
