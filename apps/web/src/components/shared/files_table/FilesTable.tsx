@@ -1,6 +1,5 @@
 import React from "react";
 import styled from "styled-components";
-import FileIcon from "../icons/file";
 import FileTypeIcon from "./FileTypeIcon";
 import FolderSmallIcon from "../icons/smallFolder";
 
@@ -30,13 +29,12 @@ interface FilesTableProps {
   emptyMessage?: string;
   emptySubtext?: string;
   onFileClick?: (file: FileItem) => void;
-  onFileSelect?: (file: FileItem, selected: boolean) => void;
+  onFileDoubleClick?: (file: FileItem) => void;
   onFileContextMenu?: (file: FileItem, event: React.MouseEvent) => void;
-  onFilePreview?: (file: FileItem) => void;
   selectedFiles?: Set<string>;
   showOwner?: boolean;
   showLocation?: boolean;
-  fileInteraction?: boolean;
+  renderRowActions?: (file: FileItem) => React.ReactNode;
 }
 
 const FilesTable: React.FC<FilesTableProps> = ({
@@ -45,13 +43,12 @@ const FilesTable: React.FC<FilesTableProps> = ({
   emptyMessage = "No files yet",
   emptySubtext = "Upload files to get started",
   onFileClick,
-  onFileSelect,
+  onFileDoubleClick,
   onFileContextMenu,
-  onFilePreview,
   selectedFiles = new Set(),
   showOwner = true,
   showLocation = true,
-  fileInteraction = false,
+  renderRowActions,
 }) => {
   const formatInteraction = (file: FileItem): string => {
     const actionMap = {
@@ -64,21 +61,15 @@ const FilesTable: React.FC<FilesTableProps> = ({
   };
 
   const handleRowClick = (file: FileItem) => {
-    // If preview handler is provided and this is a file (not folder), use preview
-    if (onFilePreview && file.type === "file") {
-      onFilePreview(file);
-    } else if (onFileClick) {
-      // Otherwise use the regular click handler
+    if (onFileClick) {
       onFileClick(file);
     }
   };
 
-  const handleCheckboxChange = (
-    file: FileItem,
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    e.stopPropagation();
-    onFileSelect?.(file, e.target.checked);
+  const handleRowDoubleClick = (file: FileItem) => {
+    if (onFileDoubleClick) {
+      onFileDoubleClick(file);
+    }
   };
 
   const handleContextMenu = (file: FileItem, e: React.MouseEvent) => {
@@ -113,13 +104,13 @@ const FilesTable: React.FC<FilesTableProps> = ({
       <Table>
         <TableHead>
           <TableRow>
-            {fileInteraction && (
-              <TableHeader style={{ width: "40px" }}></TableHeader>
-            )}
             <TableHeader>Name</TableHeader>
             <TableHeader>Last Interaction</TableHeader>
             {showLocation && <TableHeader>Location</TableHeader>}
             {showOwner && <TableHeader>Owner</TableHeader>}
+            {renderRowActions && (
+              <TableHeader style={{ width: "60px" }}></TableHeader>
+            )}
           </TableRow>
         </TableHead>
       </Table>
@@ -130,19 +121,11 @@ const FilesTable: React.FC<FilesTableProps> = ({
               <TableRow
                 key={file.id}
                 onClick={() => handleRowClick(file)}
+                onDoubleClick={() => handleRowDoubleClick(file)}
                 onContextMenu={(e) => handleContextMenu(file, e)}
                 $selected={selectedFiles.has(file.id)}
+                tabIndex={0}
               >
-                {fileInteraction && (
-                  <TableCell style={{ width: "40px" }}>
-                    <Checkbox
-                      type="checkbox"
-                      checked={selectedFiles.has(file.id)}
-                      onChange={(e) => handleCheckboxChange(file, e)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </TableCell>
-                )}
                 <TableCell>
                   <NameCell>
                     <FileIconWrapper>
@@ -181,6 +164,14 @@ const FilesTable: React.FC<FilesTableProps> = ({
                       )}
                       {file.owner.isYou && <OwnerName>me</OwnerName>}
                     </OwnerCell>
+                  </TableCell>
+                )}
+                {renderRowActions && (
+                  <TableCell
+                    style={{ width: "60px", padding: "8px" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {renderRowActions(file)}
                   </TableCell>
                 )}
               </TableRow>
@@ -239,6 +230,10 @@ const TableRow = styled.tr<{ $selected?: boolean }>`
       $selected ? "#e8f0fe" : "rgba(201, 201, 201, 0.1)"};
   }
 
+  &:focus {
+    outline: none;
+  }
+
   &:last-child {
     border-bottom: none;
   }
@@ -260,13 +255,6 @@ const TableCell = styled.td`
   font-size: 14px;
   color: #202124;
   vertical-align: middle;
-`;
-
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #1a73e8;
 `;
 
 const NameCell = styled.div`

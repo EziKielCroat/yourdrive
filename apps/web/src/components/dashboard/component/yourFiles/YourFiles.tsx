@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
+
 import { type FileItem } from "../../../shared/files_table/FilesTable";
-import FilesTable from "../../../shared/files_table/FilesTable";
+import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
 import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 
@@ -18,20 +19,6 @@ interface ApiFile {
   mime_type: string;
   created_at: string;
 }
-
-const getEmptyMessage = (hasActiveFilters: boolean): string => {
-  if (hasActiveFilters) {
-    return "No files match your filters";
-  }
-  return "No files yet";
-};
-
-const getEmptySubtext = (hasActiveFilters: boolean): string => {
-  if (hasActiveFilters) {
-    return "Try adjusting your search or filter criteria";
-  }
-  return "Upload files to get started";
-};
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -54,13 +41,26 @@ const formatDate = (dateString: string): string => {
   }
 };
 
+const getEmptyMessage = (hasActiveFilters: boolean): string => {
+  if (hasActiveFilters) {
+    return "No files match your filters";
+  }
+  return "No files yet";
+};
+
+const getEmptySubtext = (hasActiveFilters: boolean): string => {
+  if (hasActiveFilters) {
+    return "Try adjusting your search or filter criteria";
+  }
+  return "Upload files to get started";
+};
+
 const YourFiles: React.FC = () => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
 
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const { filteredFiles, hasActiveFilters, activeFilterCount } =
@@ -72,29 +72,6 @@ const YourFiles: React.FC = () => {
 
   const handleClosePreview = () => {
     setPreviewFile(null);
-  };
-
-  const handleFileSelect = (file: FileItem, selected: boolean) => {
-    setSelectedFiles((prev) => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(file.id);
-      } else {
-        newSet.delete(file.id);
-      }
-      return newSet;
-    });
-  };
-
-  const handleFileContextMenu = (file: FileItem, event: React.MouseEvent) => {
-    console.log(
-      "Context menu for:",
-      file.name,
-      "at",
-      event.clientX,
-      event.clientY
-    );
-    // TODO: Implement context menu
   };
 
   const fetchFiles = async () => {
@@ -170,15 +147,12 @@ const YourFiles: React.FC = () => {
         </FilterIndicator>
       )}
 
-      <FilesTable
+      <EnhancedFilesTable
         files={filteredFiles}
         loading={loading}
         emptyMessage={getEmptyMessage(hasActiveFilters)}
         emptySubtext={getEmptySubtext(hasActiveFilters)}
         onFilePreview={handleFilePreview}
-        onFileSelect={handleFileSelect}
-        onFileContextMenu={handleFileContextMenu}
-        selectedFiles={selectedFiles}
         showOwner={false}
         showLocation={true}
       />
