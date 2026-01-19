@@ -13,6 +13,7 @@ import SharePopup from "../popups/share/SharePopup";
 
 import { useFileLoader } from "../hooks/useFileLoader";
 import { usePopupStore } from "../popups/popup.store";
+import { useAuthStore } from "../../../store/authStore";
 
 export interface FilePreviewProps {
   fileId?: string;
@@ -68,14 +69,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({
 }) => {
   const [showInfo, setShowInfo] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const accessToken = useAuthStore((s) => s.accessToken);
+
   const toggleSharingPopup = usePopupStore((state) => state.toggleSharingPopup);
   const isSharingPopupOpen = usePopupStore((state) => state.isSharingPopupOpen);
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
 
   const { fileUrl, detectedType, loading, error } = useFileLoader({
     fileId,
@@ -98,11 +95,6 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     }
   };
 
-  const handleFavorite = () => {
-    setIsFavorited(!isFavorited);
-    if (onFavorite) onFavorite();
-  };
-
   const commonProps = {
     url: fileUrl,
     fileName,
@@ -112,6 +104,48 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     onEdit,
     onDownload: handleDownload,
     onShare: toggleSharingPopup,
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const checkIfFavorited = async () => {
+    if (!fileId) return;
+
+    try {
+      const response = await fetch(`/api/files/favorites/check-favorites`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      const data = await response.json();
+      if (data.success) setIsFavorited(data.favorites.includes(fileId));
+
+      console.log("Favorite check data:", data);
+    } catch (err) {
+      console.error("Error checking favorite:", err);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!fileId) return;
+
+    try {
+      const response = await fetch(`/api/files/favorites/${fileId}/favorite`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      const data = await response.json();
+      if (data.success) setIsFavorited(data.favorited);
+
+      console.log("Toggle favorite data:", data);
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+    }
   };
 
   useEffect(() => {
@@ -132,6 +166,12 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, files.length, currentIndex, onNavigate]);
+
+  useEffect(() => {
+    if (fileId && accessToken) {
+      checkIfFavorited();
+    }
+  }, [fileId, accessToken]);
 
   return (
     <Overlay onClick={handleBackdropClick}>

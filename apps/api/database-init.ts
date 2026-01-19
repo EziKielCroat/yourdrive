@@ -44,6 +44,7 @@ async function setupCoreTables(client) {
         REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
     );
   `);
+
   await client.query(
     `CREATE INDEX "Session_userId_idx" ON "Session"("userId");`,
   );
@@ -66,6 +67,7 @@ async function setupCoreTables(client) {
         REFERENCES "User"(id) ON DELETE CASCADE
     );
   `);
+
   await client.query(
     `CREATE INDEX idx_user_devices_user_id ON user_devices(user_id);`,
   );
@@ -88,6 +90,7 @@ async function setupCoreTables(client) {
         REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
     );
   `);
+
   await client.query(`CREATE INDEX "File_userId_idx" ON "File"("userId");`);
 
   console.log("Creating user_files table...");
@@ -106,6 +109,7 @@ async function setupCoreTables(client) {
         REFERENCES "User"(id) ON DELETE CASCADE
     );
   `);
+
   await client.query(
     `CREATE INDEX idx_user_files_user_id ON user_files(user_id);`,
   );
@@ -135,6 +139,7 @@ async function setupCoreTables(client) {
         REFERENCES "User"(id) ON DELETE CASCADE
     );
   `);
+
   await client.query(
     `CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);`,
   );
@@ -156,6 +161,7 @@ async function setupCoreTables(client) {
       UNIQUE(user_id, provider)
     );
   `);
+
   await client.query(
     `CREATE INDEX idx_linked_accounts_user_id ON linked_accounts(user_id);`,
   );
@@ -179,6 +185,28 @@ async function setupCoreTables(client) {
       BEFORE UPDATE ON user_settings
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
+  `);
+}
+
+async function setupFavoriteTables(client) {
+  console.log("Creating favorited_files table...");
+
+  await client.query(`
+    CREATE TABLE favorited_files (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+      file_id INTEGER NOT NULL REFERENCES user_files(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, file_id)
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_favorited_files_user ON favorited_files(user_id);
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_favorited_files_file ON favorited_files(file_id);
   `);
 }
 
@@ -280,6 +308,7 @@ async function setupDatabase() {
     console.log("Connected");
 
     await setupCoreTables(client);
+    await setupFavoriteTables(client); // <--- NEW
     await setupSharingTables(client);
 
     console.log("\n✅ ALL TABLES CREATED SUCCESSFULLY!");

@@ -10,6 +10,8 @@ import { Upload } from "@aws-sdk/lib-storage";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+import favoritesRoutes from "./favorite.routes";
+
 const filesRoutes = express.Router();
 
 const pool = new Pool({
@@ -35,6 +37,8 @@ const upload = multer({
     fileSize: 100 * 1024 * 1024, // 100MB limit per file
   },
 });
+
+filesRoutes.use("/favorites", favoritesRoutes);
 
 filesRoutes.post(
   "/upload",
@@ -186,7 +190,6 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Get user's folders (aggregated from file paths)
 filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
