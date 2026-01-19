@@ -107,7 +107,7 @@ const SuggestedFolders: React.FC = () => {
           <Title>Suggested Folders</Title>
         </Header>
         <FoldersGrid>
-          {folders.slice(0, 6).map((folder) => (
+          {folders.slice(0, 4).map((folder) => (
             <FolderCard
               key={folder.path}
               onClick={() => setSelectedFolder(folder)}
