@@ -15,7 +15,7 @@ const CoreValues: React.FC = () => {
                         <Title style={{}}>Privacy First.</Title>
                         <ImgCont><Image src="/Images/Backgroundskib.png" height={426} width={406} /></ImgCont>
                         <TextCont>
-                            <Wrap style={{ flexDirection: "column", alignItems: "center" }}>
+                            <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
                                 <Desc>YourDrive is designed with end-to-end</Desc>
                                 <Desc>security at its core.</Desc>
                             </Wrap>
@@ -25,7 +25,7 @@ const CoreValues: React.FC = () => {
                         <Title>Cross-Device Freedom.</Title>
                         <ImgCont><Image src="/Images/Background.png" height={426} width={406} /></ImgCont>
                         <TextCont>
-                            <Wrap style={{ flexDirection: "column", alignItems: "center" }}>
+                            <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
                                 <Desc>Pick up where you left off</Desc>
                                 <Desc>from laptop to tablet to phone.</Desc>
                             </Wrap>
@@ -35,7 +35,7 @@ const CoreValues: React.FC = () => {
                         <Title>Reliability.</Title>
                         <ImgCont><Image src="/Images/Background-1.png" height={426} width={406} /></ImgCont>
                         <TextCont>
-                            <Wrap style={{ flexDirection: "column", alignItems: "center" }}>
+                            <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
                                 <Desc>Your files are always accessible,</Desc>
                                 <Desc>whenever you need them.</Desc>
                             </Wrap>

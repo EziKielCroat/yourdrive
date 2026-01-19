@@ -7,7 +7,7 @@ const Reason: React.FC = () => {
     <>
     <ReasonCont>
         <Title>Why We Built <span style={{color: "#0E84FF"}}>YourDrive</span></Title>
-        <SubTitle style={{padding: "0%"}}>Born from the frustration of scattered files</SubTitle>
+        <SubTitle style={{padding: "0%", marginBottom: "1%"}}>Born from the frustration of scattered files</SubTitle>
         <InfoWrapper>
             <TextWrapper>
                 <SubTitle style={{fontWeight: 400}}>

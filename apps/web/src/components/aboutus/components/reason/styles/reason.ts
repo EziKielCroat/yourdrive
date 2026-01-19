@@ -23,7 +23,6 @@ export const SubTitle = styled.div`
     text-align: center;
     color: #94A0B8;
     font-size: 20px;
-    line-height: 42px;
     letter-spacing: -0.96px;
     font-weight: 500;
     padding: 2.5% 0%;

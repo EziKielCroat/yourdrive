@@ -39,7 +39,9 @@ export const ItemCont = styled.div`
 export const ImgCont = styled.div`
     display: flex;
     width: auto;
+    margin: auto;
     align-items: center;
+    justify-content: center;
 `;
 export const Item = styled.div`
     display: flex;
