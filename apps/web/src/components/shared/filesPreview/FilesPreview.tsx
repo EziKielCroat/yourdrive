@@ -188,7 +188,11 @@ const FilePreview: React.FC<FilePreviewProps> = ({
         </ContentWrapper>
       </Container>
       {isSharingPopupOpen && fileId && (
-        <SharePopup fileId={fileId} fileName={fileName} onClose={() => {}} />
+        <SharePopup
+          fileId={fileId}
+          fileName={fileName}
+          onClose={toggleSharingPopup}
+        />
       )}
     </Overlay>
   );

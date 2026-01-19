@@ -4,8 +4,8 @@ import { Pool } from "pg";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { s3Client } from "./files.routes";
-import { GetObjectCommand } from "@aws-sdk/client-s3/dist-types/commands/GetObjectCommand";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner/dist-types/getSignedUrl";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const sharingRoutes = express.Router();
 
@@ -144,6 +144,7 @@ sharingRoutes.post("/create", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Get share details (public endpoint)
 sharingRoutes.get("/public/:token", async (req, res) => {
   try {
     const { token } = req.params;
@@ -210,6 +211,7 @@ sharingRoutes.get("/public/:token", async (req, res) => {
   }
 });
 
+// Access shared file (with password if needed)
 sharingRoutes.post("/access/:token", async (req, res) => {
   try {
     const { token } = req.params;
@@ -256,6 +258,7 @@ sharingRoutes.post("/access/:token", async (req, res) => {
       }
     }
 
+    // Generate signed URL for Backblaze B2
     const command = new GetObjectCommand({
       Bucket: process.env.B2_BUCKET_NAME,
       Key: share.s3_key,
@@ -271,12 +274,6 @@ sharingRoutes.post("/access/:token", async (req, res) => {
        VALUES ($1, 'accessed', $2)`,
       [share.id, req.ip],
     );
-
-    // Increment view count (optional, add this column if you want)
-    // await pool.query(
-    //   `UPDATE file_shares SET view_count = view_count + 1 WHERE id = $1`,
-    //   [share.id],
-    // );
 
     res.json({
       success: true,

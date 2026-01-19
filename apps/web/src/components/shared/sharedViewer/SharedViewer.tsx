@@ -35,8 +35,14 @@ const SharedViewer: React.FC = () => {
 
   const fetchShareInfo = async () => {
     try {
+      setLoading(true);
+      setError(null);
+
+      console.log("Fetching share info for token:", token);
       const response = await fetch(`/api/sharing/public/${token}`);
       const data = await response.json();
+
+      console.log("Share info response:", data);
 
       if (!data.success) {
         setError(data.error || "Failed to load shared file");
@@ -47,28 +53,37 @@ const SharedViewer: React.FC = () => {
       setFile(data.share);
       setPasswordRequired(data.share.hasPassword);
 
-      // If no password required, try to access immediately
+      // If no password required, automatically get access
       if (!data.share.hasPassword) {
-        await handleAccess();
+        console.log("No password required, getting access...");
+        await handleAccess("");
       } else {
+        console.log("Password required");
         setLoading(false);
       }
     } catch (err) {
+      console.error("Error fetching share info:", err);
       setError("Failed to load shared file");
       setLoading(false);
     }
   };
 
-  const handleAccess = async (pwd?: string) => {
+  const handleAccess = async (pwd: string) => {
     setAuthenticating(true);
+    setError(null);
+
     try {
+      console.log("Requesting access for token:", token);
       const response = await fetch(`/api/sharing/access/${token}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ password: pwd || password }),
       });
 
       const data = await response.json();
+      console.log("Access response:", data);
 
       if (!data.success) {
         setError(data.error || "Failed to access file");
@@ -76,17 +91,21 @@ const SharedViewer: React.FC = () => {
         return;
       }
 
-      // Fetch the actual file URL
-      const fileResponse = await fetch(`/api/files/content/${data.fileId}`);
-      const fileData = await fileResponse.json();
-
-      if (fileData.success) {
-        setFileUrl(fileData.signedUrl);
+      // The signed URL is already returned from the access endpoint
+      if (data.signedUrl) {
+        console.log("✅ Got signed URL successfully");
+        setFileUrl(data.signedUrl);
         setPasswordRequired(false);
+        setLoading(false);
+      } else {
+        console.error("❌ No signed URL in response");
+        setError("No file URL provided");
         setLoading(false);
       }
     } catch (err) {
+      console.error("Error accessing file:", err);
       setError("Failed to access file");
+      setAuthenticating(false);
     } finally {
       setAuthenticating(false);
     }
@@ -94,7 +113,14 @@ const SharedViewer: React.FC = () => {
 
   const handleDownload = () => {
     if (fileUrl) {
-      window.open(fileUrl, "_blank");
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = file?.fileName || "download";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -104,6 +130,97 @@ const SharedViewer: React.FC = () => {
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  // Simple inline preview components to avoid triggering any external file loaders
+  const renderPreview = () => {
+    if (!fileUrl || !file) {
+      return (
+        <NoPreview>
+          <AlertCircle size={48} color="#dadce0" />
+          <NoPreviewText>Unable to load file</NoPreviewText>
+        </NoPreview>
+      );
+    }
+
+    const mimeType = file.mimeType;
+
+    // Image preview
+    if (mimeType.startsWith("image/")) {
+      return (
+        <ImagePreview
+          src={fileUrl}
+          alt={file.fileName}
+          onError={(e) => {
+            console.error("Image failed to load:", fileUrl);
+            console.error("Error event:", e);
+          }}
+        />
+      );
+    }
+
+    // PDF preview
+    if (mimeType === "application/pdf") {
+      return (
+        <PdfPreview>
+          <iframe
+            src={`${fileUrl}#toolbar=0`}
+            width="100%"
+            height="100%"
+            title="PDF Preview"
+          />
+        </PdfPreview>
+      );
+    }
+
+    // Video preview
+    if (mimeType.startsWith("video/")) {
+      return (
+        <VideoPreview controls>
+          <source src={fileUrl} type={mimeType} />
+          Your browser does not support the video tag.
+        </VideoPreview>
+      );
+    }
+
+    // Audio preview
+    if (mimeType.startsWith("audio/")) {
+      return (
+        <AudioPreview controls>
+          <source src={fileUrl} type={mimeType} />
+          Your browser does not support the audio tag.
+        </AudioPreview>
+      );
+    }
+
+    // Text preview for plain text and code files
+    if (
+      mimeType.startsWith("text/") ||
+      mimeType === "application/json" ||
+      mimeType === "application/javascript" ||
+      mimeType === "application/xml"
+    ) {
+      return (
+        <TextPreviewContainer>
+          <TextPreviewFrame src={fileUrl} title="Text Preview" />
+        </TextPreviewContainer>
+      );
+    }
+
+    // No preview available
+    return (
+      <NoPreview>
+        <Eye size={48} color="#dadce0" />
+        <NoPreviewText>Preview not available for this file type</NoPreviewText>
+        <FileTypeBadge>{mimeType}</FileTypeBadge>
+        {file?.permission === "download" && (
+          <DownloadButton onClick={handleDownload}>
+            <Download size={18} />
+            Download to view
+          </DownloadButton>
+        )}
+      </NoPreview>
+    );
   };
 
   if (loading) {
@@ -142,7 +259,7 @@ const SharedViewer: React.FC = () => {
           <PasswordForm
             onSubmit={(e) => {
               e.preventDefault();
-              handleAccess();
+              handleAccess(password);
             }}
           >
             <PasswordInput
@@ -156,6 +273,8 @@ const SharedViewer: React.FC = () => {
               {authenticating ? "Verifying..." : "Access File"}
             </SubmitButton>
           </PasswordForm>
+
+          {error && <ErrorMessage>{error}</ErrorMessage>}
         </PasswordContainer>
       </Container>
     );
@@ -178,7 +297,7 @@ const SharedViewer: React.FC = () => {
             </FileDetails>
           </FileInfo>
 
-          {file?.permission === "download" && (
+          {file?.permission === "download" && fileUrl && (
             <DownloadButton onClick={handleDownload}>
               <Download size={18} />
               Download
@@ -186,39 +305,7 @@ const SharedViewer: React.FC = () => {
           )}
         </ViewerHeader>
 
-        <PreviewArea>
-          {fileUrl && file?.mimeType.startsWith("image/") ? (
-            <ImagePreview src={fileUrl} alt={file.fileName} />
-          ) : fileUrl && file?.mimeType === "application/pdf" ? (
-            <PdfPreview>
-              <iframe
-                src={fileUrl}
-                width="100%"
-                height="100%"
-                title="PDF Preview"
-              />
-            </PdfPreview>
-          ) : fileUrl && file?.mimeType.startsWith("video/") ? (
-            <VideoPreview controls>
-              <source src={fileUrl} type={file.mimeType} />
-            </VideoPreview>
-          ) : fileUrl && file?.mimeType.startsWith("audio/") ? (
-            <AudioPreview controls>
-              <source src={fileUrl} type={file.mimeType} />
-            </AudioPreview>
-          ) : (
-            <NoPreview>
-              <Eye size={48} color="#dadce0" />
-              <NoPreviewText>Preview not available</NoPreviewText>
-              {file?.permission === "download" && (
-                <DownloadButton onClick={handleDownload}>
-                  <Download size={18} />
-                  Download to view
-                </DownloadButton>
-              )}
-            </NoPreview>
-          )}
-        </PreviewArea>
+        <PreviewArea>{renderPreview()}</PreviewArea>
 
         {file?.expiresAt && (
           <ExpirationNotice>
@@ -291,6 +378,16 @@ const ErrorTitle = styled.div`
 const ErrorText = styled.div`
   font-size: 16px;
   color: #5f6368;
+`;
+
+const ErrorMessage = styled.div`
+  padding: 12px 16px;
+  background: #fce8e6;
+  border: 1px solid #d93025;
+  border-radius: 8px;
+  color: #d93025;
+  font-size: 14px;
+  width: 100%;
 `;
 
 const PasswordContainer = styled.div`
@@ -439,6 +536,7 @@ const PreviewArea = styled.div`
   align-items: center;
   justify-content: center;
   background: #f8f9fa;
+  position: relative;
 `;
 
 const ImagePreview = styled.img`
@@ -450,6 +548,10 @@ const ImagePreview = styled.img`
 const PdfPreview = styled.div`
   width: 100%;
   height: 800px;
+
+  iframe {
+    border: none;
+  }
 `;
 
 const VideoPreview = styled.video`
@@ -460,6 +562,21 @@ const VideoPreview = styled.video`
 const AudioPreview = styled.audio`
   width: 100%;
   max-width: 600px;
+`;
+
+const TextPreviewContainer = styled.div`
+  width: 100%;
+  height: 800px;
+  background: white;
+  padding: 24px;
+  overflow: auto;
+`;
+
+const TextPreviewFrame = styled.iframe`
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
 `;
 
 const NoPreview = styled.div`
@@ -473,6 +590,15 @@ const NoPreview = styled.div`
 const NoPreviewText = styled.div`
   font-size: 16px;
   color: #5f6368;
+`;
+
+const FileTypeBadge = styled.div`
+  padding: 6px 12px;
+  background: #e8eaed;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #5f6368;
+  font-family: monospace;
 `;
 
 const ExpirationNotice = styled.div`

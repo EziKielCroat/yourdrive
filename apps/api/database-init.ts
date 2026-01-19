@@ -12,231 +12,286 @@ const pool = new Pool({
       : false,
 });
 
+async function setupCoreTables(client) {
+  console.log("Dropping schema...");
+  await client.query(`DROP SCHEMA public CASCADE;`);
+  await client.query(`CREATE SCHEMA public;`);
+
+  console.log("Creating User table...");
+  await client.query(`
+    CREATE TABLE "User" (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      "emailVerified" BOOLEAN DEFAULT false NOT NULL,
+      "loginAttempts" INTEGER DEFAULT 0 NOT NULL,
+      "lockUntil" TIMESTAMP,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    );
+  `);
+
+  console.log("Creating Session table...");
+  await client.query(`
+    CREATE TABLE "Session" (
+      id TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "refreshToken" TEXT UNIQUE NOT NULL,
+      "expiresAt" TIMESTAMP NOT NULL,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId")
+        REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  `);
+  await client.query(
+    `CREATE INDEX "Session_userId_idx" ON "Session"("userId");`,
+  );
+
+  console.log("Creating Devices table...");
+  await client.query(`
+    CREATE TABLE user_devices (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      user_id TEXT NOT NULL,
+      device_name TEXT NOT NULL,
+      device_type TEXT NOT NULL,
+      browser TEXT,
+      os TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      last_active TIMESTAMP DEFAULT NOW(),
+      created_at TIMESTAMP DEFAULT NOW(),
+      is_current BOOLEAN DEFAULT false,
+      CONSTRAINT user_devices_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES "User"(id) ON DELETE CASCADE
+    );
+  `);
+  await client.query(
+    `CREATE INDEX idx_user_devices_user_id ON user_devices(user_id);`,
+  );
+  await client.query(
+    `CREATE INDEX idx_user_devices_last_active ON user_devices(last_active);`,
+  );
+
+  console.log("Creating File table...");
+  await client.query(`
+    CREATE TABLE "File" (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      CONSTRAINT "File_userId_fkey" FOREIGN KEY ("userId") 
+        REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  `);
+  await client.query(`CREATE INDEX "File_userId_idx" ON "File"("userId");`);
+
+  console.log("Creating user_files table...");
+  await client.query(`
+    CREATE TABLE user_files (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      s3_key TEXT NOT NULL,
+      folder_path TEXT DEFAULT '',
+      size BIGINT NOT NULL,
+      mime_type TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      CONSTRAINT user_files_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES "User"(id) ON DELETE CASCADE
+    );
+  `);
+  await client.query(
+    `CREATE INDEX idx_user_files_user_id ON user_files(user_id);`,
+  );
+  await client.query(
+    `CREATE INDEX idx_user_files_folder_path ON user_files(folder_path);`,
+  );
+
+  console.log("Creating user_settings table...");
+  await client.query(`
+    CREATE TABLE user_settings (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT UNIQUE NOT NULL,
+
+      profile JSONB DEFAULT '{"email": "", "firstName": "", "lastName": "", "avatarUrl": null}'::jsonb,
+      security JSONB DEFAULT '{"twoFactorEnabled": false, "clientSideEncryption": false, "offlineModeEnabled": false}'::jsonb,
+      appearance JSONB DEFAULT '{"theme": "system", "fileView": "grid", "thumbnailQuality": "medium"}'::jsonb,
+      language JSONB DEFAULT '{"displayLanguage": "en", "dateFormat": "MM/DD/YYYY", "timeFormat": "12-hour", "timezone": "UTC"}'::jsonb,
+      storage JSONB DEFAULT '{"autoSync": true, "fileVersioning": true, "maxVersionsToKeep": 10}'::jsonb,
+      sharing JSONB DEFAULT '{"defaultLinkPermission": "view", "allowPublicSharing": true, "requirePasswordForLinks": false, "linkExpirationDays": null, "notifyOnShare": true, "allowDownload": true}'::jsonb,
+      preferences JSONB DEFAULT '{"emailNotifications": true, "desktopNotifications": false, "notifyOnUpload": true, "notifyOnShare": true, "notifyOnComment": true, "weeklyDigest": false}'::jsonb,
+      privacy JSONB DEFAULT '{"showOnlineStatus": true, "allowActivityTracking": true, "shareUsageData": false, "indexFilesForSearch": true}'::jsonb,
+
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+      CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES "User"(id) ON DELETE CASCADE
+    );
+  `);
+  await client.query(
+    `CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);`,
+  );
+
+  console.log("Creating linked_accounts table...");
+  await client.query(`
+    CREATE TABLE linked_accounts (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider VARCHAR(50) NOT NULL,
+      provider_user_id VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      access_token TEXT,
+      refresh_token TEXT,
+      linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      is_active BOOLEAN DEFAULT true,
+      CONSTRAINT linked_accounts_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES "User"(id) ON DELETE CASCADE,
+      UNIQUE(user_id, provider)
+    );
+  `);
+  await client.query(
+    `CREATE INDEX idx_linked_accounts_user_id ON linked_accounts(user_id);`,
+  );
+  await client.query(
+    `CREATE INDEX idx_linked_accounts_provider ON linked_accounts(provider);`,
+  );
+
+  console.log("Creating update trigger function...");
+  await client.query(`
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = CURRENT_TIMESTAMP;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await client.query(`
+    CREATE TRIGGER update_user_settings_updated_at
+      BEFORE UPDATE ON user_settings
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  `);
+}
+
+async function setupSharingTables(client) {
+  console.log("Creating file_shares table...");
+  await client.query(`
+    CREATE TABLE file_shares (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      file_id INTEGER NOT NULL,
+      owner_id TEXT NOT NULL,
+      share_token TEXT UNIQUE NOT NULL,
+      share_type VARCHAR(20) NOT NULL CHECK (share_type IN ('link', 'email', 'internal')),
+      permission VARCHAR(20) NOT NULL CHECK (permission IN ('view', 'comment', 'edit', 'download')),
+      password TEXT,
+      expires_at TIMESTAMP,
+      max_downloads INTEGER,
+      download_count INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+
+      CONSTRAINT file_shares_file_id_fkey FOREIGN KEY (file_id)
+        REFERENCES user_files(id) ON DELETE CASCADE,
+
+      CONSTRAINT file_shares_owner_id_fkey FOREIGN KEY (owner_id)
+        REFERENCES "User"(id) ON DELETE CASCADE
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_file_shares_file_id ON file_shares(file_id);
+    CREATE INDEX idx_file_shares_owner_id ON file_shares(owner_id);
+    CREATE INDEX idx_file_shares_token ON file_shares(share_token);
+    CREATE INDEX idx_file_shares_active ON file_shares(is_active) WHERE is_active = true;
+  `);
+
+  console.log("Creating share_recipients...");
+  await client.query(`
+    CREATE TABLE share_recipients (
+      id SERIAL PRIMARY KEY,
+      share_id TEXT NOT NULL,
+      recipient_type VARCHAR(20) NOT NULL CHECK (recipient_type IN ('user', 'email', 'anyone')),
+      recipient_user_id TEXT,
+      recipient_email TEXT,
+      permission VARCHAR(20) NOT NULL CHECK (permission IN ('view', 'comment', 'edit', 'download')),
+      notified BOOLEAN DEFAULT false,
+      last_accessed TIMESTAMP,
+      access_count INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      CONSTRAINT share_recipients_share_id_fkey FOREIGN KEY (share_id)
+        REFERENCES file_shares(id) ON DELETE CASCADE,
+      CONSTRAINT share_recipients_recipient_user_id_fkey FOREIGN KEY (recipient_user_id)
+        REFERENCES "User"(id) ON DELETE CASCADE
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_share_recipients_share_id ON share_recipients(share_id);
+    CREATE INDEX idx_share_recipients_user_id ON share_recipients(recipient_user_id);
+    CREATE INDEX idx_share_recipients_email ON share_recipients(recipient_email);
+  `);
+
+  console.log("Creating share_activity...");
+  await client.query(`
+    CREATE TABLE share_activity (
+      id SERIAL PRIMARY KEY,
+      share_id TEXT NOT NULL,
+      user_id TEXT,
+      action VARCHAR(50) NOT NULL,
+      ip_address TEXT,
+      user_agent TEXT,
+      metadata JSONB,
+      created_at TIMESTAMP DEFAULT NOW(),
+      CONSTRAINT share_activity_share_id_fkey FOREIGN KEY (share_id)
+        REFERENCES file_shares(id) ON DELETE CASCADE,
+      CONSTRAINT share_activity_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES "User"(id) ON DELETE SET NULL
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_share_activity_share_id ON share_activity(share_id);
+    CREATE INDEX idx_share_activity_created_at ON share_activity(created_at DESC);
+  `);
+
+  console.log("Creating file_shares updated_at trigger...");
+  await client.query(`
+    CREATE TRIGGER update_file_shares_updated_at
+      BEFORE UPDATE ON file_shares
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  `);
+}
+
 async function setupDatabase() {
   const client = await pool.connect();
 
   try {
-    console.log("Connected to database");
-    console.log("Dropping existing schema...");
-    await client.query(`DROP SCHEMA public CASCADE;`);
-    await client.query(`CREATE SCHEMA public;`);
-    console.log("Schema reset complete");
+    console.log("Connected");
 
-    console.log("\nCreating User table...");
-    await client.query(`
-      CREATE TABLE "User" (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        "emailVerified" BOOLEAN DEFAULT false NOT NULL,
-        "loginAttempts" INTEGER DEFAULT 0 NOT NULL,
-        "lockUntil" TIMESTAMP,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-      );
-    `);
-    console.log("User table created");
+    await setupCoreTables(client);
+    await setupSharingTables(client);
 
-    console.log("\nCreating Session table...");
-    await client.query(`
-      CREATE TABLE "Session" (
-        id TEXT PRIMARY KEY,
-        "userId" TEXT NOT NULL,
-        "refreshToken" TEXT UNIQUE NOT NULL,
-        "expiresAt" TIMESTAMP NOT NULL,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") 
-          REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX "Session_userId_idx" ON "Session"("userId");
-    `);
-    console.log("Session table created");
-
-    console.log("\nCreating Devices table...");
-    await client.query(`
-      CREATE TABLE user_devices (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-        user_id TEXT NOT NULL,
-        device_name TEXT NOT NULL,
-        device_type TEXT NOT NULL,
-        browser TEXT,
-        os TEXT,
-        ip_address TEXT,
-        user_agent TEXT,
-        last_active TIMESTAMP DEFAULT NOW(),
-        created_at TIMESTAMP DEFAULT NOW(),
-        is_current BOOLEAN DEFAULT false,
-        CONSTRAINT user_devices_user_id_fkey FOREIGN KEY (user_id) 
-          REFERENCES "User"(id) ON DELETE CASCADE
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX idx_user_devices_user_id ON user_devices(user_id);
-    `);
-    await client.query(`
-      CREATE INDEX idx_user_devices_last_active ON user_devices(last_active);
-    `);
-    console.log("Devices table created");
-
-    console.log("\nCreating File table...");
-    await client.query(`
-      CREATE TABLE "File" (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        "mimeType" TEXT NOT NULL,
-        "userId" TEXT NOT NULL,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        CONSTRAINT "File_userId_fkey" FOREIGN KEY ("userId") 
-          REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX "File_userId_idx" ON "File"("userId");
-    `);
-    console.log("File table created");
-
-    console.log("\nCreating user_files table...");
-    await client.query(`
-      CREATE TABLE user_files (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        user_email TEXT NOT NULL,
-        original_name TEXT NOT NULL,
-        s3_key TEXT NOT NULL,
-        folder_path TEXT DEFAULT '',
-        size BIGINT NOT NULL,
-        mime_type TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
-        CONSTRAINT user_files_user_id_fkey FOREIGN KEY (user_id) 
-          REFERENCES "User"(id) ON DELETE CASCADE
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX idx_user_files_user_id ON user_files(user_id);
-    `);
-    await client.query(`
-      CREATE INDEX idx_user_files_folder_path ON user_files(folder_path);
-    `);
-    console.log("user_files table created");
-
-    console.log("\nCreating user_settings table...");
-    await client.query(`
-      CREATE TABLE user_settings (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT UNIQUE NOT NULL,
-        
-        profile JSONB DEFAULT '{"email": "", "firstName": "", "lastName": "", "avatarUrl": null}'::jsonb,
-        security JSONB DEFAULT '{"twoFactorEnabled": false, "clientSideEncryption": false, "offlineModeEnabled": false}'::jsonb,
-        appearance JSONB DEFAULT '{"theme": "system", "fileView": "grid", "thumbnailQuality": "medium"}'::jsonb,
-        language JSONB DEFAULT '{"displayLanguage": "en", "dateFormat": "MM/DD/YYYY", "timeFormat": "12-hour", "timezone": "UTC"}'::jsonb,
-        storage JSONB DEFAULT '{"autoSync": true, "fileVersioning": true, "maxVersionsToKeep": 10}'::jsonb,
-        sharing JSONB DEFAULT '{"defaultLinkPermission": "view", "allowPublicSharing": true, "requirePasswordForLinks": false, "linkExpirationDays": null, "notifyOnShare": true, "allowDownload": true}'::jsonb,
-        preferences JSONB DEFAULT '{"emailNotifications": true, "desktopNotifications": false, "notifyOnUpload": true, "notifyOnShare": true, "notifyOnComment": true, "weeklyDigest": false}'::jsonb,
-        privacy JSONB DEFAULT '{"showOnlineStatus": true, "allowActivityTracking": true, "shareUsageData": false, "indexFilesForSearch": true}'::jsonb,
-        
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) 
-          REFERENCES "User"(id) ON DELETE CASCADE
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);
-    `);
-    console.log("user_settings table created");
-
-    console.log("\nCreating linked_accounts table...");
-    await client.query(`
-      CREATE TABLE linked_accounts (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        provider VARCHAR(50) NOT NULL,
-        provider_user_id VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        access_token TEXT,
-        refresh_token TEXT,
-        linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_active BOOLEAN DEFAULT true,
-        
-        CONSTRAINT linked_accounts_user_id_fkey FOREIGN KEY (user_id) 
-          REFERENCES "User"(id) ON DELETE CASCADE,
-        UNIQUE(user_id, provider)
-      );
-    `);
-
-    await client.query(`
-      CREATE INDEX idx_linked_accounts_user_id ON linked_accounts(user_id);
-      CREATE INDEX idx_linked_accounts_provider ON linked_accounts(provider);
-    `);
-    console.log("linked_accounts table created");
-
-    console.log("\nCreating update trigger function...");
-    await client.query(`
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-    `);
-
-    await client.query(`
-      CREATE TRIGGER update_user_settings_updated_at 
-        BEFORE UPDATE ON user_settings
-        FOR EACH ROW 
-        EXECUTE FUNCTION update_updated_at_column();
-    `);
-    console.log("Trigger created");
-
-    console.log("\nVerifying tables...");
-    const result = await client.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name;
-    `);
-
-    console.log("\nTables created:");
-    result.rows.forEach((row) => {
-      console.log(`  - ${row.table_name}`);
-    });
-
-    console.log("\n✅ Database setup complete!");
-  } catch (error) {
-    console.error("Error setting up database:", error);
-    throw error;
+    console.log("\n✅ ALL TABLES CREATED SUCCESSFULLY!");
+  } catch (err) {
+    console.error(err);
+    throw err;
   } finally {
     client.release();
     await pool.end();
   }
 }
 
-console.log("Checking environment variables...");
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not set in environment variables");
-  process.exit(1);
-}
-console.log("DATABASE_URL found");
-
 setupDatabase()
-  .then(() => {
-    console.log("Done! You can now start your server.");
-    process.exit(0);
-  })
-  .catch((err) => {
-    console.error("Setup failed:", err);
-    process.exit(1);
-  });
+  .then(() => process.exit(0))
+  .catch(() => process.exit(1));
