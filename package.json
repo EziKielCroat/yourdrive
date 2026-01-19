@@ -20,6 +20,7 @@
     "@monaco-editor/react": "^4.7.0",
     "express": "^5.2.1",
     "framer-motion": "^12.23.25",
+    "lucide-react": "^0.562.0",
     "multer": "^2.0.2"
   },
   "devDependencies": {
