@@ -17,6 +17,47 @@ function generateShareToken(): string {
   return crypto.randomBytes(16).toString("hex");
 }
 
+sharingRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId)
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const sharedResult = await pool.query(
+      `
+      SELECT
+        fs.id AS share_id,
+        fs.file_id,
+        fs.permission,
+        fs.share_type,
+        fs.has_password,
+        fs.expires_at,
+        uf.original_name,
+        uf.size,
+        uf.mime_type,
+        u.name AS owner_name,
+        u.email AS owner_email,
+        sr.recipient_type
+      FROM share_recipients sr
+      JOIN file_shares fs ON fs.id = sr.share_id
+      JOIN user_files uf ON uf.id = fs.file_id
+      JOIN "User" u ON u.id = fs.owner_id
+      WHERE sr.recipient_user_id = $1
+        AND fs.is_active = true
+      ORDER BY fs.created_at DESC
+      `,
+      [userId],
+    );
+
+    res.json({ success: true, sharedFiles: sharedResult.rows });
+  } catch (err) {
+    console.error("Error fetching shared files:", err);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch shared files" });
+  }
+});
+
 sharingRoutes.post("/create", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
@@ -485,6 +526,64 @@ sharingRoutes.patch(
     } catch (err) {
       console.error("Error updating share:", err);
       res.status(500).json({ success: false, error: "Failed to update share" });
+    }
+  },
+);
+
+sharingRoutes.get(
+  "/shared-with-me",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.userId;
+      if (!userId)
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+
+      const sharedResult = await pool.query(
+        `
+      SELECT
+        fs.id AS share_id,
+        fs.file_id,
+        fs.permission,
+        fs.share_type,
+        fs.expires_at,
+        uf.original_name,
+        uf.size,
+        uf.mime_type,
+        uf.folder_path,
+        u.name AS owner_name,
+        u.email AS owner_email
+      FROM share_recipients sr
+      JOIN file_shares fs ON fs.id = sr.share_id
+      JOIN user_files uf ON uf.id = fs.file_id
+      JOIN "User" u ON u.id = fs.owner_id
+      WHERE sr.recipient_user_id = $1
+        AND fs.is_active = true
+      ORDER BY fs.created_at DESC
+      `,
+        [userId],
+      );
+
+      const sharedFiles = sharedResult.rows.map((row) => ({
+        share_id: row.share_id,
+        file_id: row.file_id,
+        original_name: row.original_name,
+        size: row.size,
+        mime_type: row.mime_type,
+        folder_path: row.folder_path,
+        permission: row.permission,
+        share_type: row.share_type,
+        expires_at: row.expires_at,
+        owner_name: row.owner_name,
+        owner_email: row.owner_email,
+      }));
+
+      res.json({ success: true, sharedFiles });
+    } catch (err) {
+      console.error("Error fetching shared-with-me files:", err);
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to fetch shared files" });
     }
   },
 );

@@ -10,7 +10,7 @@ import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import { useEvent } from "../../../../events/useEvent";
 
-interface ApiFile {
+export interface ApiFile {
   id: string;
   original_name: string;
   s3_key: string;
@@ -105,7 +105,7 @@ const YourFiles: React.FC = () => {
             },
             size: file.size,
             url: file.s3_key,
-          })
+          }),
         );
         setFiles(transformedFiles);
       }
