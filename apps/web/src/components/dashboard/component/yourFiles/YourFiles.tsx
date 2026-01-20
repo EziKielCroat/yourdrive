@@ -20,7 +20,7 @@ export interface ApiFile {
   created_at: string;
 }
 
-const formatDate = (dateString: string): string => {
+export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

@@ -11,33 +11,47 @@ import {
   Info,
   MoreVertical,
   X,
+  RotateCcw,
 } from "lucide-react";
+import { useFileActions } from "./fileActions";
 
 interface EnhancedFilesTableProps {
-  files: FileItem[];
+  files: EnhancedFileItem[];
   loading?: boolean;
-  emptyMessage?: string;
-  emptySubtext?: string;
   onFilePreview?: (file: FileItem) => void;
   showOwner?: boolean;
   showLocation?: boolean;
+
+  isRecycleBin?: boolean;
+  onRestoreFile?: (fileId: string) => void;
+  onDeletePermanently?: (fileId: string) => void;
+  emptySubtext?: string;
+}
+
+export interface EnhancedFileItem extends FileItem {
+  onDelete?: () => void;
+  onDeletePermanently?: () => void;
+  onRestore?: () => void;
 }
 
 const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   files,
   loading,
-  emptyMessage,
-  emptySubtext,
   onFilePreview,
   showOwner,
   showLocation,
+  isRecycleBin,
+  onRestoreFile,
+  onDeletePermanently,
+  emptySubtext,
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
   const [quickActionsFile, setQuickActionsFile] = useState<string | null>(null);
 
+  const { performFileAction } = useFileActions();
+
   const handleFileClick = (file: FileItem) => {
-    // Single click - toggle selection
     setSelectedFiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(file.id)) {
@@ -50,51 +64,22 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   };
 
   const handleFileDoubleClick = (file: FileItem) => {
-    // Double click - open preview
-    if (onFilePreview) {
-      onFilePreview(file);
-    }
+    onFilePreview?.(file);
   };
 
-  const handleClearSelection = () => {
-    setSelectedFiles(new Set());
-  };
-
-  const handleSelectAll = () => {
+  const handleClearSelection = () => setSelectedFiles(new Set());
+  const handleSelectAll = () =>
     setSelectedFiles(new Set(files.map((f) => f.id)));
-  };
 
-  const handleDownload = () => {
-    console.log("Download files:", Array.from(selectedFiles));
-  };
-
-  const handleShare = () => {
-    console.log("Share files:", Array.from(selectedFiles));
-  };
-
-  const handleDelete = () => {
-    console.log("Delete files:", Array.from(selectedFiles));
-  };
-
-  const handleRename = () => {
-    console.log("Rename file:", Array.from(selectedFiles)[0]);
-  };
-
-  const handleGetLink = () => {
-    console.log("Get link for files:", Array.from(selectedFiles));
-  };
-
-  const handleStar = () => {
-    console.log("Star files:", Array.from(selectedFiles));
-  };
-
-  const handleViewDetails = () => {
-    console.log("View details for:", Array.from(selectedFiles)[0]);
-  };
-
-  const handleQuickAction = (fileId: string, action: string) => {
-    console.log(`Quick action: ${action} on file ${fileId}`);
-    setQuickActionsFile(null);
+  const handleAction = (action: "delete" | "deletePermanently" | "restore") => {
+    if (action === "restore") {
+      selectedFiles.forEach((id) => onRestoreFile?.(id));
+    } else if (action === "deletePermanently") {
+      selectedFiles.forEach((id) => onDeletePermanently?.(id));
+    } else {
+      performFileAction(action, { fileIds: Array.from(selectedFiles) });
+    }
+    setSelectedFiles(new Set());
   };
 
   return (
@@ -109,39 +94,78 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           </LeftSection>
 
           <CenterSection>
-            <IconButton onClick={handleShare} title="Share">
+            <IconButton
+              onClick={() => console.log("Share:", selectedFiles)}
+              title="Share"
+            >
               <Share2 size={18} />
             </IconButton>
-
-            <IconButton onClick={handleDownload} title="Download">
+            <IconButton
+              onClick={() => console.log("Download:", selectedFiles)}
+              title="Download"
+            >
               <Download size={18} />
             </IconButton>
 
             {selectedFiles.size === 1 && (
-              <IconButton onClick={handleRename} title="Rename">
+              <IconButton
+                onClick={() => console.log("Rename:", selectedFiles)}
+                title="Rename"
+              >
                 <Edit3 size={18} />
               </IconButton>
             )}
 
-            <IconButton onClick={handleGetLink} title="Get link">
+            <IconButton
+              onClick={() => console.log("Get link:", selectedFiles)}
+              title="Get link"
+            >
               <Link2 size={18} />
             </IconButton>
 
             {selectedFiles.size === 1 && (
-              <IconButton onClick={handleViewDetails} title="View details">
+              <IconButton
+                onClick={() => console.log("View details:", selectedFiles)}
+                title="View details"
+              >
                 <Info size={18} />
               </IconButton>
             )}
 
-            <IconButton onClick={handleStar} title="Star">
+            <IconButton
+              onClick={() => console.log("Star:", selectedFiles)}
+              title="Star"
+            >
               <Star size={18} />
             </IconButton>
 
             <VerticalDivider />
 
-            <IconButton onClick={handleDelete} $danger title="Delete">
-              <Trash2 size={18} />
-            </IconButton>
+            {isRecycleBin ? (
+              <>
+                <IconButton
+                  onClick={() => handleAction("restore")}
+                  title="Restore"
+                >
+                  <RotateCcw size={18} />
+                </IconButton>
+                <IconButton
+                  $danger
+                  onClick={() => handleAction("deletePermanently")}
+                  title="Delete Forever"
+                >
+                  <Trash2 size={18} />
+                </IconButton>
+              </>
+            ) : (
+              <IconButton
+                $danger
+                onClick={() => handleAction("delete")}
+                title="Delete"
+              >
+                <Trash2 size={18} />
+              </IconButton>
+            )}
           </CenterSection>
 
           <RightSection>
@@ -154,21 +178,18 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
         <FilesTable
           files={files}
           loading={loading}
-          emptyMessage={emptyMessage}
-          emptySubtext={emptySubtext}
           onFileClick={handleFileClick}
           onFileDoubleClick={handleFileDoubleClick}
           selectedFiles={selectedFiles}
           showOwner={showOwner}
           showLocation={showLocation}
+          emptySubtext={emptySubtext}
           renderRowActions={(file) => (
             <QuickActionsWrapper
               onMouseEnter={() => setHoveredFileId(file.id)}
-              onMouseLeave={() => {
-                if (quickActionsFile !== file.id) {
-                  setHoveredFileId(null);
-                }
-              }}
+              onMouseLeave={() =>
+                hoveredFileId !== file.id && setHoveredFileId(null)
+              }
             >
               {(hoveredFileId === file.id || quickActionsFile === file.id) && (
                 <>
@@ -176,7 +197,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setQuickActionsFile(
-                        quickActionsFile === file.id ? null : file.id
+                        quickActionsFile === file.id ? null : file.id,
                       );
                     }}
                     $active={quickActionsFile === file.id}
@@ -185,62 +206,28 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                   </QuickActionsButton>
 
                   {quickActionsFile === file.id && (
-                    <QuickActionsMenu
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseLeave={() => {
-                        setQuickActionsFile(null);
-                        setHoveredFileId(null);
-                      }}
-                    >
-                      <QuickAction
-                        onClick={() => {
-                          if (onFilePreview) {
-                            onFilePreview(file);
-                          }
-                          setQuickActionsFile(null);
-                        }}
-                      >
-                        <Info size={16} />
-                        Preview
+                    <QuickActionsMenu>
+                      <QuickAction onClick={() => onFilePreview?.(file)}>
+                        <Info size={16} /> Preview
                       </QuickAction>
                       <QuickActionDivider />
                       <QuickAction
-                        onClick={() => handleQuickAction(file.id, "share")}
+                        onClick={() => console.log("Share:", file.id)}
                       >
-                        <Share2 size={16} />
-                        Share
+                        <Share2 size={16} /> Share
                       </QuickAction>
                       <QuickAction
-                        onClick={() => handleQuickAction(file.id, "download")}
+                        $danger={isRecycleBin}
+                        onClick={() =>
+                          isRecycleBin
+                            ? onDeletePermanently?.(file.id)
+                            : performFileAction("delete", {
+                                fileIds: [file.id],
+                              })
+                        }
                       >
-                        <Download size={16} />
-                        Download
-                      </QuickAction>
-                      <QuickAction
-                        onClick={() => handleQuickAction(file.id, "rename")}
-                      >
-                        <Edit3 size={16} />
-                        Rename
-                      </QuickAction>
-                      <QuickAction
-                        onClick={() => handleQuickAction(file.id, "link")}
-                      >
-                        <Link2 size={16} />
-                        Get link
-                      </QuickAction>
-                      <QuickAction
-                        onClick={() => handleQuickAction(file.id, "star")}
-                      >
-                        <Star size={16} />
-                        Add to starred
-                      </QuickAction>
-                      <QuickActionDivider />
-                      <QuickAction
-                        $danger
-                        onClick={() => handleQuickAction(file.id, "delete")}
-                      >
-                        <Trash2 size={16} />
-                        Delete
+                        <Trash2 size={16} />{" "}
+                        {isRecycleBin ? "Delete forever" : "Delete"}
                       </QuickAction>
                     </QuickActionsMenu>
                   )}
@@ -253,7 +240,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     </Container>
   );
 };
-
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -278,7 +264,9 @@ const SelectionBar = styled.div`
   padding: 12px 20px;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #e8eaed;
 `;
 
@@ -307,7 +295,11 @@ const SelectionCount = styled.span`
   font-size: 14px;
   font-weight: 500;
   color: #202124;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
 `;
 
@@ -362,7 +354,11 @@ const IconButton = styled.button<{ $danger?: boolean; $active?: boolean }>`
     color: #fff;
     font-size: 12px;
     font-weight: 500;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
       sans-serif;
     border-radius: 6px;
     white-space: nowrap;
@@ -408,7 +404,11 @@ const TextButton = styled.button`
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
   color: #1a73e8;
   cursor: pointer;
@@ -457,7 +457,8 @@ const QuickActionsMenu = styled.div`
   min-width: 200px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(60, 64, 67, 0.15),
+  box-shadow:
+    0 2px 8px rgba(60, 64, 67, 0.15),
     0 6px 20px 4px rgba(60, 64, 67, 0.1);
   padding: 8px 0;
   z-index: 1000;

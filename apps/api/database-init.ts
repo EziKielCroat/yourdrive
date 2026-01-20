@@ -105,6 +105,7 @@ async function setupCoreTables(client) {
       size BIGINT NOT NULL,
       mime_type TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW(),
+      deleted_at TIMESTAMP NULL,
       CONSTRAINT user_files_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES "User"(id) ON DELETE CASCADE
     );
@@ -115,6 +116,10 @@ async function setupCoreTables(client) {
   );
   await client.query(
     `CREATE INDEX idx_user_files_folder_path ON user_files(folder_path);`,
+  );
+
+  await client.query(
+    `CREATE INDEX idx_user_files_deleted_at ON user_files(deleted_at);`,
   );
 
   console.log("Creating user_settings table...");
@@ -301,6 +306,34 @@ async function setupSharingTables(client) {
   `);
 }
 
+async function setupRecycleBinTables(client) {
+  console.log("Creating recycle_bin table...");
+
+  await client.query(`
+    CREATE TABLE recycle_bin (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+      file_id INTEGER NOT NULL REFERENCES user_files(id) ON DELETE CASCADE,
+      original_name TEXT NOT NULL,
+      s3_key TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size BIGINT NOT NULL,
+      folder_path TEXT DEFAULT '',
+      deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, file_id)
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_recycle_bin_user_id ON recycle_bin(user_id);
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_recycle_bin_deleted_at ON recycle_bin(deleted_at DESC);
+  `);
+}
+
 async function setupDatabase() {
   const client = await pool.connect();
 
@@ -308,10 +341,11 @@ async function setupDatabase() {
     console.log("Connected");
 
     await setupCoreTables(client);
-    await setupFavoriteTables(client); // <--- NEW
+    await setupFavoriteTables(client);
     await setupSharingTables(client);
+    await setupRecycleBinTables(client);
 
-    console.log("\n✅ ALL TABLES CREATED SUCCESSFULLY!");
+    console.log("\n ALL TABLES CREATED SUCCESSFULLY!");
   } catch (err) {
     console.error(err);
     throw err;

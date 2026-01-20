@@ -5,9 +5,12 @@ import { prisma } from "../lib/prisma";
 import multer from "multer";
 import { Pool } from "pg";
 
-import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import favoritesRoutes from "./favorite.routes";
@@ -324,6 +327,68 @@ filesRoutes.delete(
   },
 );
 
+filesRoutes.delete(
+  "/soft/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId)
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+
+      const { fileId } = req.params;
+
+      const file = await pool.query(
+        `SELECT id FROM user_files WHERE id = $1 AND user_id = $2`,
+        [fileId, req.userId],
+      );
+
+      if (file.rows.length === 0)
+        return res
+          .status(404)
+          .json({ success: false, error: "File not found" });
+
+      // Insert into recycle bin
+      await pool.query(
+        `INSERT INTO recycle_bin (user_id, file_id, deleted_at)
+       VALUES ($1, $2, NOW())`,
+        [req.userId, fileId],
+      );
+
+      return res.json({ success: true, message: "Moved to Recycle Bin" });
+    } catch (err) {
+      console.error("Soft delete error:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to soft delete file" });
+    }
+  },
+);
+
+filesRoutes.post(
+  "/recycle-bin/restore/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId)
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+
+      const { fileId } = req.params;
+
+      await pool.query(
+        `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
+        [req.userId, fileId],
+      );
+
+      return res.json({ success: true, message: "File restored" });
+    } catch (err) {
+      console.error("Restore error:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to restore file" });
+    }
+  },
+);
+
 filesRoutes.get("/usage", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
@@ -635,6 +700,189 @@ filesRoutes.get(
       return res
         .status(500)
         .json({ success: false, error: "Failed to fetch shared files" });
+    }
+  },
+);
+
+filesRoutes.get(
+  "/recycle-bin",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    const userId = req.userId;
+    const client = await pool.connect();
+
+    try {
+      const result = await client.query(
+        `
+        SELECT
+          file_id,
+          original_name,
+          s3_key,
+          user_email,
+          mime_type,
+          size,
+          folder_path,
+          deleted_at
+        FROM recycle_bin
+        WHERE user_id = $1
+        ORDER BY deleted_at DESC
+      `,
+        [userId],
+      );
+
+      res.json({ success: true, files: result.rows });
+    } catch (err) {
+      console.error(err);
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to fetch recycle bin" });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+filesRoutes.post(
+  "/delete/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    const { fileId } = req.params;
+    const userId = req.userId;
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const fileRes = await client.query(
+        `SELECT * FROM user_files WHERE id = $1 AND user_id = $2`,
+        [fileId, userId],
+      );
+      if (!fileRes.rowCount) {
+        await client.query("ROLLBACK");
+        return res
+          .status(404)
+          .json({ success: false, error: "File not found" });
+      }
+      const file = fileRes.rows[0];
+
+      console.log("Moving file to recycle bin:", file);
+
+      await client.query(
+        `INSERT INTO recycle_bin (user_id, file_id, original_name, mime_type, size, folder_path, s3_key, user_email)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (user_id, file_id) DO UPDATE SET deleted_at = CURRENT_TIMESTAMP`,
+        [
+          userId,
+          file.id,
+          file.original_name,
+          file.mime_type,
+          file.size,
+          file.folder_path,
+          file.s3_key,
+          file.user_email,
+        ],
+      );
+
+      //this is where the functionality gets clunky
+      //await client.query(
+      //  `DELETE FROM user_files WHERE id = $1 AND user_id = $2`,
+      //  [fileId, userId],
+      //);
+
+      await client.query("COMMIT");
+      res.json({ success: true, message: "File moved to Recycle Bin" });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(err);
+      res.status(500).json({ success: false, error: "Delete failed" });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+filesRoutes.post(
+  "/recycle-bin/restore/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    const { fileId } = req.params;
+    const userId = req.userId;
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const recycleRes = await client.query(
+        `SELECT * FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
+        [userId, fileId],
+      );
+      if (!recycleRes.rowCount) {
+        await client.query("ROLLBACK");
+        return res
+          .status(404)
+          .json({ success: false, error: "File not in recycle bin" });
+      }
+      const file = recycleRes.rows[0];
+
+      await client.query(
+        `INSERT INTO user_files (id, user_id, user_email, original_name, s3_key, folder_path, size, mime_type, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO NOTHING`,
+        [
+          file.file_id,
+          file.user_id,
+          file.user_email,
+          file.original_name,
+          file.s3_key,
+          file.folder_path,
+          file.size,
+          file.mime_type,
+        ],
+      );
+
+      await client.query(
+        `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
+        [userId, fileId],
+      );
+
+      await client.query("COMMIT");
+      res.json({ success: true, message: "File restored successfully" });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(err);
+      res.status(500).json({ success: false, error: "Restore failed" });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+filesRoutes.post(
+  "/recycle-bin/delete/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    const { fileId } = req.params;
+    const userId = req.userId;
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      await client.query(
+        `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
+        [userId, fileId],
+      );
+
+      await client.query("COMMIT");
+      res.json({ success: true, message: "File permanently deleted" });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(err);
+      res
+        .status(500)
+        .json({ success: false, error: "Permanent delete failed" });
+    } finally {
+      client.release();
     }
   },
 );

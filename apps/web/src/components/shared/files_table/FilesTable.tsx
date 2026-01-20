@@ -9,7 +9,13 @@ export interface FileItem {
   type: "file" | "folder";
   mimeType?: string;
   lastInteraction: string;
-  lastInteractionType: "uploaded" | "edited" | "viewed" | "shared";
+  lastInteractionType:
+    | "uploaded"
+    | "edited"
+    | "viewed"
+    | "shared"
+    | "deleted"
+    | "favorited";
   location: string;
   owner: {
     name: string;
@@ -63,6 +69,8 @@ const FilesTable: React.FC<FilesTableProps> = ({
       edited: "You edited",
       viewed: "You opened",
       shared: "Shared with you",
+      deleted: "You deleted",
+      favorited: "You favorited",
     };
     return `${actionMap[file.lastInteractionType]} · ${file.lastInteraction}`;
   };
