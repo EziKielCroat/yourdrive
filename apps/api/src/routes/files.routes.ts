@@ -6,13 +6,10 @@ import multer from "multer";
 import { Pool } from "pg";
 
 import { Upload } from "@aws-sdk/lib-storage";
-import {
-  S3Client,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+import { trackFileActivity } from "../lib/helper";
 import favoritesRoutes from "./favorite.routes";
 
 const filesRoutes = express.Router();
@@ -193,6 +190,7 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Get user's folders
 filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
@@ -275,58 +273,7 @@ filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-filesRoutes.delete(
-  "/:fileId",
-  authMiddleware,
-  async (req: AuthRequest, res) => {
-    try {
-      if (!req.userId) {
-        return res.status(401).json({
-          success: false,
-          error: "Authentication required",
-        });
-      }
-
-      const { fileId } = req.params;
-
-      const fileResult = await pool.query(
-        `SELECT s3_key FROM user_files WHERE id = $1 AND user_id = $2`,
-        [fileId, req.userId],
-      );
-
-      if (fileResult.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: "File not found",
-        });
-      }
-
-      // TODO: Delete from B2 as well
-      // const s3Key = fileResult.rows[0].s3_key;
-      // await s3Client.send(new DeleteObjectCommand({
-      //   Bucket: BUCKET_NAME,
-      //   Key: s3Key,
-      // }));
-
-      await pool.query(
-        `DELETE FROM user_files WHERE id = $1 AND user_id = $2`,
-        [fileId, req.userId],
-      );
-
-      res.json({
-        success: true,
-        message: "File deleted successfully",
-      });
-    } catch (err) {
-      console.error("Error deleting file:", err);
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete file",
-      });
-    }
-  },
-);
-
+// Delete to recycle bin
 filesRoutes.delete(
   "/soft/:fileId",
   authMiddleware,
@@ -364,6 +311,7 @@ filesRoutes.delete(
   },
 );
 
+// Get user's usage stats
 filesRoutes.get("/usage", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
@@ -400,6 +348,7 @@ filesRoutes.get("/usage", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Get download for specific file
 filesRoutes.get(
   "/download/:fileId",
   authMiddleware,
@@ -478,6 +427,7 @@ filesRoutes.get(
   },
 );
 
+// Get file content (signed URL)
 filesRoutes.get(
   "/content/:fileId",
   authMiddleware,
@@ -535,6 +485,7 @@ filesRoutes.get(
   },
 );
 
+// Get folder contents
 filesRoutes.get(
   "/folder-contents",
   authMiddleware,
@@ -616,6 +567,7 @@ filesRoutes.get(
   },
 );
 
+// Get user's shared with me files
 filesRoutes.get(
   "/shared-with-me",
   authMiddleware,
@@ -679,6 +631,7 @@ filesRoutes.get(
   },
 );
 
+// Get recycle bin files
 filesRoutes.get(
   "/recycle-bin",
   authMiddleware,
@@ -717,6 +670,7 @@ filesRoutes.get(
   },
 );
 
+// Delete file with id (move to recycle bin)
 filesRoutes.post(
   "/delete/:fileId",
   authMiddleware,
@@ -798,6 +752,7 @@ filesRoutes.post(
   },
 );
 
+// Restore file from recycle bin
 filesRoutes.post(
   "/recycle-bin/restore/:fileId",
   authMiddleware,
@@ -897,6 +852,7 @@ filesRoutes.post(
   },
 );
 
+// Delete file from recycle bin
 filesRoutes.post(
   "/recycle-bin/delete/:fileId",
   authMiddleware,
@@ -923,6 +879,113 @@ filesRoutes.post(
         .json({ success: false, error: "Permanent delete failed" });
     } finally {
       client.release();
+    }
+  },
+);
+
+// Get recently edited files
+filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const { days = 30, limit = 50 } = req.query;
+
+    // Get files edited in the last X days
+    const result = await pool.query(
+      `
+      SELECT 
+        uf.id,
+        uf.original_name,
+        uf.s3_key,
+        uf.folder_path,
+        uf.size,
+        uf.mime_type,
+        uf.created_at,
+        uf.updated_at,
+        COALESCE(
+          (SELECT created_at 
+           FROM file_activity 
+           WHERE file_id = uf.id 
+             AND user_id = $1 
+             AND activity_type = 'edited'
+           ORDER BY created_at DESC 
+           LIMIT 1),
+          uf.updated_at
+        ) as last_edited_at,
+        (
+          SELECT COUNT(*)
+          FROM file_activity
+          WHERE file_id = uf.id
+            AND user_id = $1
+            AND activity_type = 'edited'
+            AND created_at >= NOW() - INTERVAL '${days} days'
+        ) as edit_count,
+        CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
+      FROM user_files uf
+      LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
+      WHERE uf.user_id = $1
+        AND (
+          uf.updated_at >= NOW() - INTERVAL '${days} days'
+          OR EXISTS (
+            SELECT 1 FROM file_activity fa
+            WHERE fa.file_id = uf.id
+              AND fa.user_id = $1
+              AND fa.activity_type = 'edited'
+              AND fa.created_at >= NOW() - INTERVAL '${days} days'
+          )
+        )
+      ORDER BY last_edited_at DESC
+      LIMIT $2
+      `,
+      [req.userId, limit],
+    );
+
+    res.json({
+      success: true,
+      files: result.rows,
+      count: result.rows.length,
+    });
+  } catch (err) {
+    console.error("Error fetching recent files:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch recent files",
+    });
+  }
+});
+
+// Track when a file is edited
+filesRoutes.post(
+  "/activity/:fileId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const { fileId } = req.params;
+      const { activityType, metadata } = req.body;
+
+      if (!req.userId) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      await trackFileActivity(
+        parseInt(fileId),
+        req.userId,
+        activityType,
+        metadata || {},
+        pool,
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error tracking activity:", err);
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to track activity" });
     }
   },
 );

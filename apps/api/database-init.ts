@@ -342,6 +342,48 @@ async function setupRecycleBinTables(client) {
   );
 }
 
+async function setupFileActivityTable(client) {
+  console.log("Creating file_activity table...");
+
+  await client.query(`
+    CREATE TABLE file_activity (
+      id SERIAL PRIMARY KEY,
+      file_id INTEGER NOT NULL REFERENCES user_files(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+      activity_type VARCHAR(50) NOT NULL CHECK (activity_type IN ('created', 'edited', 'viewed', 'downloaded', 'renamed', 'moved', 'shared')),
+      created_at TIMESTAMP DEFAULT NOW(),
+      metadata JSONB DEFAULT '{}'::jsonb
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX idx_file_activity_file_id ON file_activity(file_id);
+    CREATE INDEX idx_file_activity_user_id ON file_activity(user_id);
+    CREATE INDEX idx_file_activity_created_at ON file_activity(created_at DESC);
+    CREATE INDEX idx_file_activity_type ON file_activity(activity_type);
+  `);
+
+  await client.query(`
+    ALTER TABLE user_files 
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+  `);
+
+  await client.query(`
+    CREATE OR REPLACE FUNCTION update_user_files_updated_at()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trigger_update_user_files_updated_at
+      BEFORE UPDATE ON user_files
+      FOR EACH ROW
+      EXECUTE FUNCTION update_user_files_updated_at();
+  `);
+}
+
 async function setupDatabase() {
   const client = await pool.connect();
 
@@ -352,6 +394,7 @@ async function setupDatabase() {
     await setupFavoriteTables(client);
     await setupSharingTables(client);
     await setupRecycleBinTables(client);
+    await setupFileActivityTable(client);
 
     console.log("\n✅ ALL TABLES CREATED SUCCESSFULLY!");
     console.log(
