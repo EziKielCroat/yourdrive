@@ -1,36 +1,53 @@
 #!/usr/bin/env node
-import { execSync, spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
-import readline from "readline";
 
 const root = path.resolve();
 const isWin = process.platform === "win32";
 
+let processes = [];
+
+// --- Logging ---
 function log(msg, color = 35) {
   console.log(`\x1b[${color}m[dev]\x1b[0m ${msg}`);
 }
 
+// --- Spawn child processes safely ---
 function run(label, cwd, args = ["run", "dev"]) {
   const cmd = isWin ? "npm.cmd" : "npm";
-  const proc = spawn(cmd, args, { cwd, shell: true, stdio: "inherit" });
-  proc.on("close", (code) => log(`${label} stopped (code ${code}).`, 31));
+
+  const proc = spawn(cmd, args, {
+    cwd,
+    shell: true,
+    stdio: "inherit",
+    detached: !isWin, // detached only on Unix
+  });
+
+  processes.push({ label, proc });
+
+  proc.on("close", (code) =>
+    log(`${label} stopped (code ${code})`, 31)
+  );
+
   return proc;
 }
 
+// --- Detect monorepo structure ---
 function detectStructure() {
   const combos = [
     { api: "apps/api", web: "apps/web" },
     { api: "api", web: "web" },
-    { api: "api", web: "client" }
+    { api: "api", web: "client" },
   ];
   return combos.find(
-    s =>
+    (s) =>
       fs.existsSync(path.join(root, s.api)) &&
       fs.existsSync(path.join(root, s.web))
   );
 }
 
+// --- Docker helpers ---
 function isDockerRunning() {
   try {
     const output = execSync("docker info", { stdio: "pipe" }).toString();
@@ -62,7 +79,7 @@ function buildVertImage() {
       "--build-arg PUB_DONATION_URL=https://donations.vert.sh",
       "--build-arg PUB_DISABLE_ALL_EXTERNAL_REQUESTS=false",
       '--build-arg PUB_STRIPE_KEY=""',
-      "https://github.com/VERT-sh/VERT.git"
+      "https://github.com/VERT-sh/VERT.git",
     ].join(" "),
     { stdio: "inherit" }
   );
@@ -91,18 +108,55 @@ function runVertContainer() {
   return true;
 }
 
+// --- Terminal dashboard ---
 function printDashboard() {
-  const border = "═".repeat(50);
-  console.log(`\n\x1b[44m\x1b[37m╔${border}╗\x1b[0m`);
-  console.log(`\x1b[44m\x1b[37m║${" Dev Environment Started Successfully! ".padStart(32 + 9).padEnd(50)}║\x1b[0m`);
-  console.log(`\x1b[44m\x1b[37m╠${border}╣\x1b[0m`);
-  console.log(`\x1b[44m\x1b[37m║ ${"\u2728 Web:".padEnd(12)} http://localhost:5173/`.padEnd(50) + "║\x1b[0m");
-  console.log(`\x1b[44m\x1b[37m║ ${"\u2699 API:".padEnd(12)} http://localhost:3000/`.padEnd(50) + "║\x1b[0m");
-  // console.log(`\x1b[44m\x1b[37m║ ${"\u25B2 VERT:".padEnd(12)} http://localhost:3001/`.padEnd(50) + "║\x1b[0m");
-  console.log(`\x1b[44m\x1b[37m╚${border}╝\x1b[0m\n`);
+
+  // todo make actually changeable with the env
+  const lines = [
+    "Dev Environment Started Successfully!",
+    "Web:         http://localhost:5173/",
+    "API:         http://localhost:3000/",
+  ];
+
+  const maxLength = Math.max(...lines.map((line) => line.length));
+  const border = "═".repeat(maxLength + 2);
+
+  const padLine = (text) => `║ ${text.padEnd(maxLength)} ║`;
+
+  console.log(`\n╔${border}╗`);
+  console.log(padLine(lines[0]));
+  console.log(`╠${border}╣`);
+  for (let i = 1; i < lines.length; i++) console.log(padLine(lines[i]));
+  console.log(`╚${border}╝\n`);
   console.log("Press Ctrl+C to stop everything gracefully.\n");
 }
 
+// --- Graceful shutdown ---
+function cleanup() {
+  log("Shutting down dev environment...", 33);
+
+  // Kill all child processes
+  for (const { label, proc } of processes) {
+    try {
+      if (isWin) {
+        execSync(`taskkill /PID ${proc.pid} /T /F`, { stdio: "ignore" });
+      } else {
+        process.kill(-proc.pid);
+      }
+      log(`${label} stopped`, 32);
+    } catch {}
+  }
+
+  // Remove Vert container if running
+  // try {
+  //  execSync("docker rm -f vert", { stdio: "ignore" });
+  //} catch {}
+
+  log("Cleanup complete.", 32);
+  console.log("\nYou can now continue using this terminal.\n");
+}
+
+// --- Main ---
 (async () => {
   console.clear();
   log("Starting full dev environment...", 36);
@@ -113,36 +167,25 @@ function printDashboard() {
     process.exit(1);
   }
 
-  log("Checking Docker...", 36);
-  if (!isDockerRunning()) {
-    log("Docker not running. Please start Docker Desktop.", 31);
-    process.exit(1);
-  }
-  log("Docker is running", 32);
+  // log("Checking Docker...", 36);
+  // if (!isDockerRunning()) {
+  //   log("Docker not running. Please start Docker Desktop.", 31);
+  //   process.exit(1);
+  // }
+  // log("Docker is running", 32);
 
-  if (!isImagePresent("vert-local")) {
-    buildVertImage();
-  } else {
-    log("Vert image already exists locally", 32);
-  }
+  // if (!isImagePresent("vert-local")) buildVertImage();
+  // else log("Vert image already exists locally", 32);
 
   // runVertContainer(); // optional
 
-  const api = run("API", path.join(root, structure.api));
+  // Start API & Web
+  run("API", path.join(root, structure.api));
   setTimeout(() => run("Web", path.join(root, structure.web)), 500);
 
   setTimeout(printDashboard, 2000);
 
-  const cleanup = () => {
-    log("Shutting down dev environment...", 33);
-    try { api.kill(); } catch {}
-    try { execSync("docker rm -f vert", { stdio: "ignore" }); } catch {}
-    log("Cleanup complete.", 32);
-
-    readline.cursorTo(process.stdout, 0, process.stdout.rows);
-    console.log("\n\x1b[36mYou can now continue using this terminal.\x1b[0m\n");
-  };
-
+  // Catch signals
   process.on("SIGINT", cleanup);
   process.on("SIGTERM", cleanup);
 })();
