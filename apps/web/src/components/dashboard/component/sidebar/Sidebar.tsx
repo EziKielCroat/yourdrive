@@ -28,7 +28,8 @@ const Sidebar = () => {
 
   return (
     <SidebarWrapper>
-      <UserInfo user={user} currentDevice={currentDevice} />
+      {user && <UserInfo user={user} currentDevice={currentDevice} />}
+      {/* // todo: fix the name not fucking showing up */}
       <NavigationMenu />
       <UpgradePrompt
         used={usedFormatted}

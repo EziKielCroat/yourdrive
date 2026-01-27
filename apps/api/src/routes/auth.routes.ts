@@ -32,7 +32,13 @@ authRoutes.post(
   registerLimiter,
   async (req: Request, res: Response) => {
     try {
-      const user = await AuthService.register(req.body);
+      const { email, password, firstName } = req.body;
+
+      const user = await AuthService.register({
+        email,
+        password,
+        firstName,
+      });
 
       res.status(201).json({
         success: true,

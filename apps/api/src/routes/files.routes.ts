@@ -6,17 +6,37 @@ import multer from "multer";
 import { Pool } from "pg";
 
 import { Upload } from "@aws-sdk/lib-storage";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  GetObjectCommand,
+  AbortMultipartUploadCommand,
+} from "@aws-sdk/client-s3";
+import {
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { trackFileActivity } from "../lib/helper";
 import favoritesRoutes from "./favorite.routes";
 
+import fs from "fs";
+import path from "path";
+import { promisify } from "util";
+
 const filesRoutes = express.Router();
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
+const unlink = promisify(fs.unlink);
+const readdir = promisify(fs.readdir);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+
+const CHUNKS_DIR = path.join(process.cwd(), "temp", "chunks");
 
 export const s3Client = new S3Client({
   endpoint: process.env.B2_ENDPOINT,
@@ -31,130 +51,280 @@ export const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.B2_BUCKET_NAME;
 
-const upload = multer({
+(async () => {
+  try {
+    await mkdir(CHUNKS_DIR, { recursive: true });
+  } catch (err) {
+    console.error("Failed to create chunks directory:", err);
+  }
+})();
+
+const directUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit per file
+    fileSize: 500 * 1024 * 1024, // 500MB max
+  },
+});
+
+const chunkUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB per chunk
   },
 });
 
 filesRoutes.use("/favorites", favoritesRoutes);
 
 filesRoutes.post(
-  "/upload",
+  "/upload-chunk",
   authMiddleware,
-  upload.array("files"),
+  chunkUpload.single("chunk"),
   async (req: AuthRequest, res) => {
     try {
-      if (!req.userId) {
-        return res.status(401).json({
+      const { uploadId, s3Key, partNumber } = req.body;
+      const chunk = req.file;
+
+      if (!uploadId || !s3Key || !partNumber || !chunk)
+        return res.status(400).json({
           success: false,
-          error: "Authentication required",
+          error: "Missing required fields",
+        });
+
+      const command = new UploadPartCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
+        PartNumber: parseInt(partNumber),
+        Body: chunk.buffer,
+      });
+
+      const result = await s3Client.send(command);
+
+      return res.json({
+        success: true,
+        partNumber: parseInt(partNumber),
+        ETag: result.ETag,
+      });
+    } catch (err) {
+      console.error("Error uploading chunk:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to upload chunk" });
+    }
+  },
+);
+
+// Step 1: Initialize multipart upload
+
+filesRoutes.post(
+  "/init-multipart-upload",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.userId;
+      const {
+        fileName,
+        fileSize,
+        mimeType,
+        folderPath = "",
+        fileHash,
+      } = req.body;
+
+      if (!fileHash)
+        return res.status(400).json({
+          success: false,
+          error: "Missing fileHash (SHA-256 required)",
+        });
+
+      const dupe = await pool.query(
+        `SELECT * FROM user_files
+         WHERE user_id = $1 AND file_hash = $2 AND folder_path = $3
+         LIMIT 1`,
+        [userId, fileHash, folderPath],
+      );
+
+      if (dupe.rows.length > 0) {
+        return res.json({
+          success: false,
+          duplicate: true,
+          existingFile: dupe.rows[0],
         });
       }
 
+      const s3Key = `${userId}/${Date.now()}-${fileName}`;
+
+      const multipart = await s3Client.send(
+        new CreateMultipartUploadCommand({
+          Bucket: BUCKET_NAME,
+          Key: s3Key,
+          ContentType: mimeType,
+        }),
+      );
+
+      return res.json({
+        success: true,
+        uploadId: multipart.UploadId,
+        s3Key,
+      });
+    } catch (err) {
+      console.error("init-multipart-upload error:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Internal server error" });
+    }
+  },
+);
+
+// Step 2: Get presigned URL for uploading a part
+filesRoutes.post(
+  "/get-upload-url",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const { uploadId, s3Key, partNumber } = req.body;
+
+      if (!uploadId || !s3Key || !partNumber)
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+        });
+
+      const command = new UploadPartCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
+        PartNumber: parseInt(partNumber),
+      });
+
+      const uploadUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: 3600,
+      });
+
+      return res.json({
+        success: true,
+        uploadUrl,
+        partNumber: parseInt(partNumber),
+      });
+    } catch (err) {
+      console.error("Error generating upload URL:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to generate upload URL" });
+    }
+  },
+);
+
+// Step 3: Complete multipart upload
+filesRoutes.post(
+  "/complete-multipart-upload",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
       const user = await prisma.user.findUnique({
-        where: { id: req.userId },
+        where: { id: req.userId! },
         select: { id: true, email: true },
       });
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          error: "User not found",
-        });
-      }
+      if (!user)
+        return res
+          .status(404)
+          .json({ success: false, error: "User not found" });
 
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: "No files uploaded",
-        });
-      }
+      const {
+        uploadId,
+        s3Key,
+        fileName,
+        fileSize,
+        mimeType,
+        folderPath = "",
+        fileHash,
+        parts,
+      } = req.body;
 
-      const files = Array.isArray(req.files) ? req.files : [];
+      if (!uploadId || !s3Key || !fileName || !parts || !fileHash)
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required fields" });
 
-      // Parse folder paths from request body (sent as JSON string)
-      let folderPaths: Record<string, string> = {};
-      if (req.body.folderPaths) {
-        try {
-          folderPaths = JSON.parse(req.body.folderPaths);
-        } catch (e) {
-          console.error("Failed to parse folderPaths:", e);
-        }
-      }
-
-      const uploadPromises = files.map(
-        async (file: Express.Multer.File, index: number) => {
-          const timestamp = Date.now();
-          const originalName = file.originalname;
-
-          const folderPath = folderPaths[index.toString()] || "";
-
-          // Build S3 key with folder structure
-          const s3Key = folderPath
-            ? `users/${user.email}/${folderPath}/${timestamp}_${originalName}`
-            : `users/${user.email}/${timestamp}_${originalName}`;
-
-          const uploadParams = {
-            Bucket: BUCKET_NAME,
-            Key: s3Key,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-            Metadata: {
-              originalName: originalName,
-              uploadDate: new Date().toISOString(),
-              userId: user.id,
-              userEmail: user.email,
-              folderPath: folderPath,
-            },
-          };
-
-          const parallelUpload = new Upload({
-            client: s3Client,
-            params: uploadParams,
-          });
-
-          await parallelUpload.done();
-
-          await pool.query(
-            `INSERT INTO user_files (user_id, user_email, original_name, s3_key, folder_path, size, mime_type)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              user.id,
-              user.email,
-              originalName,
-              s3Key,
-              folderPath,
-              file.size,
-              file.mimetype,
-            ],
-          );
-
-          return {
-            originalName: originalName,
-            s3Key,
-            folderPath,
-            size: file.size,
-            mimeType: file.mimetype,
-          };
+      const command = new CompleteMultipartUploadCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
+        MultipartUpload: {
+          Parts: parts.map((p: any) => ({
+            PartNumber: p.PartNumber,
+            ETag: p.ETag,
+          })),
         },
+      });
+
+      await s3Client.send(command);
+
+      // Save metadata + HASH
+      await pool.query(
+        `INSERT INTO user_files 
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, file_hash)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          user.id,
+          user.email,
+          fileName,
+          s3Key,
+          folderPath,
+          fileSize,
+          mimeType,
+          fileHash,
+        ],
       );
 
-      const results = await Promise.all(uploadPromises);
-
-      res.json({
+      return res.json({
         success: true,
-        files: results,
-        message: `Successfully uploaded ${results.length} file(s)`,
+        file: {
+          originalName: fileName,
+          s3Key,
+          folderPath,
+          size: fileSize,
+          mimeType,
+          fileHash,
+        },
       });
     } catch (err) {
-      console.error("Upload error:", err);
-      res.status(500).json({
-        success: false,
-        error: "Upload failed",
-        details: err instanceof Error ? err.message : "Unknown error",
+      console.error("Error completing multipart upload:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to complete upload" });
+    }
+  },
+);
+
+// Step 4: Abort multipart upload (cleanup on cancel/error)
+filesRoutes.post(
+  "/abort-multipart-upload",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const { uploadId, s3Key } = req.body;
+
+      if (!uploadId || !s3Key)
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+        });
+
+      const command = new AbortMultipartUploadCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
       });
+
+      await s3Client.send(command);
+
+      return res.json({ success: true, message: "Upload aborted" });
+    } catch (err) {
+      console.error("Abort upload error:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to abort upload" });
     }
   },
 );

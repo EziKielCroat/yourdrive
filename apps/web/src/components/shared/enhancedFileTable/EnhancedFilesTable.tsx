@@ -13,8 +13,12 @@ import {
   X,
   RotateCcw,
   Eye,
+  Zap,
 } from "lucide-react";
 import { useFileActions } from "./fileActions";
+
+import { ConversionModal } from "../popups/conversion/ConversionPopup";
+import { toast } from "react-hot-toast";
 
 interface EnhancedFilesTableProps {
   files: EnhancedFileItem[];
@@ -31,6 +35,9 @@ interface EnhancedFilesTableProps {
   emptySubtext?: string;
   maxHeight?: number;
   isShared?: boolean;
+  onFilesUpload?: (files: FileList) => Promise<void>;
+  checkStorageLimit?: (totalSize: number) => boolean;
+  showFolderStructure?: boolean;
 }
 
 export interface EnhancedFileItem extends FileItem {
@@ -54,12 +61,16 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   emptySubtext,
   maxHeight = 770,
   isShared,
+  onFilesUpload,
+  checkStorageLimit,
+  showFolderStructure,
 }) => {
   const [internalSelectedFiles, setInternalSelectedFiles] = useState<
     Set<string>
   >(new Set());
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
   const [quickActionsFile, setQuickActionsFile] = useState<string | null>(null);
+  const [conversionFile, setConversionFile] = useState<FileItem | null>(null);
 
   const selectedFiles = externalSelectedFiles ?? internalSelectedFiles;
   const setSelectedFiles = onFileSelect
@@ -147,6 +158,20 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     }
   };
 
+  const handleConvert = () => {
+    if (selectedFiles.size === 1) {
+      const fileId = Array.from(selectedFiles)[0];
+      const file = files.find((f) => f.id === fileId);
+      if (file) {
+        setConversionFile(file);
+      } else {
+        toast.error("File not found for conversion");
+      }
+    } else {
+      toast.error("Please select a single file to convert");
+    }
+  };
+
   return (
     <Container>
       {selectedFiles.size > 0 && (
@@ -164,12 +189,19 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                 <Eye size={18} />
               </IconButton>
             )}
-
             <IconButton
               onClick={() => console.log("Share:", selectedFiles)}
               title="Share"
             >
               <Share2 size={18} />
+            </IconButton>
+
+            <IconButton
+              onClick={() => {
+                handleConvert();
+              }}
+            >
+              <Zap size={16} />
             </IconButton>
             <IconButton
               onClick={() => console.log("Download:", selectedFiles)}
@@ -177,7 +209,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
             >
               <Download size={18} />
             </IconButton>
-
             {selectedFiles.size === 1 && (
               <IconButton
                 onClick={() => console.log("Rename:", selectedFiles)}
@@ -186,14 +217,12 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                 <Edit3 size={18} />
               </IconButton>
             )}
-
             <IconButton
               onClick={() => console.log("Get link:", selectedFiles)}
               title="Get link"
             >
               <Link2 size={18} />
             </IconButton>
-
             {selectedFiles.size === 1 && (
               <IconButton
                 onClick={() => console.log("View details:", selectedFiles)}
@@ -202,16 +231,13 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                 <Info size={18} />
               </IconButton>
             )}
-
             <IconButton
               onClick={() => console.log("Star:", selectedFiles)}
               title="Star"
             >
               <Star size={18} />
             </IconButton>
-
             <VerticalDivider />
-
             {isRecycleBin ? (
               <>
                 <IconButton
@@ -252,12 +278,16 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           onFileClick={handleFileClick}
           onFileDoubleClick={handleFileDoubleClick}
           onFileSelect={onFileSelect}
+          onFilePreview={onFilePreview}
           selectedFiles={selectedFiles}
           showOwner={showOwner}
           showLocation={showLocation}
           emptyMessage={emptyMessage}
           emptySubtext={emptySubtext}
           maxHeight={maxHeight}
+          onFilesUpload={onFilesUpload}
+          checkStorageLimit={checkStorageLimit}
+          showFolderStructure={showFolderStructure}
           renderRowActions={(file) => (
             <QuickActionsWrapper
               onMouseEnter={() => setHoveredFileId(file.id)}
@@ -320,6 +350,15 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                           <QuickActionDivider />
                           <QuickAction
                             onClick={() => {
+                              setConversionFile(file);
+                              setQuickActionsFile(null);
+                            }}
+                          >
+                            <Zap size={16} /> Convert
+                          </QuickAction>
+
+                          <QuickAction
+                            onClick={() => {
                               console.log("Share:", file.id);
                               setQuickActionsFile(null);
                             }}
@@ -347,6 +386,15 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           )}
         />
       </TableWrapper>
+
+      {conversionFile && (
+        <ConversionModal
+          fileId={conversionFile.id}
+          fileName={conversionFile.name}
+          mimeType={conversionFile.mimeType}
+          onClose={() => setConversionFile(null)}
+        />
+      )}
     </Container>
   );
 };

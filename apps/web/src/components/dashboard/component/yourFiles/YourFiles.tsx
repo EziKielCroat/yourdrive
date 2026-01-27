@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
+import { useStorageStore } from "../../../../store/storageStore";
 
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
@@ -9,6 +10,7 @@ import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import { useEvent } from "../../../../events/useEvent";
+import { eventBus } from "../../../../events/eventBus";
 
 export interface ApiFile {
   id: string;
@@ -18,6 +20,14 @@ export interface ApiFile {
   size: number;
   mime_type: string;
   created_at: string;
+}
+
+interface UploadFile {
+  name: string;
+  size: number;
+  progress: number;
+  status: "pending" | "uploading" | "complete" | "error";
+  error?: string;
 }
 
 export const formatDate = (dateString: string): string => {
@@ -41,6 +51,14 @@ export const formatDate = (dateString: string): string => {
   }
 };
 
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(i >= 2 ? 1 : 0)} ${sizes[i]}`;
+};
+
 const getEmptyMessage = (hasActiveFilters: boolean): string => {
   if (hasActiveFilters) {
     return "No files match your filters";
@@ -58,6 +76,8 @@ const getEmptySubtext = (hasActiveFilters: boolean): string => {
 const YourFiles: React.FC = () => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const addUsage = useStorageStore((s) => s.addUsage);
+  const refreshStorage = useStorageStore((s) => s.refreshStorage);
 
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +117,82 @@ const YourFiles: React.FC = () => {
       }
       return newSet;
     });
+  };
+
+  const checkStorageLimit = (totalSize: number): boolean => {
+    const { totalBytes, usedBytes } = useStorageStore.getState();
+    const availableBytes = totalBytes - usedBytes;
+
+    if (totalSize > availableBytes) {
+      alert(
+        `Not enough storage space. You need ${formatBytes(
+          totalSize,
+        )} but only have ${formatBytes(availableBytes)} available.`,
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const handleFilesUpload = async (fileList: FileList): Promise<void> => {
+    if (!fileList.length) return;
+
+    const totalSize = Array.from(fileList).reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+
+    if (!checkStorageLimit(totalSize)) {
+      return;
+    }
+
+    const formData = new FormData();
+    const folderPaths: Record<string, string> = {};
+
+    // Check if files have folder structure
+    const hasStructure = Array.from(fileList).some(
+      (file) => (file as any).webkitRelativePath,
+    );
+
+    Array.from(fileList).forEach((file, index) => {
+      const relativePath = (file as any).webkitRelativePath || "";
+
+      if (hasStructure && relativePath) {
+        const folderPath =
+          relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
+        folderPaths[index] = folderPath;
+      }
+
+      formData.append("files", file);
+    });
+
+    if (hasStructure) {
+      formData.append("folderPaths", JSON.stringify(folderPaths));
+    }
+
+    try {
+      const response = await fetch("http://localhost:3000/api/files/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      addUsage(totalSize);
+
+      await refreshStorage(accessToken);
+      eventBus.emit(FILES_REFRESH_EVENT);
+
+      return result;
+    } catch (err) {
+      console.error("Upload error:", err);
+      throw err;
+    }
   };
 
   const fetchFiles = async () => {
@@ -184,7 +280,10 @@ const YourFiles: React.FC = () => {
         selectedFiles={selectedFiles}
         showOwner={false}
         showLocation={true}
+        showFolderStructure={true}
         maxHeight={770}
+        onFilesUpload={handleFilesUpload}
+        checkStorageLimit={checkStorageLimit}
       />
 
       {previewFile && (
@@ -206,7 +305,7 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px 32px;
+  padding: 16px;
 `;
 
 const Header = styled.div`
@@ -217,6 +316,7 @@ const Header = styled.div`
 `;
 
 const Title = styled.h1`
+  margin-top: 0px;
   font-size: 28px;
   font-weight: 500;
   color: #202124;

@@ -168,6 +168,8 @@ const SharedWithYou: React.FC = () => {
         showLocation={true}
         isShared={true}
         maxHeight={770}
+        // No drag & drop for shared files (users can't upload to shared folders)
+        // onFilesUpload and checkStorageLimit are intentionally omitted
       />
 
       {previewFile && (

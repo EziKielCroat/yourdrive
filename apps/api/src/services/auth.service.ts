@@ -21,7 +21,7 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, "Password must contain lowercase letter")
     .regex(/[0-9]/, "Password must contain number")
     .regex(/[^A-Za-z0-9]/, "Password must contain special character"),
-  name: z.string().min(2).max(50).optional(),
+  firstName: z.string().min(1).max(50).optional(), // CHANGED FROM name TO firstName
 });
 
 export const loginSchema = z.object({
@@ -47,12 +47,12 @@ export class AuthService {
       data: {
         email: validated.email,
         password: hashedPassword,
-        name: validated.name,
+        firstName: validated.firstName,
       },
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
         emailVerified: true,
         createdAt: true,
       },
@@ -74,7 +74,7 @@ export class AuthService {
 
     if (user.lockUntil && user.lockUntil > new Date()) {
       const minutesLeft = Math.ceil(
-        (user.lockUntil.getTime() - Date.now()) / 60000
+        (user.lockUntil.getTime() - Date.now()) / 60000,
       );
       throw new Error(`Account locked. Try again in ${minutesLeft} minutes`);
     }
@@ -106,7 +106,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        firstName: user.firstName, // CHANGED FROM name TO firstName
         emailVerified: user.emailVerified,
       },
       accessToken,
@@ -187,7 +187,7 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true, // CHANGED FROM name TO firstName
         emailVerified: true,
         createdAt: true,
       },

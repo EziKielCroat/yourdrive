@@ -2,7 +2,7 @@ import { UserName, UserDevice } from "../../styles/sidebar";
 
 interface UserInfoProps {
   user: {
-    name: string | null;
+    firstName: string | null;
     id: string;
     email: string;
     emailVerified: boolean;
@@ -16,7 +16,7 @@ interface UserInfoProps {
 const UserInfo = ({ user, currentDevice }: UserInfoProps) => {
   return (
     <>
-      <UserName>{user?.name || "Loading..."}</UserName>
+      <UserName>{user?.firstName || ""}</UserName>
       <UserDevice>{currentDevice?.device_name || "Unknown Device"}</UserDevice>
     </>
   );

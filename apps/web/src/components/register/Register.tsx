@@ -9,7 +9,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState(""); // CHANGED: name → firstName
   const [validationError, setValidationError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +23,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await register(email, password, name || undefined);
+      await register(email, password, firstName || undefined); // CHANGED: name → firstName
       navigate({ to: "/dashboard" });
     } catch (error) {
       console.error("Registration failed:", error);
@@ -58,19 +58,19 @@ export default function RegisterPage() {
           <div className="rounded-md shadow-sm space-y-4">
             <div>
               <label
-                htmlFor="name"
+                htmlFor="firstName"
                 className="block text-sm font-medium text-gray-700"
               >
-                Full name (optional)
+                First name (optional)
               </label>
               <input
-                id="name"
-                name="name"
+                id="firstName"
+                name="firstName"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
               />
             </div>
 

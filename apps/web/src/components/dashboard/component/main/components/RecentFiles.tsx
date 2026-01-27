@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuthStore } from "../../../../../store/authStore";
+import { useStorageStore } from "../../../../../store/storageStore";
 import FilesTable, {
   type FileItem,
 } from "../../../../shared/files_table/FilesTable";
@@ -9,6 +10,7 @@ import FilePreview from "../../../../shared/filesPreview/FilesPreview";
 
 import { FILES_REFRESH_EVENT } from "../../../../../events/fileEvents";
 import { useEvent } from "../../../../../events/useEvent";
+import { eventBus } from "../../../../../events/eventBus";
 
 interface ApiFile {
   id: string;
@@ -19,6 +21,14 @@ interface ApiFile {
   mime_type: string;
   created_at: string;
 }
+
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(i >= 2 ? 1 : 0)} ${sizes[i]}`;
+};
 
 const getEmptyMessage = (hasActiveFilters: boolean): string => {
   if (hasActiveFilters) {
@@ -58,6 +68,8 @@ const formatDate = (dateString: string): string => {
 const RecentFiles: React.FC = () => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const addUsage = useStorageStore((s) => s.addUsage);
+  const refreshStorage = useStorageStore((s) => s.refreshStorage);
 
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +121,83 @@ const RecentFiles: React.FC = () => {
       event.clientX,
       event.clientY,
     );
+  };
+
+  const checkStorageLimit = (totalSize: number): boolean => {
+    const { totalBytes, usedBytes } = useStorageStore.getState();
+    const availableBytes = totalBytes - usedBytes;
+
+    if (totalSize > availableBytes) {
+      alert(
+        `Not enough storage space. You need ${formatBytes(
+          totalSize,
+        )} but only have ${formatBytes(availableBytes)} available.`,
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const handleFilesUpload = async (fileList: FileList): Promise<void> => {
+    if (!fileList.length) return;
+
+    const totalSize = Array.from(fileList).reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+
+    if (!checkStorageLimit(totalSize)) {
+      return;
+    }
+
+    const formData = new FormData();
+    const folderPaths: Record<string, string> = {};
+
+    // Check if files have folder structure
+    const hasStructure = Array.from(fileList).some(
+      (file) => (file as any).webkitRelativePath,
+    );
+
+    Array.from(fileList).forEach((file, index) => {
+      const relativePath = (file as any).webkitRelativePath || "";
+
+      if (hasStructure && relativePath) {
+        const folderPath =
+          relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
+        folderPaths[index] = folderPath;
+      }
+
+      formData.append("files", file);
+    });
+
+    if (hasStructure) {
+      formData.append("folderPaths", JSON.stringify(folderPaths));
+    }
+
+    try {
+      const response = await fetch("http://localhost:3000/api/files/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      addUsage(totalSize);
+
+      await refreshStorage(accessToken);
+      eventBus.emit(FILES_REFRESH_EVENT);
+
+      return result;
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Upload failed. Please try again.");
+      throw err;
+    }
   };
 
   const fetchRecentFiles = async () => {
@@ -187,6 +276,9 @@ const RecentFiles: React.FC = () => {
         showLocation={true}
         singleClickMode="preview"
         maxHeight={650}
+        onFilesUpload={handleFilesUpload}
+        checkStorageLimit={checkStorageLimit}
+        showFolderStructure={false}
       />
       {previewFile && (
         <FilePreview

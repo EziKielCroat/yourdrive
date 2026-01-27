@@ -2,14 +2,19 @@
   "name": "yourdrive-monorepo",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
-    "dev:api": "npm run dev --workspace=apps/api",
-    "dev:web": "npm run dev --workspace=apps/web",
+    "dev": "node scripts/start-dev.js",
+    "dev:api": "cd api && npm run dev",
+    "dev:web": "cd client && npm run dev",
+    "stop": "docker-compose -f docker-compose.dev.yml down",
+    "vert:start": "docker-compose -f docker-compose.dev.yml up -d",
+    "vert:stop": "docker-compose -f docker-compose.dev.yml down",
+    "vert:logs": "docker-compose -f docker-compose.dev.yml logs -f vert",
     "build": "npm run build --workspaces --if-present",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
   },
@@ -18,8 +23,10 @@
     "@aws-sdk/lib-storage": "^3.940.0",
     "@aws-sdk/s3-request-presigner": "^3.940.0",
     "@monaco-editor/react": "^4.7.0",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "framer-motion": "^12.23.25",
+    "is-docker": "^4.0.0",
     "lucide-react": "^0.562.0",
     "multer": "^2.0.2"
   },

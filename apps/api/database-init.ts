@@ -17,11 +17,15 @@ async function setupCoreTables(client) {
   await client.query(`DROP SCHEMA public CASCADE;`);
   await client.query(`CREATE SCHEMA public;`);
 
+  // Enable uuid extension
+  console.log("Enabling UUID extension...");
+  await client.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+
   console.log("Creating User table...");
   await client.query(`
     CREATE TABLE "User" (
-      id TEXT PRIMARY KEY,
-      name TEXT,
+      id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
+      first_name TEXT,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       "emailVerified" BOOLEAN DEFAULT false NOT NULL,
@@ -35,7 +39,7 @@ async function setupCoreTables(client) {
   console.log("Creating Session table...");
   await client.query(`
     CREATE TABLE "Session" (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
       "userId" TEXT NOT NULL,
       "refreshToken" TEXT UNIQUE NOT NULL,
       "expiresAt" TIMESTAMP NOT NULL,
@@ -52,7 +56,7 @@ async function setupCoreTables(client) {
   console.log("Creating enhanced Devices table...");
   await client.query(`
     CREATE TABLE user_devices (
-      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
       user_id TEXT NOT NULL,
       device_name TEXT NOT NULL,
       device_nickname TEXT,
@@ -70,6 +74,11 @@ async function setupCoreTables(client) {
       storage_limit BIGINT,
       notifications_enabled BOOLEAN DEFAULT true,
       last_location TEXT,
+      is_locked BOOLEAN DEFAULT false,
+      lock_message TEXT,
+      locked_at TIMESTAMP,
+      wiped_at TIMESTAMP,
+      force_logout BOOLEAN DEFAULT false,
       CONSTRAINT user_devices_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES "User"(id) ON DELETE CASCADE
     );
@@ -85,7 +94,7 @@ async function setupCoreTables(client) {
   console.log("Creating File table...");
   await client.query(`
     CREATE TABLE "File" (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
       name TEXT NOT NULL,
       path TEXT NOT NULL,
       size INTEGER NOT NULL,
@@ -110,6 +119,7 @@ async function setupCoreTables(client) {
       s3_key TEXT NOT NULL,
       folder_path TEXT DEFAULT '',
       size BIGINT NOT NULL,
+      file_hash TEXT,
       mime_type TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
@@ -121,6 +131,9 @@ async function setupCoreTables(client) {
 
   await client.query(
     `CREATE INDEX idx_user_files_user_id ON user_files(user_id);`,
+  );
+  await client.query(
+    `CREATE INDEX idx_user_files_file_hash ON user_files(file_hash);`,
   );
   await client.query(
     `CREATE INDEX idx_user_files_folder_path ON user_files(folder_path);`,
@@ -138,7 +151,7 @@ async function setupCoreTables(client) {
       id SERIAL PRIMARY KEY,
       user_id TEXT UNIQUE NOT NULL,
 
-      profile JSONB DEFAULT '{"email": "", "firstName": "", "lastName": "", "avatarUrl": null}'::jsonb,
+      profile JSONB DEFAULT '{"email": "", "firstName": "", "avatarUrl": null}'::jsonb,
       security JSONB DEFAULT '{"twoFactorEnabled": false, "clientSideEncryption": false, "offlineModeEnabled": false}'::jsonb,
       appearance JSONB DEFAULT '{"theme": "system", "fileView": "grid", "thumbnailQuality": "medium"}'::jsonb,
       language JSONB DEFAULT '{"displayLanguage": "en", "dateFormat": "MM/DD/YYYY", "timeFormat": "12-hour", "timezone": "UTC"}'::jsonb,
@@ -244,7 +257,7 @@ async function setupSharingTables(client) {
   console.log("Creating file_shares table...");
   await client.query(`
     CREATE TABLE file_shares (
-      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
       file_id INTEGER NOT NULL,
       owner_id TEXT NOT NULL,
       share_token TEXT UNIQUE NOT NULL,
@@ -509,16 +522,6 @@ async function setupDeviceGroupAndActionsTables(client) {
     ON device_activity_audit(created_at DESC);
   `);
 
-  console.log("Adding remote-control columns to user_devices...");
-  await client.query(`
-    ALTER TABLE user_devices
-    ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT false,
-    ADD COLUMN IF NOT EXISTS lock_message TEXT,
-    ADD COLUMN IF NOT EXISTS locked_at TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS wiped_at TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS force_logout BOOLEAN DEFAULT false;
-  `);
-
   console.log("Creating update_device_groups_updated_at trigger...");
   await client.query(`
     CREATE OR REPLACE FUNCTION update_device_groups_updated_at()
@@ -561,6 +564,7 @@ async function setupDatabase() {
     console.log("✅ Device-file relationship tracking enabled");
     console.log("✅ File activity tracking enabled");
     console.log("✅ Recycle bin is independent - deleted files will persist!");
+    console.log("✅ Changed 'name' field to 'first_name' in User table");
   } catch (err) {
     console.error("❌ Database setup failed:", err);
     throw err;
