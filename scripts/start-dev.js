@@ -2,18 +2,19 @@
 import { execSync, spawn } from "child_process";
 import path from "path";
 import fs from "fs";
+import readline from "readline";
 
 const root = path.resolve();
 const isWin = process.platform === "win32";
 
-function log(msg) {
-  console.log(`\x1b[35m[dev]\x1b[0m ${msg}`);
+function log(msg, color = 35) {
+  console.log(`\x1b[${color}m[dev]\x1b[0m ${msg}`);
 }
 
 function run(label, cwd, args = ["run", "dev"]) {
   const cmd = isWin ? "npm.cmd" : "npm";
   const proc = spawn(cmd, args, { cwd, shell: true, stdio: "inherit" });
-  proc.on("close", () => log(`${label} stopped.`));
+  proc.on("close", (code) => log(`${label} stopped (code ${code}).`, 31));
   return proc;
 }
 
@@ -49,7 +50,7 @@ function isImagePresent(imageName) {
 }
 
 function buildVertImage() {
-  log("Building Vert image from GitHub...");
+  log("Building Vert image from GitHub...", 33);
   execSync(
     [
       "docker build",
@@ -68,14 +69,14 @@ function buildVertImage() {
 }
 
 function runVertContainer() {
-  log("Starting Vert container...");
+  log("Starting Vert container...", 33);
   try {
     execSync(
       "docker run -d --name vert -p 3001:80 --restart unless-stopped vert-local",
       { stdio: "inherit" }
     );
   } catch {
-    log("⚠ Existing Vert container detected. Removing...");
+    log("⚠ Existing Vert container detected. Removing...", 33);
     try {
       execSync("docker rm -f vert", { stdio: "inherit" });
       execSync(
@@ -83,15 +84,28 @@ function runVertContainer() {
         { stdio: "inherit" }
       );
     } catch (err2) {
-      log(`❌ Could not start Vert: ${err2.message}`);
-      process.exit(1);
+      log(`❌ Could not start Vert: ${err2.message}`, 31);
+      return false;
     }
   }
+  return true;
+}
+
+function printDashboard() {
+  const border = "═".repeat(50);
+  console.log(`\n\x1b[44m\x1b[37m╔${border}╗\x1b[0m`);
+  console.log(`\x1b[44m\x1b[37m║${" Dev Environment Started Successfully! ".padStart(32 + 9).padEnd(50)}║\x1b[0m`);
+  console.log(`\x1b[44m\x1b[37m╠${border}╣\x1b[0m`);
+  console.log(`\x1b[44m\x1b[37m║ ${"\u2728 Web:".padEnd(12)} http://localhost:5173/`.padEnd(50) + "║\x1b[0m");
+  console.log(`\x1b[44m\x1b[37m║ ${"\u2699 API:".padEnd(12)} http://localhost:3000/`.padEnd(50) + "║\x1b[0m");
+  // console.log(`\x1b[44m\x1b[37m║ ${"\u25B2 VERT:".padEnd(12)} http://localhost:3001/`.padEnd(50) + "║\x1b[0m");
+  console.log(`\x1b[44m\x1b[37m╚${border}╝\x1b[0m\n`);
+  console.log("Press Ctrl+C to stop everything gracefully.\n");
 }
 
 (async () => {
   console.clear();
-  log("Starting full dev environment...");
+  log("Starting full dev environment...", 36);
 
   const structure = detectStructure();
   if (!structure) {
@@ -99,40 +113,36 @@ function runVertContainer() {
     process.exit(1);
   }
 
-  log("Checking Docker...");
+  log("Checking Docker...", 36);
   if (!isDockerRunning()) {
-    log("not running. Please start Docker Desktop.");
+    log("Docker not running. Please start Docker Desktop.", 31);
     process.exit(1);
   }
-  log("Docker is running");
+  log("Docker is running", 32);
 
   if (!isImagePresent("vert-local")) {
     buildVertImage();
   } else {
-    log("Vert image already exists locally");
+    log("Vert image already exists locally", 32);
   }
 
-  // TODO: possibly remove or replace converter service
-  // runVertContainer();
+  // runVertContainer(); // optional
 
-  // Start API & Web
   const api = run("API", path.join(root, structure.api));
   setTimeout(() => run("Web", path.join(root, structure.web)), 500);
 
-  // Success message after short delay to give containers time to start
-  setTimeout(() => {
-    console.log("\n\x1b[42m\x1b[30mDev Environment Started Successfully! \x1b[0m\n");
-    console.log("URLs:");
-    console.log(`- Web:       \x1b[36mhttp://localhost:5173/\x1b[0m`);
-    console.log(`- API:       \x1b[36mhttp://localhost:3000/\x1b[0m`);
-    // console.log(`- VERT:      \x1b[36mhttp://localhost:3001/\x1b[0m\n`);
-    console.log("Press Ctrl+C to stop everything.\n");
-  }, 5000);
+  setTimeout(printDashboard, 2000);
 
-  process.on("SIGINT", () => {
-    log("Shutting down dev environment...");
-    api.kill();
-    try { execSync("docker rm -f vert", { stdio: "inherit" }); } catch {}
-    process.exit(0);
-  });
+  const cleanup = () => {
+    log("Shutting down dev environment...", 33);
+    try { api.kill(); } catch {}
+    try { execSync("docker rm -f vert", { stdio: "ignore" }); } catch {}
+    log("Cleanup complete.", 32);
+
+    readline.cursorTo(process.stdout, 0, process.stdout.rows);
+    console.log("\n\x1b[36mYou can now continue using this terminal.\x1b[0m\n");
+  };
+
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
 })();
