@@ -15,6 +15,7 @@ import {
   CreateMultipartUploadCommand,
   UploadPartCommand,
   CompleteMultipartUploadCommand,
+  PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -75,6 +76,7 @@ const chunkUpload = multer({
 
 filesRoutes.use("/favorites", favoritesRoutes);
 
+// Upload files
 filesRoutes.post(
   "/upload",
   authMiddleware,
@@ -123,19 +125,9 @@ filesRoutes.post(
 
         const result = await pool.query(
           `INSERT INTO user_files 
-           (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, created_at, updated_at)
-           VALUES (
-             $1, 
-             (SELECT email FROM "User" WHERE id = $1), 
-             $2, 
-             $3, 
-             $4, 
-             $5, 
-             $6,
-             NOW(),
-             NOW()
-           )
-           RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at, updated_at`,
+           (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder)
+           VALUES ($1, (SELECT email FROM "User" WHERE id = $1), $2, $3, $4, $5, $6, false)
+           RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at`,
           [
             userId,
             file.originalname,
@@ -165,47 +157,173 @@ filesRoutes.post(
   },
 );
 
+filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const filesResult = await pool.query(
+      `SELECT 
+        id, 
+        original_name, 
+        s3_key, 
+        folder_path, 
+        size, 
+        mime_type, 
+        created_at,
+        is_folder
+       FROM user_files
+       WHERE user_id = $1
+       ORDER BY is_folder DESC, created_at DESC`,
+      [req.userId],
+    );
+
+    const transformedFiles = filesResult.rows.map((row) => ({
+      ...row,
+      type: row.is_folder ? "folder" : "file",
+    }));
+
+    res.json({
+      success: true,
+      files: transformedFiles,
+    });
+  } catch (err) {
+    console.error("Error fetching files:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch files",
+    });
+  }
+});
+
+// Get user's folders (for sidebar/suggested folders)
+filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+
+    const foldersResult = await pool.query(
+      `SELECT 
+        folder_path as path,
+        created_at
+       FROM user_files
+       WHERE user_id = $1 
+         AND is_folder = true
+       ORDER BY created_at DESC`,
+      [userId],
+    );
+
+    const foldersWithStats = await Promise.all(
+      foldersResult.rows.map(async (folder) => {
+        const stats = await pool.query(
+          `SELECT 
+            COUNT(id) as file_count,
+            COALESCE(SUM(size), 0) as total_size
+           FROM user_files
+           WHERE user_id = $1 
+             AND folder_path = $2
+             AND is_folder = false`,
+          [userId, folder.path],
+        );
+
+        return {
+          name: folder.path.split("/").pop() || folder.path,
+          path: folder.path,
+          fileCount: Number(stats.rows[0].file_count),
+          totalSize: Number(stats.rows[0].total_size),
+          isEmpty: Number(stats.rows[0].file_count) === 0,
+          createdAt: folder.created_at,
+        };
+      }),
+    );
+
+    res.json({ success: true, folders: foldersWithStats });
+  } catch (err) {
+    console.error("Error fetching folders:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch folders" });
+  }
+});
+
+// Create folder
 filesRoutes.post(
-  "/upload-chunk",
+  "/folders/create",
   authMiddleware,
-  chunkUpload.single("chunk"),
   async (req: AuthRequest, res) => {
     try {
-      const { uploadId, s3Key, partNumber } = req.body;
-      const chunk = req.file;
+      const { folderPath } = req.body;
+      const userId = req.userId;
 
-      if (!uploadId || !s3Key || !partNumber || !chunk)
+      if (!folderPath || !userId) {
         return res.status(400).json({
           success: false,
           error: "Missing required fields",
         });
+      }
 
-      const command = new UploadPartCommand({
-        Bucket: BUCKET_NAME,
-        Key: s3Key,
-        UploadId: uploadId,
-        PartNumber: parseInt(partNumber),
-        Body: chunk.buffer,
+      const existing = await pool.query(
+        `SELECT id FROM user_files 
+         WHERE user_id = $1 
+           AND folder_path = $2 
+           AND is_folder = true
+         LIMIT 1`,
+        [userId, folderPath],
+      );
+
+      if (existing.rows.length > 0) {
+        return res.json({
+          success: true,
+          folder: { folder_path: folderPath },
+          message: "Folder already exists",
+        });
+      }
+
+      // Create .metadata file in S3
+      const s3Key = `${userId}/${folderPath}/.metadata`;
+      const metadataContent = JSON.stringify({
+        type: "folder",
+        name: folderPath.split("/").pop(),
+        created_at: new Date().toISOString(),
       });
 
-      const result = await s3Client.send(command);
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: s3Key,
+          Body: Buffer.from(metadataContent),
+          ContentType: "application/json",
+        }),
+      );
 
-      return res.json({
+      const result = await pool.query(
+        `INSERT INTO user_files 
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder)
+         VALUES ($1, (SELECT email FROM "User" WHERE id = $1), '.metadata', $2, $3, $4, 'application/json', true)
+         RETURNING id, folder_path, created_at`,
+        [userId, s3Key, folderPath, metadataContent.length],
+      );
+
+      res.json({
         success: true,
-        partNumber: parseInt(partNumber),
-        ETag: result.ETag,
+        folder: {
+          ...result.rows[0],
+          name: folderPath.split("/").pop(),
+          path: folderPath,
+        },
       });
     } catch (err) {
-      console.error("Error uploading chunk:", err);
-      return res
-        .status(500)
-        .json({ success: false, error: "Failed to upload chunk" });
+      console.error("Error creating folder:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create folder",
+      });
     }
   },
 );
 
-// Step 1: Initialize multipart upload
-
+// Multipart upload endpoints
 filesRoutes.post(
   "/init-multipart-upload",
   authMiddleware,
@@ -228,7 +346,7 @@ filesRoutes.post(
 
       const dupe = await pool.query(
         `SELECT * FROM user_files
-         WHERE user_id = $1 AND file_hash = $2 AND folder_path = $3
+         WHERE user_id = $1 AND file_hash = $2 AND folder_path = $3 AND is_folder = false
          LIMIT 1`,
         [userId, fileHash, folderPath],
       );
@@ -265,7 +383,6 @@ filesRoutes.post(
   },
 );
 
-// Step 2: Get presigned URL for uploading a part
 filesRoutes.post(
   "/get-upload-url",
   authMiddleware,
@@ -304,7 +421,6 @@ filesRoutes.post(
   },
 );
 
-// Step 3: Complete multipart upload
 filesRoutes.post(
   "/complete-multipart-upload",
   authMiddleware,
@@ -350,11 +466,10 @@ filesRoutes.post(
 
       await s3Client.send(command);
 
-      // Save metadata + HASH
       await pool.query(
         `INSERT INTO user_files 
-         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, file_hash)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, file_hash, is_folder)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false)`,
         [
           user.id,
           user.email,
@@ -387,7 +502,6 @@ filesRoutes.post(
   },
 );
 
-// Step 4: Abort multipart upload (cleanup on cancel/error)
 filesRoutes.post(
   "/abort-multipart-upload",
   authMiddleware,
@@ -418,120 +532,6 @@ filesRoutes.post(
     }
   },
 );
-
-// Get user's files
-filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Authentication required",
-      });
-    }
-
-    const result = await pool.query(
-      `SELECT id, original_name, s3_key, folder_path, size, mime_type, created_at
-         FROM user_files
-         WHERE user_id = $1
-         ORDER BY created_at DESC`,
-      [req.userId],
-    );
-
-    res.json({
-      success: true,
-      files: result.rows,
-    });
-  } catch (err) {
-    console.error("Error fetching files:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch files",
-    });
-  }
-});
-
-// Get user's folders
-filesRoutes.get("/folders", authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Authentication required",
-      });
-    }
-
-    const result = await pool.query(
-      `SELECT 
-        CASE 
-          WHEN folder_path = '' OR folder_path IS NULL THEN NULL
-          ELSE SPLIT_PART(folder_path, '/', 1)
-        END as root_folder,
-        folder_path,
-        COUNT(*) as file_count,
-        SUM(size) as total_size
-       FROM user_files
-       WHERE user_id = $1
-       GROUP BY folder_path
-       ORDER BY COUNT(*) DESC`,
-      [req.userId],
-    );
-
-    const folderMap = new Map<
-      string,
-      { fileCount: number; totalSize: number; subfolders: Set<string> }
-    >();
-
-    result.rows.forEach((row) => {
-      const folderPath = row.folder_path || "";
-
-      if (!folderPath) {
-        // Files without a folder path - skip for "Suggested Folders"
-        // Or you can include them as "My Files" / "Unsorted"
-        return;
-      }
-
-      const rootFolder = folderPath.split("/")[0];
-
-      if (!folderMap.has(rootFolder)) {
-        folderMap.set(rootFolder, {
-          fileCount: 0,
-          totalSize: 0,
-          subfolders: new Set(),
-        });
-      }
-
-      const folder = folderMap.get(rootFolder)!;
-      folder.fileCount += parseInt(row.file_count, 10);
-      folder.totalSize += parseInt(row.total_size, 10);
-
-      if (folderPath !== rootFolder) {
-        folder.subfolders.add(folderPath);
-      }
-    });
-
-    const folders = Array.from(folderMap.entries()).map(([name, data]) => ({
-      name,
-      path: name,
-      fileCount: data.fileCount,
-      totalSize: data.totalSize,
-      hasSubfolders: data.subfolders.size > 0,
-    }));
-
-    // Sort by file count descending
-    folders.sort((a, b) => b.fileCount - a.fileCount);
-
-    res.json({
-      success: true,
-      folders,
-    });
-  } catch (err) {
-    console.error("Error fetching folders:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch folders",
-    });
-  }
-});
 
 // Delete to recycle bin
 filesRoutes.delete(

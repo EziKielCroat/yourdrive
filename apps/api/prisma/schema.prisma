@@ -29,7 +29,7 @@ model User {
   webauthnCredentials WebAuthnCredential[]
   socialAccounts      SocialAccount[]
   recoveryCodes       TotpRecoveryCode[]
-  
+                                              
   @@map("User")
 }
 
@@ -92,14 +92,15 @@ model UserFile {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
-  @@index([fileHash])
   @@index([folderPath])
   @@index([deletedAt])
   @@index([updatedAt])
+
+  @@unique([userId, folderPath, originalName])
   @@map("user_files")
 }
 

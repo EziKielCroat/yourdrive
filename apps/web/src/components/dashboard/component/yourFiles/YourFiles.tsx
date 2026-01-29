@@ -20,14 +20,8 @@ export interface ApiFile {
   size: number;
   mime_type: string;
   created_at: string;
-}
-
-interface UploadFile {
-  name: string;
-  size: number;
-  progress: number;
-  status: "pending" | "uploading" | "complete" | "error";
-  error?: string;
+  is_folder?: boolean;
+  type?: "file" | "folder";
 }
 
 export const formatDate = (dateString: string): string => {
@@ -149,7 +143,6 @@ const YourFiles: React.FC = () => {
     const formData = new FormData();
     const folderPaths: Record<string, string> = {};
 
-    // Check if files have folder structure
     const hasStructure = Array.from(fileList).some(
       (file) => (file as any).webkitRelativePath,
     );
@@ -171,7 +164,7 @@ const YourFiles: React.FC = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/api/files/upload", {
+      const response = await fetch("/api/files/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
@@ -198,38 +191,65 @@ const YourFiles: React.FC = () => {
   const fetchFiles = async () => {
     try {
       setLoading(true);
+
       const response = await fetch("/api/files", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!response.ok) {
         throw new Error("Failed to fetch files");
       }
 
-      const data = await response.json();
+      const filesData = await response.json();
+      const transformedFiles: FileItem[] = [];
 
-      if (data.success) {
-        const transformedFiles: FileItem[] = data.files.map(
-          (file: ApiFile) => ({
-            id: file.id,
-            name: file.original_name,
-            type: "file" as const,
-            mimeType: file.mime_type,
-            lastInteraction: formatDate(file.created_at),
-            lastInteractionType: "uploaded" as const,
-            location: file.folder_path || "Your Files",
-            owner: {
-              name: user?.name || user?.email || "You",
-              isYou: true,
-            },
-            size: file.size,
-            url: file.s3_key,
-          }),
-        );
-        setFiles(transformedFiles);
+      console.log("Fetched files data:", filesData);
+
+      if (filesData.success) {
+        filesData.files.forEach((file: ApiFile) => {
+          // Check if it's a folder (has is_folder = true OR type = 'folder')
+          const isFolder = file.is_folder === true || file.type === "folder";
+
+          if (isFolder) {
+            // display it as a folder
+            transformedFiles.push({
+              id: file.id,
+              name: file.folder_path.split("/").pop() || file.folder_path,
+              type: "folder",
+              mimeType: file.mime_type,
+              lastInteraction: formatDate(file.created_at),
+              lastInteractionType: "uploaded" as const,
+              location: file.folder_path || "Your Files",
+              owner: {
+                name: user?.firstName || user?.email || "You",
+                isYou: true,
+              },
+              size: file.size,
+              url: file.s3_key,
+            });
+          } else {
+            // display it normally
+            transformedFiles.push({
+              id: file.id,
+              name: file.original_name,
+              type: "file",
+              mimeType: file.mime_type,
+              lastInteraction: formatDate(file.created_at),
+              lastInteractionType: "uploaded" as const,
+              location: file.folder_path || "Your Files",
+              owner: {
+                name: user?.firstName || user?.email || "You",
+                isYou: true,
+              },
+              size: file.size,
+              url: file.s3_key,
+            });
+          }
+        });
       }
+
+      console.log("Transformed files:", transformedFiles);
+      setFiles(transformedFiles);
     } catch (err) {
       console.error("Error fetching files:", err);
     } finally {
@@ -255,14 +275,14 @@ const YourFiles: React.FC = () => {
         <Title>Your Files</Title>
         {files.length > 0 && (
           <FileCount>
-            {files.length} {files.length === 1 ? "file" : "files"}
+            {files.length} {files.length === 1 ? "item" : "items"}
           </FileCount>
         )}
       </Header>
 
       {hasActiveFilters && (
         <FilterIndicator>
-          Showing {filteredFiles.length} of {files.length} files
+          Showing {filteredFiles.length} of {files.length} items
           {activeFilterCount > 0 &&
             ` (${activeFilterCount} filter${
               activeFilterCount > 1 ? "s" : ""
@@ -286,14 +306,16 @@ const YourFiles: React.FC = () => {
         checkStorageLimit={checkStorageLimit}
       />
 
-      {previewFile && (
+      {previewFile && previewFile.type === "file" && (
         <FilePreview
           fileId={previewFile.id}
           fileName={previewFile.name}
           mimeType={previewFile.mimeType}
           onClose={handleClosePreview}
-          allFiles={navigableFiles}
-          currentIndex={previewIndex}
+          allFiles={navigableFiles.filter((f) => f.type === "file")}
+          currentIndex={navigableFiles
+            .filter((f) => f.type === "file")
+            .findIndex((f) => f.id === previewFile.id)}
           onNavigate={handleNavigate}
         />
       )}

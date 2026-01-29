@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import {
   CheckCircle,
@@ -7,9 +7,10 @@ import {
   X,
   Upload,
   FileUp,
-  FolderUp,
 } from "lucide-react";
 import { useAuthStore } from "../../../../store/authStore";
+import { eventBus } from "../../../../events/eventBus";
+import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import computeSHA256 from "../../utils/computeSHA256";
 
 interface UploadFile {
@@ -32,11 +33,14 @@ interface UppyUploadPopupProps {
   isOpen: boolean;
   onClose: () => void;
   folderPath?: string;
+  preSelectedFiles?: FileList | null;
 }
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const CHUNK_SIZE = 5 * 1024 * 1024;
 const MAX_CONCURRENT_CHUNKS = 6;
 const MAX_RETRIES = 3;
+const DIRECT_UPLOAD_THRESHOLD = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -61,24 +65,34 @@ const UppyUploadPopup = ({
   isOpen,
   onClose,
   folderPath = "",
+  preSelectedFiles,
 }: UppyUploadPopupProps) => {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const accessToken = useAuthStore((s) => s.accessToken);
 
   const generateFileId = () => `file-${Date.now()}-${Math.random()}`;
 
+  useEffect(() => {
+    if (preSelectedFiles && preSelectedFiles.length > 0) {
+      handleFileSelect(preSelectedFiles);
+    }
+  }, [preSelectedFiles]);
+
   const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    const newFiles: UploadFile[] = Array.from(files).map((file) => {
-      let extractedFolderPath = folderPath;
+    const newFiles: UploadFile[] = [];
+    let hasOversizedFile = false;
 
-      // @ts-expect-error - webkitRelativePath exists on File in browser
+    Array.from(files).forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        hasOversizedFile = true;
+        return;
+      }
+
+      let extractedFolderPath = folderPath;
       const relativePath = file.webkitRelativePath || "";
 
       if (relativePath) {
@@ -88,7 +102,7 @@ const UppyUploadPopup = ({
         }
       }
 
-      return {
+      newFiles.push({
         id: generateFileId(),
         file,
         name: file.name,
@@ -98,103 +112,25 @@ const UppyUploadPopup = ({
         uploadedBytes: 0,
         speed: 0,
         folderPath: extractedFolderPath,
-      };
+      });
     });
 
-    setUploadFiles((prev) => [...prev, ...newFiles]);
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const items = Array.from(e.dataTransfer.items);
-    const newFiles: UploadFile[] = [];
-
-    for (const item of items) {
-      if (item.kind === "file") {
-        const entry = item.webkitGetAsEntry?.();
-        if (entry) {
-          await processEntry(entry, newFiles, "");
-        } else {
-          const file = item.getAsFile();
-          if (file) {
-            newFiles.push({
-              id: generateFileId(),
-              file,
-              name: file.name,
-              size: file.size,
-              progress: 0,
-              status: "pending",
-              uploadedBytes: 0,
-              speed: 0,
-              folderPath: folderPath,
-            });
-          }
-        }
-      }
+    if (hasOversizedFile) {
+      alert(`Some files exceed the 500MB limit and were not added.`);
     }
 
     if (newFiles.length > 0) {
-      setUploadFiles((prev) => [...prev, ...newFiles]);
+      setUploadFiles(newFiles);
+      processUploadQueue(newFiles);
     }
   };
 
-  const processEntry = async (
-    entry: any,
-    files: UploadFile[],
-    currentPath: string,
-  ): Promise<void> => {
-    if (entry.isFile) {
-      const file: File = await new Promise((resolve) => {
-        entry.file(resolve);
-      });
-
-      files.push({
-        id: generateFileId(),
-        file,
-        name: file.name,
-        size: file.size,
-        progress: 0,
-        status: "pending",
-        uploadedBytes: 0,
-        speed: 0,
-        folderPath: currentPath || folderPath,
-      });
-    } else if (entry.isDirectory) {
-      const dirReader = entry.createReader();
-      const entries: any[] = await new Promise((resolve) => {
-        dirReader.readEntries(resolve);
-      });
-
-      const newPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
-
-      for (const childEntry of entries) {
-        await processEntry(childEntry, files, newPath);
-      }
-    }
-  };
-
-  const uploadToS3 = async (uploadFile: UploadFile): Promise<void> => {
+  const uploadDirectly = async (uploadFile: UploadFile): Promise<void> => {
     const { file, id: fileId, folderPath: fileFolderPath } = uploadFile;
     const startTime = Date.now();
     const token = accessToken;
-    const fileHash = await computeSHA256(file);
 
-    if (!token) {
-      throw new Error("Not authenticated. Please log in again.");
-    }
+    if (!token) throw new Error("Not authenticated");
 
     const uploadFolderPath = fileFolderPath || folderPath;
 
@@ -205,7 +141,95 @@ const UppyUploadPopup = ({
         ),
       );
 
-      // Step 1: Initialize multipart upload
+      const formData = new FormData();
+      formData.append("files", file);
+      if (uploadFolderPath) {
+        formData.append("folderPaths", JSON.stringify({ 0: uploadFolderPath }));
+      }
+
+      const xhr = new XMLHttpRequest();
+      const abortController = new AbortController();
+      abortControllersRef.current.set(fileId, abortController);
+
+      abortController.signal.addEventListener("abort", () => xhr.abort());
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const speed = e.loaded / elapsed;
+          const progress = Math.round((e.loaded / e.total) * 100);
+
+          setUploadFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId
+                ? { ...f, progress, uploadedBytes: e.loaded, speed }
+                : f,
+            ),
+          );
+        }
+      });
+
+      await new Promise((resolve, reject) => {
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(xhr.response);
+          } else {
+            reject(new Error(`Upload failed: ${xhr.statusText}`));
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.addEventListener("abort", () =>
+          reject(new Error("Upload cancelled")),
+        );
+
+        xhr.open("POST", "/api/files/upload");
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(formData);
+      });
+
+      setUploadFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: "complete",
+                progress: 100,
+                uploadedBytes: file.size,
+              }
+            : f,
+        ),
+      );
+
+      abortControllersRef.current.delete(fileId);
+    } catch (error: any) {
+      abortControllersRef.current.delete(fileId);
+      setUploadFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? { ...f, status: "error", error: error.message || "Upload failed" }
+            : f,
+        ),
+      );
+    }
+  };
+
+  const uploadMultipart = async (uploadFile: UploadFile): Promise<void> => {
+    const { file, id: fileId, folderPath: fileFolderPath } = uploadFile;
+    const startTime = Date.now();
+    const token = accessToken;
+    const fileHash = await computeSHA256(file);
+
+    if (!token) throw new Error("Not authenticated");
+
+    const uploadFolderPath = fileFolderPath || folderPath;
+
+    try {
+      setUploadFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, status: "uploading", startTime } : f,
+        ),
+      );
+
       const initResponse = await fetch("/api/files/init-multipart-upload", {
         method: "POST",
         headers: {
@@ -221,16 +245,11 @@ const UppyUploadPopup = ({
         }),
       });
 
-      if (!initResponse.ok) {
-        const errorData = await initResponse.json();
-        throw new Error(errorData.error || "Failed to initialize upload");
-      }
+      if (!initResponse.ok) throw new Error("Failed to initialize upload");
 
       const initData = await initResponse.json();
 
-      // Handle duplicate files
       if (initData.duplicate) {
-        console.log(`File "${file.name}" already exists, skipping upload`);
         setUploadFiles((prev) =>
           prev.map((f) =>
             f.id === fileId
@@ -243,14 +262,11 @@ const UppyUploadPopup = ({
               : f,
           ),
         );
-        return; // Exit early - file already exists
+        return;
       }
 
-      // Validate upload credentials
       if (!initData.uploadId || !initData.s3Key) {
-        throw new Error(
-          "Invalid response from server - missing upload credentials",
-        );
+        throw new Error("Invalid response from server");
       }
 
       const { uploadId, s3Key } = initData;
@@ -259,7 +275,6 @@ const UppyUploadPopup = ({
         prev.map((f) => (f.id === fileId ? { ...f, uploadId, s3Key } : f)),
       );
 
-      // Step 2: Upload parts
       const totalParts = Math.ceil(file.size / CHUNK_SIZE);
       const uploadedParts: Array<{ PartNumber: number; ETag: string }> = [];
       let uploadedBytes = 0;
@@ -287,19 +302,13 @@ const UppyUploadPopup = ({
         try {
           const uploadResponse = await fetch("/api/files/upload-chunk", {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
             body: formData,
             signal: abortController.signal,
           });
 
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(
-              errorData.error || `Part ${partNumber} upload failed`,
-            );
-          }
+          if (!uploadResponse.ok)
+            throw new Error(`Part ${partNumber} upload failed`);
 
           const { ETag } = await uploadResponse.json();
 
@@ -335,7 +344,6 @@ const UppyUploadPopup = ({
         }
       };
 
-      // Upload parts with concurrency control
       for (let i = 0; i < totalParts; i += MAX_CONCURRENT_CHUNKS) {
         const batch = [];
         for (let j = 0; j < MAX_CONCURRENT_CHUNKS && i + j < totalParts; j++) {
@@ -344,7 +352,6 @@ const UppyUploadPopup = ({
         await Promise.all(batch);
       }
 
-      // Step 3: Complete multipart upload
       const completeResponse = await fetch(
         "/api/files/complete-multipart-upload",
         {
@@ -366,10 +373,7 @@ const UppyUploadPopup = ({
         },
       );
 
-      if (!completeResponse.ok) {
-        const errorData = await completeResponse.json();
-        throw new Error(errorData.error || "Failed to complete upload");
-      }
+      if (!completeResponse.ok) throw new Error("Failed to complete upload");
 
       setUploadFiles((prev) =>
         prev.map((f) =>
@@ -384,31 +388,32 @@ const UppyUploadPopup = ({
         ),
       );
     } catch (error: any) {
-      console.error("Upload error:", error);
       setUploadFiles((prev) =>
         prev.map((f) =>
           f.id === fileId
-            ? {
-                ...f,
-                status: "error",
-                error: error.message || "Upload failed",
-              }
+            ? { ...f, status: "error", error: error.message || "Upload failed" }
             : f,
         ),
       );
     }
   };
 
-  const processUploadQueue = async () => {
+  const processUploadQueue = async (filesToProcess?: UploadFile[]) => {
     setIsUploading(true);
 
-    const filesToUpload = uploadFiles.filter((f) => f.status === "pending");
+    const files =
+      filesToProcess || uploadFiles.filter((f) => f.status === "pending");
 
-    for (const file of filesToUpload) {
-      await uploadToS3(file).catch(console.error);
+    for (const file of files) {
+      if (file.file.size < DIRECT_UPLOAD_THRESHOLD) {
+        await uploadDirectly(file).catch(console.error);
+      } else {
+        await uploadMultipart(file).catch(console.error);
+      }
     }
 
     setIsUploading(false);
+    eventBus.emit(FILES_REFRESH_EVENT);
 
     const hasErrors = uploadFiles.some((f) => f.status === "error");
     if (!hasErrors) {
@@ -419,24 +424,14 @@ const UppyUploadPopup = ({
     }
   };
 
-  const handleStartUpload = () => {
-    if (uploadFiles.length === 0) return;
-    processUploadQueue();
-  };
-
   const handleClose = () => {
     if (isUploading) {
       if (!confirm("Upload in progress. Cancel all uploads?")) return;
-
       abortControllersRef.current.forEach((controller) => controller.abort());
       abortControllersRef.current.clear();
     }
     onClose();
     setUploadFiles([]);
-  };
-
-  const removeFile = (fileId: string) => {
-    setUploadFiles((prev) => prev.filter((f) => f.id !== fileId));
   };
 
   const cancelUpload = async (fileId: string) => {
@@ -473,23 +468,15 @@ const UppyUploadPopup = ({
 
     setUploadFiles((prev) =>
       prev.map((f) =>
-        f.id === fileId
-          ? { ...f, status: "error", error: "Cancelled by user" }
-          : f,
+        f.id === fileId ? { ...f, status: "error", error: "Cancelled" } : f,
       ),
-    );
-  };
-
-  const retryFailedUploads = () => {
-    setUploadFiles((prev) =>
-      prev.map((f) => (f.status === "error" ? { ...f, status: "pending" } : f)),
     );
   };
 
   const completedFiles = uploadFiles.filter(
     (f) => f.status === "complete",
   ).length;
-  const failedFiles = uploadFiles.filter((f) => f.status === "error").length;
+  const failedFiles = uploadFiles.filter((f) => f.status === "error").length; // ?
   const allComplete =
     uploadFiles.length > 0 && completedFiles === uploadFiles.length;
 
@@ -569,163 +556,74 @@ const UppyUploadPopup = ({
         )}
 
         <FileList>
-          {uploadFiles.length === 0 ? (
-            <DropZone
-              $active={dragActive}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <FileUp size={48} />
-              <DropZoneTitle>Drop files here or click to browse</DropZoneTitle>
-              <DropZoneSubtitle>
-                Support for single or bulk upload
-              </DropZoneSubtitle>
-            </DropZone>
-          ) : (
-            uploadFiles.map((file) => (
-              <FileItem key={file.id} $status={file.status}>
-                <FileIcon $status={file.status}>
-                  {file.status === "complete" && <CheckCircle size={18} />}
-                  {file.status === "error" && <AlertCircle size={18} />}
-                  {file.status === "uploading" && (
-                    <Loader size={18} className="spin" />
-                  )}
-                  {file.status === "pending" && <FileUp size={18} />}
-                </FileIcon>
-                <FileInfo>
-                  <FileName>
-                    {file.name}
-                    {file.folderPath && (
-                      <FolderPathText> in {file.folderPath}</FolderPathText>
-                    )}
-                  </FileName>
-                  <FileDetails>
-                    {file.status === "complete" && (
-                      <StatusText $status="complete">
-                        {formatBytes(file.size)} • Complete
-                      </StatusText>
-                    )}
-                    {file.status === "error" && (
-                      <StatusText $status="error">
-                        {file.error || "Upload failed"}
-                      </StatusText>
-                    )}
-                    {file.status === "uploading" && (
-                      <StatusText $status="uploading">
-                        {formatBytes(file.uploadedBytes)} /{" "}
-                        {formatBytes(file.size)} • {file.progress}%
-                        {file.speed > 0 && ` • ${formatSpeed(file.speed)}`}
-                      </StatusText>
-                    )}
-                    {file.status === "pending" && (
-                      <StatusText $status="pending">
-                        {formatBytes(file.size)}
-                      </StatusText>
-                    )}
-                  </FileDetails>
-                  {file.status === "uploading" && (
-                    <FileProgress>
-                      <FileProgressFill $progress={file.progress} />
-                    </FileProgress>
-                  )}
-                </FileInfo>
-                {file.status === "pending" && !isUploading && (
-                  <RemoveButton onClick={() => removeFile(file.id)}>
-                    <X size={16} />
-                  </RemoveButton>
-                )}
+          {uploadFiles.map((file) => (
+            <FileItem key={file.id} $status={file.status}>
+              <FileIcon $status={file.status}>
+                {file.status === "complete" && <CheckCircle size={18} />}
+                {file.status === "error" && <AlertCircle size={18} />}
                 {file.status === "uploading" && (
-                  <CancelButton onClick={() => cancelUpload(file.id)}>
-                    Cancel
-                  </CancelButton>
+                  <Loader size={18} className="spin" />
                 )}
-              </FileItem>
-            ))
-          )}
+                {file.status === "pending" && <FileUp size={18} />}
+              </FileIcon>
+              <FileInfo>
+                <FileName>
+                  {file.name}
+                  {file.folderPath && (
+                    <FolderPathText> in {file.folderPath}</FolderPathText>
+                  )}
+                </FileName>
+                <FileDetails>
+                  {file.status === "complete" && (
+                    <StatusText $status="complete">
+                      {formatBytes(file.size)} • Complete
+                    </StatusText>
+                  )}
+                  {file.status === "error" && (
+                    <StatusText $status="error">
+                      {file.error || "Upload failed"}
+                    </StatusText>
+                  )}
+                  {file.status === "uploading" && (
+                    <StatusText $status="uploading">
+                      {formatBytes(file.uploadedBytes)} /{" "}
+                      {formatBytes(file.size)} • {file.progress}%
+                      {file.speed > 0 && ` • ${formatSpeed(file.speed)}`}
+                    </StatusText>
+                  )}
+                  {file.status === "pending" && (
+                    <StatusText $status="pending">
+                      {formatBytes(file.size)}
+                    </StatusText>
+                  )}
+                </FileDetails>
+                {file.status === "uploading" && (
+                  <FileProgress>
+                    <FileProgressFill $progress={file.progress} />
+                  </FileProgress>
+                )}
+              </FileInfo>
+              {file.status === "uploading" && (
+                <CancelButton onClick={() => cancelUpload(file.id)}>
+                  Cancel
+                </CancelButton>
+              )}
+            </FileItem>
+          ))}
         </FileList>
 
         <Footer>
-          {uploadFiles.length === 0 ? (
-            <>
-              <Button $variant="secondary" onClick={handleClose}>
-                Cancel
-              </Button>
-              <ButtonGroup>
-                <Button
-                  $variant="secondary"
-                  onClick={() => folderInputRef.current?.click()}
-                >
-                  <FolderUp size={16} />
-                  Upload Folder
-                </Button>
-                <Button
-                  $variant="primary"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <FileUp size={16} />
-                  Select Files
-                </Button>
-              </ButtonGroup>
-            </>
-          ) : !isUploading && !allComplete ? (
-            <>
-              <div>
-                {failedFiles > 0 && (
-                  <RetryButton
-                    $variant="secondary"
-                    onClick={retryFailedUploads}
-                  >
-                    Retry {failedFiles} failed
-                  </RetryButton>
-                )}
-              </div>
-              <ButtonGroup>
-                <Button
-                  $variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Add More
-                </Button>
-                <Button $variant="primary" onClick={handleStartUpload}>
-                  Upload{" "}
-                  {uploadFiles.filter((f) => f.status === "pending").length}{" "}
-                  files
-                </Button>
-              </ButtonGroup>
-            </>
-          ) : allComplete ? (
+          {allComplete && (
             <Button $variant="primary" onClick={handleClose}>
               Done
             </Button>
-          ) : null}
+          )}
         </Footer>
       </Modal>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        onChange={(e) => handleFileSelect(e.target.files)}
-        style={{ display: "none" }}
-      />
-      <input
-        ref={folderInputRef}
-        type="file"
-        /* @ts-expect-error no clue */
-        webkitdirectory=""
-        directory=""
-        multiple
-        onChange={(e) => handleFileSelect(e.target.files)}
-        style={{ display: "none" }}
-      />
     </Overlay>
   );
 };
 
-// Styled Components
 const spin = keyframes`
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -882,41 +780,6 @@ const FileList = styled.div`
   }
 `;
 
-const DropZone = styled.div<{ $active: boolean }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 32px;
-  border: 2px dashed ${(props) => (props.$active ? "#3b82f6" : "#d1d5db")};
-  border-radius: 12px;
-  background: ${(props) => (props.$active ? "#eff6ff" : "#fafafa")};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #3b82f6;
-    background: #eff6ff;
-  }
-
-  svg {
-    color: ${(props) => (props.$active ? "#3b82f6" : "#9ca3af")};
-    margin-bottom: 16px;
-  }
-`;
-
-const DropZoneTitle = styled.p`
-  font-size: 16px;
-  font-weight: 600;
-  color: #374151;
-  margin: 0 0 8px 0;
-`;
-
-const DropZoneSubtitle = styled.span`
-  font-size: 14px;
-  color: #6b7280;
-`;
-
 const FileItem = styled.div<{ $status: string }>`
   display: flex;
   align-items: flex-start;
@@ -1016,21 +879,6 @@ const FileProgressFill = styled.div<{ $progress: number }>`
   transition: width 0.3s ease;
 `;
 
-const RemoveButton = styled.button`
-  padding: 6px;
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s;
-
-  &:hover {
-    background: #f3f4f6;
-    color: #111827;
-  }
-`;
-
 const CancelButton = styled.button`
   padding: 6px 12px;
   border: none;
@@ -1051,14 +899,9 @@ const Footer = styled.div`
   padding: 20px 24px;
   border-top: 1px solid #e5e7eb;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 8px;
 `;
 
 const Button = styled.button<{ $variant: "primary" | "secondary" }>`
@@ -1083,20 +926,10 @@ const Button = styled.button<{ $variant: "primary" | "secondary" }>`
   }
 `;
 
-const RetryButton = styled(Button)`
-  background: transparent;
-  color: #2563eb;
-  border: none;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 const FolderPathText = styled.span`
   font-size: 12px;
   color: #6b7280;
   margin-left: 6px;
 `;
+
 export default UppyUploadPopup;

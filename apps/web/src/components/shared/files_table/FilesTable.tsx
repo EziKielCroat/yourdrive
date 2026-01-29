@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from "react";
 import styled from "styled-components";
 import FileTypeIcon from "./FileTypeIcon";
 import FolderSmallIcon from "../icons/smallFolder";
-import { Upload, ChevronRight, ChevronDown } from "lucide-react";
+import { Upload, ChevronRight, ChevronDown, Folder } from "lucide-react";
 
 export interface FileItem {
   id: string;
@@ -34,6 +34,7 @@ interface FolderNode {
   name: string;
   path: string;
   files: FileItem[];
+  folders: FileItem[];
   subfolders: Map<string, FolderNode>;
   isExpanded: boolean;
 }
@@ -94,6 +95,13 @@ const FilesTable: React.FC<FilesTableProps> = ({
   const dragCounter = useRef(0);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
+  // Separate folders and files
+  const { folders, regularFiles } = useMemo(() => {
+    const folders = files.filter((f) => f.type === "folder");
+    const regularFiles = files.filter((f) => f.type === "file");
+    return { folders, regularFiles };
+  }, [files]);
+
   const folderStructure = useMemo(() => {
     if (!showFolderStructure) return null;
 
@@ -101,11 +109,36 @@ const FilesTable: React.FC<FilesTableProps> = ({
       name: "root",
       path: "",
       files: [],
+      folders: [],
       subfolders: new Map(),
       isExpanded: true,
     };
 
-    files.forEach((file) => {
+    // Add all folders to structure
+    folders.forEach((folder) => {
+      const path = folder.location || folder.name;
+      const parts = path.split("/").filter(Boolean);
+      let current = root;
+
+      parts.forEach((part, index) => {
+        if (!current.subfolders.has(part)) {
+          current.subfolders.set(part, {
+            name: part,
+            path: parts.slice(0, index + 1).join("/"),
+            files: [],
+            folders: [],
+            subfolders: new Map(),
+            isExpanded: expandedFolders.has(
+              parts.slice(0, index + 1).join("/"),
+            ),
+          });
+        }
+        current = current.subfolders.get(part)!;
+      });
+    });
+
+    // Add files to their respective folders
+    regularFiles.forEach((file) => {
       const path = file.location || "";
 
       if (!path || path === "Your Files") {
@@ -115,24 +148,22 @@ const FilesTable: React.FC<FilesTableProps> = ({
 
       const parts = path.split("/").filter(Boolean);
       let current = root;
-      let currentPath = "";
 
       parts.forEach((part, index) => {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-
         if (!current.subfolders.has(part)) {
           current.subfolders.set(part, {
             name: part,
-            path: currentPath,
+            path: parts.slice(0, index + 1).join("/"),
             files: [],
+            folders: [],
             subfolders: new Map(),
-            isExpanded: expandedFolders.has(currentPath),
+            isExpanded: expandedFolders.has(
+              parts.slice(0, index + 1).join("/"),
+            ),
           });
         }
-
         current = current.subfolders.get(part)!;
 
-        // If this is the last part, add the file
         if (index === parts.length - 1) {
           current.files.push(file);
         }
@@ -140,7 +171,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
     });
 
     return root;
-  }, [files, showFolderStructure, expandedFolders]);
+  }, [regularFiles, folders, showFolderStructure, expandedFolders]);
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -155,6 +186,9 @@ const FilesTable: React.FC<FilesTableProps> = ({
   };
 
   const formatInteraction = (file: FileItem): string => {
+    if (file.type === "folder") {
+      return `Created · ${file.lastInteraction}`;
+    }
     const actionMap = {
       uploaded: "You uploaded",
       edited: "You edited",
@@ -167,6 +201,11 @@ const FilesTable: React.FC<FilesTableProps> = ({
   };
 
   const handleRowClick = (file: FileItem) => {
+    if (file.type === "folder") {
+      toggleFolder(file.location || file.name);
+      return;
+    }
+
     if (singleClickMode === "preview") {
       onFilePreview?.(file);
     } else {
@@ -175,6 +214,10 @@ const FilesTable: React.FC<FilesTableProps> = ({
   };
 
   const handleRowDoubleClick = (file: FileItem) => {
+    if (file.type === "folder") {
+      return;
+    }
+
     if (singleClickMode === "select") {
       onFilePreview?.(file);
     }
@@ -218,28 +261,28 @@ const FilesTable: React.FC<FilesTableProps> = ({
     if (!onFilesUpload) return;
 
     const items = Array.from(e.dataTransfer.items);
-    const files: File[] = [];
+    const droppedFiles: File[] = [];
 
     for (const item of items) {
       if (item.kind === "file") {
         const entry = item.webkitGetAsEntry?.();
         if (entry) {
-          await processEntry(entry, files);
+          await processEntry(entry, droppedFiles);
         } else {
           const file = item.getAsFile();
-          if (file) files.push(file);
+          if (file) droppedFiles.push(file);
         }
       }
     }
 
-    if (files.length === 0) return;
+    if (droppedFiles.length === 0) return;
 
     if (checkStorageLimit) {
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      const totalSize = droppedFiles.reduce((sum, file) => sum + file.size, 0);
       if (!checkStorageLimit(totalSize)) return;
     }
 
-    const fileList = createFileList(files);
+    const fileList = createFileList(droppedFiles);
     try {
       await onFilesUpload(fileList);
     } catch (error) {
@@ -249,7 +292,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
 
   const processEntry = async (
     entry: any,
-    files: File[],
+    droppedFiles: File[],
     path: string = "",
   ): Promise<void> => {
     if (entry.isFile) {
@@ -262,21 +305,21 @@ const FilesTable: React.FC<FilesTableProps> = ({
           resolve(f);
         });
       });
-      files.push(file);
+      droppedFiles.push(file);
     } else if (entry.isDirectory) {
       const dirReader = entry.createReader();
       const entries = await new Promise<any[]>((resolve) => {
         dirReader.readEntries((e: any[]) => resolve(e));
       });
       for (const childEntry of entries) {
-        await processEntry(childEntry, files, `${path}${entry.name}/`);
+        await processEntry(childEntry, droppedFiles, `${path}${entry.name}/`);
       }
     }
   };
 
-  const createFileList = (files: File[]): FileList => {
+  const createFileList = (droppedFiles: File[]): FileList => {
     const dataTransfer = new DataTransfer();
-    files.forEach((file) => dataTransfer.items.add(file));
+    droppedFiles.forEach((file) => dataTransfer.items.add(file));
     return dataTransfer.files;
   };
 
@@ -317,10 +360,10 @@ const FilesTable: React.FC<FilesTableProps> = ({
                 )}
               </FolderToggle>
               <FileIconWrapper $compact>
-                <FolderSmallIcon color="#5f6368" size={18} />
+                <Folder size={18} color="#5f6368" />
               </FileIconWrapper>
               <FileName $folder>{subfolder.name}</FileName>
-              <ItemCount>{itemCount}</ItemCount>
+              <ItemCount>{itemCount} items</ItemCount>
             </NameCell>
           </TableCell>
           <TableCell>
@@ -482,9 +525,70 @@ const FilesTable: React.FC<FilesTableProps> = ({
         <ScrollableArea>
           <Table>
             <TableBody>
-              {showFolderStructure && folderStructure
-                ? renderFolderNode(folderStructure)
-                : files.map((file) => (
+              {showFolderStructure && folderStructure ? (
+                renderFolderNode(folderStructure)
+              ) : (
+                <>
+                  {/* Render folders first */}
+                  {folders.map((folder) => (
+                    <TableRow
+                      key={folder.id}
+                      onClick={() => handleRowClick(folder)}
+                      onContextMenu={(e) => handleContextMenu(folder, e)}
+                      $selected={selectedFiles.has(folder.id)}
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <NameCell>
+                          <FileIconWrapper>
+                            <Folder size={20} color="#5f6368" />
+                          </FileIconWrapper>
+                          <FileName title={folder.name}>{folder.name}</FileName>
+                        </NameCell>
+                      </TableCell>
+                      <TableCell>
+                        <InteractionText>
+                          {formatInteraction(folder)}
+                        </InteractionText>
+                      </TableCell>
+                      {showLocation && (
+                        <TableCell>
+                          <LocationCell>
+                            <FolderSmallIcon color="#5f6368" size={16} />
+                            <LocationText>{folder.location}</LocationText>
+                          </LocationCell>
+                        </TableCell>
+                      )}
+                      {showOwner && (
+                        <TableCell>
+                          <OwnerCell>
+                            {folder.owner.avatar ? (
+                              <OwnerAvatar
+                                src={folder.owner.avatar}
+                                alt={folder.owner.name}
+                              />
+                            ) : (
+                              <OwnerAvatarPlaceholder>
+                                {folder.owner.name.charAt(0).toUpperCase()}
+                              </OwnerAvatarPlaceholder>
+                            )}
+                            {folder.owner.isYou && <OwnerName>me</OwnerName>}
+                          </OwnerCell>
+                        </TableCell>
+                      )}
+                      {renderRowActions && (
+                        <TableCell
+                          style={{ width: "60px", padding: "8px" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderRowActions(folder)}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+
+                  {/* Then render files */}
+                  {regularFiles.map((file) => (
                     <TableRow
                       key={file.id}
                       onClick={() => handleRowClick(file)}
@@ -496,11 +600,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
                       <TableCell>
                         <NameCell>
                           <FileIconWrapper>
-                            {file.type === "folder" ? (
-                              <FolderSmallIcon color="#5f6368" />
-                            ) : (
-                              <FileTypeIcon fileName={file.name} size={20} />
-                            )}
+                            <FileTypeIcon fileName={file.name} size={20} />
                           </FileIconWrapper>
                           <FileName title={file.name}>{file.name}</FileName>
                         </NameCell>
@@ -545,6 +645,8 @@ const FilesTable: React.FC<FilesTableProps> = ({
                       )}
                     </TableRow>
                   ))}
+                </>
+              )}
             </TableBody>
           </Table>
         </ScrollableArea>
@@ -554,6 +656,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
   );
 };
 
+// Styled components remain the same as before...
 const TableContainer = styled.div`
   position: relative;
   width: 100%;
