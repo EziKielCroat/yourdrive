@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
+
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
+import SidebarToggle from "../sidebar/SidebarToggle";
+
 import { useAuthStore } from "../../../../store/authStore";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -121,6 +124,7 @@ const RecycleBin: React.FC = () => {
   return (
     <Container>
       <Header>
+        <SidebarToggle />
         <Title>Recycle Bin</Title>
         {files.length > 0 && (
           <FileCount>
@@ -166,13 +170,13 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px 32px;
+  padding: 12px;
   font-family: "Inter", sans-serif;
 `;
 
 const Header = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
   align-items: center;
   margin-bottom: 24px;
 `;

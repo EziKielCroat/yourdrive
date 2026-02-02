@@ -4,14 +4,16 @@ export const SearchContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
-    "Helvetica", "Arial", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica",
+    "Arial", sans-serif;
 `;
 
 export const InputWrapper = styled.div`
   position: relative;
   min-width: 450px;
-  display: inline-block;
+  display: flex;
+  justify-content: center;
 
   svg {
     position: absolute;
@@ -34,7 +36,7 @@ export const InputWrapper = styled.div`
 
   input {
     background: #e9eef6;
-    width: 100%;
+    min-width: 450px;
     padding: 10px 44px;
     border: none;
     outline: none;

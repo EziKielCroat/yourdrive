@@ -5,6 +5,7 @@ import { useAuthStore } from "../../../../store/authStore";
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
+import SidebarToggle from "../sidebar/SidebarToggle";
 import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
@@ -140,6 +141,7 @@ const SharedWithYou: React.FC = () => {
   return (
     <Container>
       <Header>
+        <SidebarToggle />
         <Title>Shared With You</Title>
         {sharedFiles.length > 0 && (
           <FileCount>
@@ -192,13 +194,13 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px 32px;
+  padding: 12px;
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 24px;
 `;
 

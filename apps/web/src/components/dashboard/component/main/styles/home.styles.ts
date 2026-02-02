@@ -6,3 +6,11 @@ export const MainContainer = styled.div`
   justify-content: center;
   flex-direction: column;
 `;
+
+export const SearchWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+`;

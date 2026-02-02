@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface MainProps {
   children?: ReactNode;
 }
+
 const Main = ({ children }: MainProps) => {
   const matches = useMatches();
   const currentPath = matches[matches.length - 1]?.pathname || "";
@@ -43,4 +44,5 @@ const MainContainer = styled.main`
   background: #f8f9fa;
   border-radius: 10px;
   padding: 20px 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 `;

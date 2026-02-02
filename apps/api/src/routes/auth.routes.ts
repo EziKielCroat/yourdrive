@@ -268,6 +268,46 @@ authRoutes.get("/status", async (req: Request, res: Response) => {
 });
 
 // ============================================
+// Device Routes
+// ============================================
+
+authRoutes.get(
+  "/device/current",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const deviceId = req.cookies.deviceId;
+
+      if (!deviceId) {
+        return res.status(404).json({
+          success: false,
+          error: "No device ID found",
+        });
+      }
+
+      const device = await DeviceService.getDeviceById(deviceId);
+
+      if (!device || device.userId !== req.userId) {
+        return res.status(404).json({
+          success: false,
+          error: "Device not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        device,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  },
+);
+
+// ============================================
 // 2FA / TOTP Routes
 // ============================================
 

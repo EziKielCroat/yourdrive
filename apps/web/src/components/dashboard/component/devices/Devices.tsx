@@ -20,6 +20,7 @@ import {
   Plus,
   Folder,
 } from "lucide-react";
+import SidebarToggle from "../sidebar/SidebarToggle";
 
 interface Device {
   id: string;
@@ -295,6 +296,8 @@ const Devices: React.FC = () => {
     <Container>
       <Header>
         <TitleSection>
+          <SidebarToggle />
+
           <Title>Devices</Title>
         </TitleSection>
         <HeaderActions>
@@ -753,7 +756,7 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px 32px;
+  padding: 12px;
   font-family: "Inter", sans-serif;
 `;
 

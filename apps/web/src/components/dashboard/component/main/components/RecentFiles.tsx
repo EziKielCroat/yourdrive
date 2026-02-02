@@ -22,6 +22,9 @@ interface ApiFile {
   created_at: string;
 }
 
+// Consistent API base URL
+const API_BASE_URL = "http://localhost:3000";
+
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -141,6 +144,12 @@ const RecentFiles: React.FC = () => {
   const handleFilesUpload = async (fileList: FileList): Promise<void> => {
     if (!fileList.length) return;
 
+    // Check if we have a valid access token
+    if (!accessToken) {
+      alert("You must be logged in to upload files.");
+      return;
+    }
+
     const totalSize = Array.from(fileList).reduce(
       (sum, file) => sum + file.size,
       0,
@@ -175,13 +184,16 @@ const RecentFiles: React.FC = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/api/files/upload", {
+      const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Session expired. Please log in again.");
+        }
         throw new Error(`Upload failed: ${response.statusText}`);
       }
 
@@ -189,27 +201,53 @@ const RecentFiles: React.FC = () => {
 
       addUsage(totalSize);
 
-      await refreshStorage(accessToken);
+      // Refresh storage after successful upload
+      try {
+        await refreshStorage(accessToken);
+      } catch (storageErr) {
+        console.warn("Storage refresh failed after upload:", storageErr);
+        // Don't fail the upload if storage refresh fails
+      }
+
       eventBus.emit(FILES_REFRESH_EVENT);
 
       return result;
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Upload failed. Please try again.");
+      if (err instanceof Error) {
+        alert(err.message);
+      } else {
+        alert("Upload failed. Please try again.");
+      }
       throw err;
     }
   };
 
   const fetchRecentFiles = async () => {
+    // Don't fetch if no access token
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch("/api/files?limit=10&sort=recent", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+      const response = await fetch(
+        `${API_BASE_URL}/api/files?limit=10&sort=recent`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error("Unauthorized: Access token may be expired");
+          // Don't show an alert for 401, just log it
+          setFiles([]);
+          return;
+        }
         throw new Error("Failed to fetch files");
       }
 
@@ -226,7 +264,7 @@ const RecentFiles: React.FC = () => {
             lastInteractionType: "uploaded" as const,
             location: file.folder_path || "Your Files",
             owner: {
-              name: user?.name || user?.email || "You",
+              name: user?.firstName || user?.email || "You",
               isYou: true,
             },
             size: file.size,
@@ -237,6 +275,8 @@ const RecentFiles: React.FC = () => {
       }
     } catch (err) {
       console.error("Error fetching recent files:", err);
+      // Don't alert the user for fetch errors, just log them
+      setFiles([]);
     } finally {
       setLoading(false);
     }
@@ -245,11 +285,16 @@ const RecentFiles: React.FC = () => {
   useEffect(() => {
     if (accessToken) {
       fetchRecentFiles();
+    } else {
+      setLoading(false);
+      setFiles([]);
     }
   }, [accessToken, user]);
 
   useEvent(FILES_REFRESH_EVENT, () => {
-    fetchRecentFiles();
+    if (accessToken) {
+      fetchRecentFiles();
+    }
   });
 
   return (

@@ -6,6 +6,7 @@ import { useStorageStore } from "../../../../store/storageStore";
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
+import SidebarToggle from "../sidebar/SidebarToggle";
 import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
@@ -272,6 +273,7 @@ const YourFiles: React.FC = () => {
   return (
     <Container>
       <Header>
+        <SidebarToggle />
         <Title>Your Files</Title>
         {files.length > 0 && (
           <FileCount>
@@ -333,7 +335,7 @@ const Container = styled.div`
 const Header = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 24px;
 `;
 

@@ -1,8 +1,35 @@
 import styled from "styled-components";
 
-export const SidebarWrapper = styled.aside`
-  min-width: 200px;
+import { motion } from "framer-motion";
+
+interface SidebarWrapperProps {
+  $isOpen: boolean;
+}
+
+export const SidebarWrapper = styled(motion.aside).attrs<SidebarWrapperProps>(
+  ({ $isOpen }) => ({
+    initial: false,
+    animate: {
+      width: $isOpen ? "180px" : "0px",
+      opacity: $isOpen ? 1 : 0,
+      marginRight: $isOpen ? "20px" : "0px",
+    },
+    transition: {
+      duration: 0.3,
+      ease: [0.4, 0, 0.2, 1],
+    },
+  }),
+)<SidebarWrapperProps>`
+  min-width: 100px;
   background: transparent;
+  position: relative;
+  overflow: hidden;
+
+  & > *:not(button) {
+    opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};
+    transition: opacity 0.2s ease;
+    transition-delay: ${({ $isOpen }) => ($isOpen ? "0.1s" : "0s")};
+  }
 `;
 
 export const UserName = styled.h1`

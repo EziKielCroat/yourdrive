@@ -5,6 +5,7 @@ import FilePreview from "../../../shared/filesPreview/FilesPreview";
 import { useAuthStore } from "../../../../store/authStore";
 import axios from "axios";
 import { Clock } from "lucide-react";
+import SidebarToggle from "../sidebar/SidebarToggle";
 
 const RecentlyEdited: React.FC = () => {
   const token = useAuthStore((s) => s.accessToken);
@@ -101,6 +102,7 @@ const RecentlyEdited: React.FC = () => {
   return (
     <Container>
       <Header>
+        <SidebarToggle />
         <TitleSection>
           <Title>Recently Edited</Title>
         </TitleSection>
@@ -184,17 +186,16 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px 32px;
+  padding: 12px;
   font-family: "Inter", sans-serif;
 `;
 
 const Header = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 `;
 
 const TitleSection = styled.div`

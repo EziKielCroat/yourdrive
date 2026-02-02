@@ -1,4 +1,5 @@
 import React from "react";
+import styled from "styled-components";
 
 import SearchIcon from "../../../../shared/icons/searchIcon";
 import FilterIcon from "../../../../shared/icons/filter";
@@ -19,6 +20,7 @@ import FileTypePopup from "./filters/FileTypePopup";
 import PersonPopup from "./filters/PersonPopup";
 import LastModifiedPopup from "./filters/LastModifiedPopup";
 import AdvancedPopup from "./filters/AdvancedPopup";
+import SidebarToggle from "../../sidebar/SidebarToggle";
 
 interface QuickSearchProps {
   placeholder?: string;
@@ -37,7 +39,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   const toggleFileTypePopup = usePopupStore((s) => s.toggleFileTypePopup);
   const togglePersonPopup = usePopupStore((s) => s.togglePersonPopup);
   const toggleLastModifiedPopup = usePopupStore(
-    (s) => s.toggleLastModifiedPopup
+    (s) => s.toggleLastModifiedPopup,
   );
   const toggleAdvancedPopup = usePopupStore((s) => s.toggleAdvancedPopup);
 
@@ -62,26 +64,34 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
         </>
       )}
 
-      <InputWrapper>
-        <SearchIcon color={iconColor} />
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={query}
-          onChange={handleInputChange}
-        />
-        {showFilters && (
-          <FilterIcon
-            color={iconColor}
-            ref={advancedFilterRef}
-            onClick={toggleAdvancedPopup}
-            style={{
-              cursor: "pointer",
-              opacity: hasActiveFilters() ? 1 : 0.6,
-            }}
-          />
-        )}
-      </InputWrapper>
+      <SearchRow>
+        <LeftSection>
+          <SidebarToggle />
+        </LeftSection>
+        <CenterSection>
+          <InputWrapper>
+            <SearchIcon color={iconColor} />
+            <input
+              type="text"
+              placeholder={placeholder}
+              value={query}
+              onChange={handleInputChange}
+            />
+            {showFilters && (
+              <FilterIcon
+                color={iconColor}
+                ref={advancedFilterRef}
+                onClick={toggleAdvancedPopup}
+                style={{
+                  cursor: "pointer",
+                  opacity: hasActiveFilters() ? 1 : 0.6,
+                }}
+              />
+            )}
+          </InputWrapper>
+        </CenterSection>
+        <RightSection />
+      </SearchRow>
 
       {showFilters && (
         <FilterButtons>
@@ -113,3 +123,27 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
 };
 
 export default QuickSearch;
+
+const SearchRow = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100%;
+`;
+
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+`;
+
+const CenterSection = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+`;
+
+const RightSection = styled.div`
+  flex: 0 0 auto;
+  width: 66px;
+`;

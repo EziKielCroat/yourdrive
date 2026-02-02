@@ -3,6 +3,7 @@ import { Root, Layout } from "../styles/application";
 
 import Sidebar from "./sidebar/Sidebar";
 import Main from "./main/Main";
+import { useSidebarStore } from "../../../store/sidebarStore";
 
 export interface ApplicationProps {
   title?: string;
@@ -19,6 +20,7 @@ const Application: FC<ApplicationProps> = ({
   children,
 }) => {
   const id = useId();
+  const isOpen = useSidebarStore((s) => s.isOpen);
 
   useEffect(() => {
     if (title) {
@@ -33,7 +35,7 @@ const Application: FC<ApplicationProps> = ({
   return (
     <Root id={`application-${id}`} className={`application-root ${className}`}>
       <Layout>
-        <Sidebar />
+        {isOpen && <Sidebar />}
         <Main>{children}</Main>
       </Layout>
     </Root>
