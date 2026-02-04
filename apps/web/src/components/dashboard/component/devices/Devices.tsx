@@ -21,6 +21,7 @@ import {
   Folder,
 } from "lucide-react";
 import SidebarToggle from "../sidebar/SidebarToggle";
+import PageTransition from "../../../shared/PageTransition";
 
 interface Device {
   id: string;
@@ -295,460 +296,473 @@ const Devices: React.FC = () => {
   }
 
   return (
-    <Container>
-      <Header>
-        <TitleSection>
-          <SidebarToggle />
+    <PageTransition>
+      <Container>
+        <Header>
+          <TitleSection>
+            <SidebarToggle />
 
-          <Title>Devices</Title>
-        </TitleSection>
-        <HeaderActions>
-          <ViewToggle>
-            <ToggleButton
-              $active={!showGroups}
-              onClick={() => {
-                setShowGroups(false);
-                setSelectedGroup(null);
-              }}
-            >
-              <Monitor size={16} />
-              Devices ({devices.length})
-            </ToggleButton>
-            <ToggleButton
-              $active={showGroups}
-              onClick={() => setShowGroups(true)}
-            >
-              <Folder size={16} />
-              Groups ({groups.length})
-            </ToggleButton>
-          </ViewToggle>
-          {showGroups && (
-            <CreateButton onClick={() => setCreateGroupModal(true)}>
-              <Plus size={16} />
-              New Group
-            </CreateButton>
-          )}
-        </HeaderActions>
-      </Header>
-
-      {selectedGroup && (
-        <GroupBreadcrumb>
-          <BreadcrumbLink onClick={() => setSelectedGroup(null)}>
-            All Groups
-          </BreadcrumbLink>
-          <span>/</span>
-          <BreadcrumbCurrent>
-            {groups.find((g) => g.id === selectedGroup)?.name}
-          </BreadcrumbCurrent>
-        </GroupBreadcrumb>
-      )}
-
-      {showGroups && !selectedGroup ? (
-        <GroupsView>
-          <GroupsGrid>
-            {groups.map((group) => (
-              <GroupCard key={group.id} $color={group.color}>
-                <GroupHeader>
-                  <GroupIcon>{group.icon}</GroupIcon>
-                  <GroupInfo>
-                    <GroupName>{group.name}</GroupName>
-                    <GroupMeta>
-                      {group.device_count} device
-                      {group.device_count !== 1 && "s"}
-                    </GroupMeta>
-                  </GroupInfo>
-                  <GroupActions>
-                    <SmallButton onClick={() => setSelectedGroup(group.id)}>
-                      View
-                    </SmallButton>
-                    <SmallButton
-                      $danger
-                      onClick={() => handleDeleteGroup(group.id)}
-                    >
-                      <Trash2 size={14} />
-                    </SmallButton>
-                  </GroupActions>
-                </GroupHeader>
-                {group.description && (
-                  <GroupDescription>{group.description}</GroupDescription>
-                )}
-              </GroupCard>
-            ))}
-          </GroupsGrid>
-        </GroupsView>
-      ) : (
-        <TableContainer>
-          <Table>
-            <thead>
-              <TableRow $isHeader>
-                <TableHeader style={{ width: "40%" }}>Device</TableHeader>
-                <TableHeader style={{ width: "15%" }}>Status</TableHeader>
-                <TableHeader style={{ width: "15%" }}>Files</TableHeader>
-                <TableHeader style={{ width: "15%" }}>Storage</TableHeader>
-                <TableHeader style={{ width: "15%" }}>Last Active</TableHeader>
-                <TableHeader style={{ width: "50px" }}></TableHeader>
-              </TableRow>
-            </thead>
-            <tbody>
-              {filteredDevices.map((device) => (
-                <TableRow
-                  key={device.id}
-                  onMouseEnter={() => setSettingsOpen(device.id)}
-                  onMouseLeave={() => setSettingsOpen(null)}
-                >
-                  <TableCell>
-                    <DeviceNameCell>
-                      <DeviceIconWrapper
-                        $color={device.device_color || "#1a73e8"}
-                      >
-                        {getDeviceIcon(device.device_type)}
-                      </DeviceIconWrapper>
-                      <DeviceNameWrapper>
-                        <DeviceName>
-                          {device.device_nickname || device.device_name}
-                        </DeviceName>
-                        <DeviceInfo>
-                          {device.browser} • {device.os}
-                        </DeviceInfo>
-                      </DeviceNameWrapper>
-                    </DeviceNameCell>
-                  </TableCell>
-                  <TableCell>
-                    <StatusCell>
-                      {device.is_current && (
-                        <CurrentBadge>Current</CurrentBadge>
-                      )}
-                      {device.is_locked && (
-                        <StatusBadge $color="#ea4335">
-                          <Lock size={14} />
-                          Locked
-                        </StatusBadge>
-                      )}
-                      {device.is_trusted && !device.is_locked && (
-                        <StatusBadge $color="#34a853">
-                          <Shield size={14} />
-                          Trusted
-                        </StatusBadge>
-                      )}
-                    </StatusCell>
-                  </TableCell>
-                  <TableCell>
-                    <StatValue>{parseCount(device.file_count || 0)}</StatValue>
-                  </TableCell>
-                  <TableCell>
-                    <StatValue>
-                      {formatStorage(device.total_storage || 0)}
-                    </StatValue>
-                  </TableCell>
-                  <TableCell>
-                    <LastActive>
-                      {formatLastActive(device.last_active)}
-                    </LastActive>
-                  </TableCell>
-                  <TableCell>
-                    <ActionButtonWrapper>
-                      {settingsOpen === device.id && (
-                        <ActionButton
-                          onClick={() => {
-                            // Keep menu open
-                          }}
-                        >
-                          <MoreVertical size={18} />
-                        </ActionButton>
-                      )}
-                      {settingsOpen === device.id && (
-                        <ActionsMenu onClick={(e) => e.stopPropagation()}>
-                          <MenuItem
-                            onClick={() => setRemoteActionsModal(device)}
-                          >
-                            <Shield size={16} />
-                            Remote Actions
-                          </MenuItem>
-                          <MenuItem onClick={() => setAddToGroupModal(device)}>
-                            <Folder size={16} />
-                            Add to Group
-                          </MenuItem>
-                          <MenuItem onClick={() => setEditingDevice(device.id)}>
-                            <Edit3 size={16} />
-                            Rename
-                          </MenuItem>
-                          <MenuDivider />
-                          <MenuItem
-                            $danger
-                            onClick={() => {
-                              /* handleRemoveDevice */
-                            }}
-                            disabled={device.is_current}
-                          >
-                            <Trash2 size={16} />
-                            Remove Device
-                          </MenuItem>
-                        </ActionsMenu>
-                      )}
-                    </ActionButtonWrapper>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </tbody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {/* Add to Group Modal */}
-      {addToGroupModal && (
-        <Modal onClick={() => setAddToGroupModal(null)}>
-          <ModalContent $small onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Add to Group</ModalTitle>
-              <CloseButton onClick={() => setAddToGroupModal(null)}>
-                <X size={20} />
-              </CloseButton>
-            </ModalHeader>
-            <DeviceDetails>
-              <DeviceName>
-                {addToGroupModal.device_nickname || addToGroupModal.device_name}
-              </DeviceName>
-            </DeviceDetails>
-            <GroupsList>
-              {groups.map((group) => (
-                <GroupOption
-                  key={group.id}
-                  onClick={() => handleAddToGroup(addToGroupModal.id, group.id)}
-                >
-                  <GroupIcon>{group.icon}</GroupIcon>
-                  <GroupName>{group.name}</GroupName>
-                </GroupOption>
-              ))}
-            </GroupsList>
-          </ModalContent>
-        </Modal>
-      )}
-
-      {/* Remote Actions Modal */}
-      {remoteActionsModal && (
-        <Modal onClick={() => setRemoteActionsModal(null)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Remote Device Actions</ModalTitle>
-              <CloseButton onClick={() => setRemoteActionsModal(null)}>
-                <X size={20} />
-              </CloseButton>
-            </ModalHeader>
-            <DeviceDetails>
-              <DeviceName>
-                {remoteActionsModal.device_nickname ||
-                  remoteActionsModal.device_name}
-              </DeviceName>
-              <DeviceInfo>
-                {remoteActionsModal.browser} • {remoteActionsModal.os}
-              </DeviceInfo>
-            </DeviceDetails>
-            <ActionsList>
-              {remoteActionsModal.is_locked ? (
-                <ActionItem
-                  onClick={() => handleUnlockDevice(remoteActionsModal)}
-                >
-                  <Unlock size={20} />
-                  <ActionInfo>
-                    <ActionTitle>Unlock Device</ActionTitle>
-                    <ActionDesc>Allow access to files again</ActionDesc>
-                  </ActionInfo>
-                </ActionItem>
-              ) : (
-                <ActionItem onClick={() => setLockModal(remoteActionsModal)}>
-                  <Lock size={20} />
-                  <ActionInfo>
-                    <ActionTitle>Lock Device</ActionTitle>
-                    <ActionDesc>Prevent access to files</ActionDesc>
-                  </ActionInfo>
-                </ActionItem>
-              )}
-              {!remoteActionsModal.is_current && (
-                <>
-                  <ActionItem
-                    onClick={() => handleForceLogout(remoteActionsModal)}
-                  >
-                    <LogOut size={20} />
-                    <ActionInfo>
-                      <ActionTitle>Force Logout</ActionTitle>
-                      <ActionDesc>Sign out device remotely</ActionDesc>
-                    </ActionInfo>
-                  </ActionItem>
-                  <ActionItem
-                    $danger
-                    onClick={() => setWipeConfirmModal(remoteActionsModal)}
-                  >
-                    <AlertTriangle size={20} />
-                    <ActionInfo>
-                      <ActionTitle>Remote Wipe</ActionTitle>
-                      <ActionDesc>
-                        Remove all synced files from device
-                      </ActionDesc>
-                    </ActionInfo>
-                  </ActionItem>
-                </>
-              )}
-            </ActionsList>
-          </ModalContent>
-        </Modal>
-      )}
-
-      {/* Wipe Confirmation Modal */}
-      {wipeConfirmModal && (
-        <Modal onClick={() => setWipeConfirmModal(null)}>
-          <ModalContent $small onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>⚠️ Confirm Remote Wipe</ModalTitle>
-              <CloseButton onClick={() => setWipeConfirmModal(null)}>
-                <X size={20} />
-              </CloseButton>
-            </ModalHeader>
-            <WarningText>
-              This will remove all synced files from this device. This action
-              cannot be undone.
-            </WarningText>
-            <DeviceDetails>
-              <DeviceName>
-                {wipeConfirmModal.device_nickname ||
-                  wipeConfirmModal.device_name}
-              </DeviceName>
-            </DeviceDetails>
-            <ModalActions>
-              <ModalButton onClick={() => setWipeConfirmModal(null)}>
-                Cancel
-              </ModalButton>
-              <ModalButton
-                $danger
-                onClick={() => handleWipeDevice(wipeConfirmModal)}
+            <Title>Devices</Title>
+          </TitleSection>
+          <HeaderActions>
+            <ViewToggle>
+              <ToggleButton
+                $active={!showGroups}
+                onClick={() => {
+                  setShowGroups(false);
+                  setSelectedGroup(null);
+                }}
               >
-                <AlertTriangle size={16} />
-                Wipe Device
-              </ModalButton>
-            </ModalActions>
-          </ModalContent>
-        </Modal>
-      )}
+                <Monitor size={16} />
+                Devices ({devices.length})
+              </ToggleButton>
+              <ToggleButton
+                $active={showGroups}
+                onClick={() => setShowGroups(true)}
+              >
+                <Folder size={16} />
+                Groups ({groups.length})
+              </ToggleButton>
+            </ViewToggle>
+            {showGroups && (
+              <CreateButton onClick={() => setCreateGroupModal(true)}>
+                <Plus size={16} />
+                New Group
+              </CreateButton>
+            )}
+          </HeaderActions>
+        </Header>
 
-      {/* Lock Modal */}
-      {lockModal && (
-        <Modal onClick={() => setLockModal(null)}>
-          <ModalContent $small onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Lock Device</ModalTitle>
-              <CloseButton onClick={() => setLockModal(null)}>
-                <X size={20} />
-              </CloseButton>
-            </ModalHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const message = formData.get("message") as string;
-                handleLockDevice(lockModal, message);
-              }}
-            >
-              <InputGroup>
-                <Label>Lock Message (Optional)</Label>
-                <TextArea
-                  name="message"
-                  placeholder="This device has been locked..."
-                  rows={3}
-                />
-              </InputGroup>
-              <ModalActions>
-                <ModalButton type="button" onClick={() => setLockModal(null)}>
-                  Cancel
-                </ModalButton>
-                <ModalButton type="submit" $danger>
-                  <Lock size={16} />
-                  Lock Device
-                </ModalButton>
-              </ModalActions>
-            </form>
-          </ModalContent>
-        </Modal>
-      )}
+        {selectedGroup && (
+          <GroupBreadcrumb>
+            <BreadcrumbLink onClick={() => setSelectedGroup(null)}>
+              All Groups
+            </BreadcrumbLink>
+            <span>/</span>
+            <BreadcrumbCurrent>
+              {groups.find((g) => g.id === selectedGroup)?.name}
+            </BreadcrumbCurrent>
+          </GroupBreadcrumb>
+        )}
 
-      {/* Create Group Modal */}
-      {createGroupModal && (
-        <Modal onClick={() => setCreateGroupModal(false)}>
-          <ModalContent $compact onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>Create Device Group</ModalTitle>
-              <CloseButton onClick={() => setCreateGroupModal(false)}>
-                <X size={20} />
-              </CloseButton>
-            </ModalHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const name = formData.get("name") as string;
-                const color = formData.get("color") as string;
-                handleCreateGroup(name, selectedIcon, color || "#1a73e8");
-              }}
-            >
-              <CompactInputRow>
-                <IconPicker>
-                  <IconPreview>{selectedIcon}</IconPreview>
-                  <IconGrid>
-                    {iconOptions.map((icon) => (
-                      <IconOption
-                        key={icon}
-                        type="button"
-                        $selected={selectedIcon === icon}
-                        onClick={() => setSelectedIcon(icon)}
+        {showGroups && !selectedGroup ? (
+          <GroupsView>
+            <GroupsGrid>
+              {groups.map((group) => (
+                <GroupCard key={group.id} $color={group.color}>
+                  <GroupHeader>
+                    <GroupIcon>{group.icon}</GroupIcon>
+                    <GroupInfo>
+                      <GroupName>{group.name}</GroupName>
+                      <GroupMeta>
+                        {group.device_count} device
+                        {group.device_count !== 1 && "s"}
+                      </GroupMeta>
+                    </GroupInfo>
+                    <GroupActions>
+                      <SmallButton onClick={() => setSelectedGroup(group.id)}>
+                        View
+                      </SmallButton>
+                      <SmallButton
+                        $danger
+                        onClick={() => handleDeleteGroup(group.id)}
                       >
-                        {icon}
-                      </IconOption>
-                    ))}
-                  </IconGrid>
-                </IconPicker>
-                <InputGroup style={{ flex: 1 }}>
-                  <Label>Group Name</Label>
-                  <Input name="name" placeholder="Work Devices" required />
-                </InputGroup>
-              </CompactInputRow>
-              <InputGroup>
-                <Label>Color</Label>
-                <ColorInputWrapper>
-                  <ColorPreview>
-                    <input
-                      name="color"
-                      type="color"
-                      defaultValue="#1a73e8"
-                      style={{ opacity: 0, position: "absolute" }}
-                    />
-                    <ColorSwatch
-                      style={{
-                        background:
-                          (
-                            document.querySelector(
-                              'input[name="color"]',
-                            ) as HTMLInputElement
-                          )?.value || "#1a73e8",
-                      }}
-                    />
-                  </ColorPreview>
-                </ColorInputWrapper>
-              </InputGroup>
+                        <Trash2 size={14} />
+                      </SmallButton>
+                    </GroupActions>
+                  </GroupHeader>
+                  {group.description && (
+                    <GroupDescription>{group.description}</GroupDescription>
+                  )}
+                </GroupCard>
+              ))}
+            </GroupsGrid>
+          </GroupsView>
+        ) : (
+          <TableContainer>
+            <Table>
+              <thead>
+                <TableRow $isHeader>
+                  <TableHeader style={{ width: "40%" }}>Device</TableHeader>
+                  <TableHeader style={{ width: "15%" }}>Status</TableHeader>
+                  <TableHeader style={{ width: "15%" }}>Files</TableHeader>
+                  <TableHeader style={{ width: "15%" }}>Storage</TableHeader>
+                  <TableHeader style={{ width: "15%" }}>
+                    Last Active
+                  </TableHeader>
+                  <TableHeader style={{ width: "50px" }}></TableHeader>
+                </TableRow>
+              </thead>
+              <tbody>
+                {filteredDevices.map((device) => (
+                  <TableRow
+                    key={device.id}
+                    onMouseEnter={() => setSettingsOpen(device.id)}
+                    onMouseLeave={() => setSettingsOpen(null)}
+                  >
+                    <TableCell>
+                      <DeviceNameCell>
+                        <DeviceIconWrapper
+                          $color={device.device_color || "#1a73e8"}
+                        >
+                          {getDeviceIcon(device.device_type)}
+                        </DeviceIconWrapper>
+                        <DeviceNameWrapper>
+                          <DeviceName>
+                            {device.device_nickname || device.device_name}
+                          </DeviceName>
+                          <DeviceInfo>
+                            {device.browser} • {device.os}
+                          </DeviceInfo>
+                        </DeviceNameWrapper>
+                      </DeviceNameCell>
+                    </TableCell>
+                    <TableCell>
+                      <StatusCell>
+                        {device.is_current && (
+                          <CurrentBadge>Current</CurrentBadge>
+                        )}
+                        {device.is_locked && (
+                          <StatusBadge $color="#ea4335">
+                            <Lock size={14} />
+                            Locked
+                          </StatusBadge>
+                        )}
+                        {device.is_trusted && !device.is_locked && (
+                          <StatusBadge $color="#34a853">
+                            <Shield size={14} />
+                            Trusted
+                          </StatusBadge>
+                        )}
+                      </StatusCell>
+                    </TableCell>
+                    <TableCell>
+                      <StatValue>
+                        {parseCount(device.file_count || 0)}
+                      </StatValue>
+                    </TableCell>
+                    <TableCell>
+                      <StatValue>
+                        {formatStorage(device.total_storage || 0)}
+                      </StatValue>
+                    </TableCell>
+                    <TableCell>
+                      <LastActive>
+                        {formatLastActive(device.last_active)}
+                      </LastActive>
+                    </TableCell>
+                    <TableCell>
+                      <ActionButtonWrapper>
+                        {settingsOpen === device.id && (
+                          <ActionButton
+                            onClick={() => {
+                              // Keep menu open
+                            }}
+                          >
+                            <MoreVertical size={18} />
+                          </ActionButton>
+                        )}
+                        {settingsOpen === device.id && (
+                          <ActionsMenu onClick={(e) => e.stopPropagation()}>
+                            <MenuItem
+                              onClick={() => setRemoteActionsModal(device)}
+                            >
+                              <Shield size={16} />
+                              Remote Actions
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => setAddToGroupModal(device)}
+                            >
+                              <Folder size={16} />
+                              Add to Group
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => setEditingDevice(device.id)}
+                            >
+                              <Edit3 size={16} />
+                              Rename
+                            </MenuItem>
+                            <MenuDivider />
+                            <MenuItem
+                              $danger
+                              onClick={() => {
+                                /* handleRemoveDevice */
+                              }}
+                              disabled={device.is_current}
+                            >
+                              <Trash2 size={16} />
+                              Remove Device
+                            </MenuItem>
+                          </ActionsMenu>
+                        )}
+                      </ActionButtonWrapper>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        )}
+
+        {/* Add to Group Modal */}
+        {addToGroupModal && (
+          <Modal onClick={() => setAddToGroupModal(null)}>
+            <ModalContent $small onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Add to Group</ModalTitle>
+                <CloseButton onClick={() => setAddToGroupModal(null)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <DeviceDetails>
+                <DeviceName>
+                  {addToGroupModal.device_nickname ||
+                    addToGroupModal.device_name}
+                </DeviceName>
+              </DeviceDetails>
+              <GroupsList>
+                {groups.map((group) => (
+                  <GroupOption
+                    key={group.id}
+                    onClick={() =>
+                      handleAddToGroup(addToGroupModal.id, group.id)
+                    }
+                  >
+                    <GroupIcon>{group.icon}</GroupIcon>
+                    <GroupName>{group.name}</GroupName>
+                  </GroupOption>
+                ))}
+              </GroupsList>
+            </ModalContent>
+          </Modal>
+        )}
+
+        {/* Remote Actions Modal */}
+        {remoteActionsModal && (
+          <Modal onClick={() => setRemoteActionsModal(null)}>
+            <ModalContent onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Remote Device Actions</ModalTitle>
+                <CloseButton onClick={() => setRemoteActionsModal(null)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <DeviceDetails>
+                <DeviceName>
+                  {remoteActionsModal.device_nickname ||
+                    remoteActionsModal.device_name}
+                </DeviceName>
+                <DeviceInfo>
+                  {remoteActionsModal.browser} • {remoteActionsModal.os}
+                </DeviceInfo>
+              </DeviceDetails>
+              <ActionsList>
+                {remoteActionsModal.is_locked ? (
+                  <ActionItem
+                    onClick={() => handleUnlockDevice(remoteActionsModal)}
+                  >
+                    <Unlock size={20} />
+                    <ActionInfo>
+                      <ActionTitle>Unlock Device</ActionTitle>
+                      <ActionDesc>Allow access to files again</ActionDesc>
+                    </ActionInfo>
+                  </ActionItem>
+                ) : (
+                  <ActionItem onClick={() => setLockModal(remoteActionsModal)}>
+                    <Lock size={20} />
+                    <ActionInfo>
+                      <ActionTitle>Lock Device</ActionTitle>
+                      <ActionDesc>Prevent access to files</ActionDesc>
+                    </ActionInfo>
+                  </ActionItem>
+                )}
+                {!remoteActionsModal.is_current && (
+                  <>
+                    <ActionItem
+                      onClick={() => handleForceLogout(remoteActionsModal)}
+                    >
+                      <LogOut size={20} />
+                      <ActionInfo>
+                        <ActionTitle>Force Logout</ActionTitle>
+                        <ActionDesc>Sign out device remotely</ActionDesc>
+                      </ActionInfo>
+                    </ActionItem>
+                    <ActionItem
+                      $danger
+                      onClick={() => setWipeConfirmModal(remoteActionsModal)}
+                    >
+                      <AlertTriangle size={20} />
+                      <ActionInfo>
+                        <ActionTitle>Remote Wipe</ActionTitle>
+                        <ActionDesc>
+                          Remove all synced files from device
+                        </ActionDesc>
+                      </ActionInfo>
+                    </ActionItem>
+                  </>
+                )}
+              </ActionsList>
+            </ModalContent>
+          </Modal>
+        )}
+
+        {/* Wipe Confirmation Modal */}
+        {wipeConfirmModal && (
+          <Modal onClick={() => setWipeConfirmModal(null)}>
+            <ModalContent $small onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>⚠️ Confirm Remote Wipe</ModalTitle>
+                <CloseButton onClick={() => setWipeConfirmModal(null)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <WarningText>
+                This will remove all synced files from this device. This action
+                cannot be undone.
+              </WarningText>
+              <DeviceDetails>
+                <DeviceName>
+                  {wipeConfirmModal.device_nickname ||
+                    wipeConfirmModal.device_name}
+                </DeviceName>
+              </DeviceDetails>
               <ModalActions>
-                <ModalButton
-                  type="button"
-                  onClick={() => setCreateGroupModal(false)}
-                >
+                <ModalButton onClick={() => setWipeConfirmModal(null)}>
                   Cancel
                 </ModalButton>
-                <ModalButton type="submit">
-                  <Plus size={16} />
-                  Create Group
+                <ModalButton
+                  $danger
+                  onClick={() => handleWipeDevice(wipeConfirmModal)}
+                >
+                  <AlertTriangle size={16} />
+                  Wipe Device
                 </ModalButton>
               </ModalActions>
-            </form>
-          </ModalContent>
-        </Modal>
-      )}
-    </Container>
+            </ModalContent>
+          </Modal>
+        )}
+
+        {/* Lock Modal */}
+        {lockModal && (
+          <Modal onClick={() => setLockModal(null)}>
+            <ModalContent $small onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Lock Device</ModalTitle>
+                <CloseButton onClick={() => setLockModal(null)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const message = formData.get("message") as string;
+                  handleLockDevice(lockModal, message);
+                }}
+              >
+                <InputGroup>
+                  <Label>Lock Message (Optional)</Label>
+                  <TextArea
+                    name="message"
+                    placeholder="This device has been locked..."
+                    rows={3}
+                  />
+                </InputGroup>
+                <ModalActions>
+                  <ModalButton type="button" onClick={() => setLockModal(null)}>
+                    Cancel
+                  </ModalButton>
+                  <ModalButton type="submit" $danger>
+                    <Lock size={16} />
+                    Lock Device
+                  </ModalButton>
+                </ModalActions>
+              </form>
+            </ModalContent>
+          </Modal>
+        )}
+
+        {/* Create Group Modal */}
+        {createGroupModal && (
+          <Modal onClick={() => setCreateGroupModal(false)}>
+            <ModalContent $compact onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>Create Device Group</ModalTitle>
+                <CloseButton onClick={() => setCreateGroupModal(false)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const name = formData.get("name") as string;
+                  const color = formData.get("color") as string;
+                  handleCreateGroup(name, selectedIcon, color || "#1a73e8");
+                }}
+              >
+                <CompactInputRow>
+                  <IconPicker>
+                    <IconPreview>{selectedIcon}</IconPreview>
+                    <IconGrid>
+                      {iconOptions.map((icon) => (
+                        <IconOption
+                          key={icon}
+                          type="button"
+                          $selected={selectedIcon === icon}
+                          onClick={() => setSelectedIcon(icon)}
+                        >
+                          {icon}
+                        </IconOption>
+                      ))}
+                    </IconGrid>
+                  </IconPicker>
+                  <InputGroup style={{ flex: 1 }}>
+                    <Label>Group Name</Label>
+                    <Input name="name" placeholder="Work Devices" required />
+                  </InputGroup>
+                </CompactInputRow>
+                <InputGroup>
+                  <Label>Color</Label>
+                  <ColorInputWrapper>
+                    <ColorPreview>
+                      <input
+                        name="color"
+                        type="color"
+                        defaultValue="#1a73e8"
+                        style={{ opacity: 0, position: "absolute" }}
+                      />
+                      <ColorSwatch
+                        style={{
+                          background:
+                            (
+                              document.querySelector(
+                                'input[name="color"]',
+                              ) as HTMLInputElement
+                            )?.value || "#1a73e8",
+                        }}
+                      />
+                    </ColorPreview>
+                  </ColorInputWrapper>
+                </InputGroup>
+                <ModalActions>
+                  <ModalButton
+                    type="button"
+                    onClick={() => setCreateGroupModal(false)}
+                  >
+                    Cancel
+                  </ModalButton>
+                  <ModalButton type="submit">
+                    <Plus size={16} />
+                    Create Group
+                  </ModalButton>
+                </ModalActions>
+              </form>
+            </ModalContent>
+          </Modal>
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 

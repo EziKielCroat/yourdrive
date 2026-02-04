@@ -13,6 +13,8 @@ import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import { useEvent } from "../../../../events/useEvent";
 import { eventBus } from "../../../../events/eventBus";
 
+import PageTransition from "../../../shared/PageTransition";
+
 export interface ApiFile {
   id: string;
   original_name: string;
@@ -264,57 +266,59 @@ const YourFiles: React.FC = () => {
   const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 
   return (
-    <Container>
-      <Header>
-        <SidebarToggle />
-        <Title>Your Files</Title>
-        {files.length > 0 && (
-          <FileCount>
-            {files.length} {files.length === 1 ? "item" : "items"}
-          </FileCount>
+    <PageTransition>
+      <Container>
+        <Header>
+          <SidebarToggle />
+          <Title>Your Files</Title>
+          {files.length > 0 && (
+            <FileCount>
+              {files.length} {files.length === 1 ? "item" : "items"}
+            </FileCount>
+          )}
+        </Header>
+
+        {hasActiveFilters && (
+          <FilterIndicator>
+            Showing {filteredFiles.length} of {files.length} items
+            {activeFilterCount > 0 &&
+              ` (${activeFilterCount} filter${
+                activeFilterCount > 1 ? "s" : ""
+              } active)`}
+          </FilterIndicator>
         )}
-      </Header>
 
-      {hasActiveFilters && (
-        <FilterIndicator>
-          Showing {filteredFiles.length} of {files.length} items
-          {activeFilterCount > 0 &&
-            ` (${activeFilterCount} filter${
-              activeFilterCount > 1 ? "s" : ""
-            } active)`}
-        </FilterIndicator>
-      )}
-
-      <EnhancedFilesTable
-        files={filteredFiles}
-        loading={loading}
-        emptyMessage={getEmptyMessage(hasActiveFilters)}
-        emptySubtext={getEmptySubtext(hasActiveFilters)}
-        onFilePreview={handleFilePreview}
-        onFileSelect={handleFileSelect}
-        selectedFiles={selectedFiles}
-        showOwner={false}
-        showLocation={true}
-        showFolderStructure={true}
-        maxHeight={770}
-        onFilesUpload={handleFilesUpload}
-        checkStorageLimit={checkStorageLimit}
-      />
-
-      {previewFile && previewFile.type === "file" && (
-        <FilePreview
-          fileId={previewFile.id}
-          fileName={previewFile.name}
-          mimeType={previewFile.mimeType}
-          onClose={handleClosePreview}
-          allFiles={navigableFiles.filter((f) => f.type === "file")}
-          currentIndex={navigableFiles
-            .filter((f) => f.type === "file")
-            .findIndex((f) => f.id === previewFile.id)}
-          onNavigate={handleNavigate}
+        <EnhancedFilesTable
+          files={filteredFiles}
+          loading={loading}
+          emptyMessage={getEmptyMessage(hasActiveFilters)}
+          emptySubtext={getEmptySubtext(hasActiveFilters)}
+          onFilePreview={handleFilePreview}
+          onFileSelect={handleFileSelect}
+          selectedFiles={selectedFiles}
+          showOwner={false}
+          showLocation={true}
+          showFolderStructure={true}
+          maxHeight={770}
+          onFilesUpload={handleFilesUpload}
+          checkStorageLimit={checkStorageLimit}
         />
-      )}
-    </Container>
+
+        {previewFile && previewFile.type === "file" && (
+          <FilePreview
+            fileId={previewFile.id}
+            fileName={previewFile.name}
+            mimeType={previewFile.mimeType}
+            onClose={handleClosePreview}
+            allFiles={navigableFiles.filter((f) => f.type === "file")}
+            currentIndex={navigableFiles
+              .filter((f) => f.type === "file")
+              .findIndex((f) => f.id === previewFile.id)}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 

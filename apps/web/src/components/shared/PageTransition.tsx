@@ -1,29 +1,24 @@
-import { type ReactNode } from "react";
 import { motion } from "framer-motion";
-import styled from "styled-components";
+import { type ReactNode } from "react";
 
 interface PageTransitionProps {
   children: ReactNode;
 }
 
-const Wrapper = styled(motion.div)`
-  width: 100%;
-  height: 100%;
-`;
-
 const PageTransition = ({ children }: PageTransitionProps) => {
   return (
-    <Wrapper
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{
-        duration: 0.25,
-        ease: [0.4, 0, 0.2, 1],
+        duration: 0.3,
+        ease: "easeInOut",
       }}
+      style={{ height: "100%" }}
     >
       {children}
-    </Wrapper>
+    </motion.div>
   );
 };
 

@@ -10,6 +10,7 @@ import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import { useEvent } from "../../../../events/useEvent";
+import PageTransition from "../../../shared/PageTransition";
 
 interface SharedFile {
   share_id: string;
@@ -139,54 +140,55 @@ const SharedWithYou: React.FC = () => {
   });
 
   return (
-    <Container>
-      <Header>
-        <SidebarToggle />
-        <Title>Shared With You</Title>
-        {sharedFiles.length > 0 && (
-          <FileCount>
-            {sharedFiles.length} {sharedFiles.length === 1 ? "file" : "files"}
-          </FileCount>
+    <PageTransition>
+      <Container>
+        <Header>
+          <SidebarToggle />
+          <Title>Shared With You</Title>
+          {sharedFiles.length > 0 && (
+            <FileCount>
+              {sharedFiles.length} {sharedFiles.length === 1 ? "file" : "files"}
+            </FileCount>
+          )}
+        </Header>
+
+        {hasActiveFilters && (
+          <FilterIndicator>
+            Showing {filteredFiles.length} of {sharedFiles.length} files
+            {activeFilterCount > 0 &&
+              ` (${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active)`}
+          </FilterIndicator>
         )}
-      </Header>
 
-      {hasActiveFilters && (
-        <FilterIndicator>
-          Showing {filteredFiles.length} of {sharedFiles.length} files
-          {activeFilterCount > 0 &&
-            ` (${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active)`}
-        </FilterIndicator>
-      )}
-
-      <EnhancedFilesTable
-        files={filteredFiles}
-        loading={loading}
-        emptyMessage={getEmptyMessage(hasActiveFilters)}
-        emptySubtext={getEmptySubtext(hasActiveFilters)}
-        onFilePreview={handleFilePreview}
-        onFileSelect={handleFileSelect}
-        selectedFiles={selectedFiles}
-        showOwner={true}
-        showLocation={true}
-        isShared={true}
-        maxHeight={770}
-        // No drag & drop for shared files (users can't upload to shared folders)
-        // onFilesUpload and checkStorageLimit are intentionally omitted
-      />
-
-      {previewFile && (
-        <FilePreview
-          fileId={previewFile.id}
-          fileName={previewFile.name}
-          mimeType={previewFile.mimeType}
-          ownerName={previewFile.owner.name}
-          onClose={handleClosePreview}
-          allFiles={navigableFiles}
-          currentIndex={previewIndex}
-          onNavigate={handleNavigate}
+        <EnhancedFilesTable
+          files={filteredFiles}
+          loading={loading}
+          emptyMessage={getEmptyMessage(hasActiveFilters)}
+          emptySubtext={getEmptySubtext(hasActiveFilters)}
+          onFilePreview={handleFilePreview}
+          onFileSelect={handleFileSelect}
+          selectedFiles={selectedFiles}
+          showOwner={true}
+          showLocation={true}
+          isShared={true}
+          maxHeight={770}
+          // onFilesUpload and checkStorageLimit are intentionally omitted
         />
-      )}
-    </Container>
+
+        {previewFile && (
+          <FilePreview
+            fileId={previewFile.id}
+            fileName={previewFile.name}
+            mimeType={previewFile.mimeType}
+            ownerName={previewFile.owner.name}
+            onClose={handleClosePreview}
+            allFiles={navigableFiles}
+            currentIndex={previewIndex}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 

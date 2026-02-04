@@ -7,6 +7,7 @@ import { useAuthStore } from "../../../../store/authStore";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { formatDate } from "../yourFiles/YourFiles";
+import PageTransition from "../../../shared/PageTransition";
 
 const RecycleBin: React.FC = () => {
   const token = useAuthStore((s) => s.accessToken);
@@ -232,62 +233,64 @@ const RecycleBin: React.FC = () => {
   const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 
   return (
-    <Container>
-      <Header>
-        <SidebarToggle />
-        <Title>Recycle Bin</Title>
-        {files.length > 0 && <FileCount>{formatFileCount()}</FileCount>}
-        <ActionButtons>
-          {selectedFiles.size > 0 ? (
-            <>
-              <ActionButton onClick={handleRestoreSelected}>
-                Restore Selected
-              </ActionButton>
-              <ActionButton
-                onClick={handlePermanentDeleteSelected}
-                variant="danger"
-              >
-                Delete Selected
-              </ActionButton>
-            </>
-          ) : (
-            transformedFiles.length > 0 && (
-              <ActionButton onClick={handleEmptyRecycleBin} variant="danger">
-                Empty Recycle Bin
-              </ActionButton>
-            )
-          )}
-        </ActionButtons>
-      </Header>
+    <PageTransition>
+      <Container>
+        <Header>
+          <SidebarToggle />
+          <Title>Recycle Bin</Title>
+          {files.length > 0 && <FileCount>{formatFileCount()}</FileCount>}
+          <ActionButtons>
+            {selectedFiles.size > 0 ? (
+              <>
+                <ActionButton onClick={handleRestoreSelected}>
+                  Restore Selected
+                </ActionButton>
+                <ActionButton
+                  onClick={handlePermanentDeleteSelected}
+                  variant="danger"
+                >
+                  Delete Selected
+                </ActionButton>
+              </>
+            ) : (
+              transformedFiles.length > 0 && (
+                <ActionButton onClick={handleEmptyRecycleBin} variant="danger">
+                  Empty Recycle Bin
+                </ActionButton>
+              )
+            )}
+          </ActionButtons>
+        </Header>
 
-      <EnhancedFilesTable
-        files={transformedFiles}
-        loading={loading}
-        showOwner={false}
-        showLocation={true}
-        isRecycleBin={true}
-        onRestoreFile={handleRestore}
-        onDeletePermanently={handlePermanentDelete}
-        onFilePreview={handlePreview}
-        onFileSelect={handleFileSelect}
-        selectedFiles={selectedFiles}
-        emptyMessage="Recycle Bin is empty"
-        emptySubtext="Deleted files will appear here"
-        maxHeight={770}
-      />
-
-      {previewFile && (
-        <FilePreview
-          fileId={previewFile.id}
-          fileName={previewFile.name}
-          mimeType={previewFile.mimeType}
-          onClose={handleClosePreview}
-          allFiles={navigableFiles}
-          currentIndex={previewIndex}
-          onNavigate={handleNavigate}
+        <EnhancedFilesTable
+          files={transformedFiles}
+          loading={loading}
+          showOwner={false}
+          showLocation={true}
+          isRecycleBin={true}
+          onRestoreFile={handleRestore}
+          onDeletePermanently={handlePermanentDelete}
+          onFilePreview={handlePreview}
+          onFileSelect={handleFileSelect}
+          selectedFiles={selectedFiles}
+          emptyMessage="Recycle Bin is empty"
+          emptySubtext="Deleted files will appear here"
+          maxHeight={770}
         />
-      )}
-    </Container>
+
+        {previewFile && (
+          <FilePreview
+            fileId={previewFile.id}
+            fileName={previewFile.name}
+            mimeType={previewFile.mimeType}
+            onClose={handleClosePreview}
+            allFiles={navigableFiles}
+            currentIndex={previewIndex}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 

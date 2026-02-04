@@ -6,6 +6,7 @@ import { useAuthStore } from "../../../../store/authStore";
 import axios from "axios";
 import { Clock } from "lucide-react";
 import SidebarToggle from "../sidebar/SidebarToggle";
+import PageTransition from "../../../shared/PageTransition";
 
 const RecentlyEdited: React.FC = () => {
   const token = useAuthStore((s) => s.accessToken);
@@ -100,83 +101,85 @@ const RecentlyEdited: React.FC = () => {
   };
 
   return (
-    <Container>
-      <Header>
-        <SidebarToggle />
-        <TitleSection>
-          <Title>Recently Edited</Title>
-        </TitleSection>
+    <PageTransition>
+      <Container>
+        <Header>
+          <SidebarToggle />
+          <TitleSection>
+            <Title>Recently Edited</Title>
+          </TitleSection>
 
-        {!loading && files.length > 0 ? (
-          <Controls>
-            <FilterButtons>
-              <FilterButton
-                $active={timeFilter === 7}
-                onClick={() => setTimeFilter(7)}
-              >
-                Last 7 days
-              </FilterButton>
-              <FilterButton
-                $active={timeFilter === 30}
-                onClick={() => setTimeFilter(30)}
-              >
-                Last 30 days
-              </FilterButton>
-              <FilterButton
-                $active={timeFilter === 90}
-                onClick={() => setTimeFilter(90)}
-              >
-                Last 90 days
-              </FilterButton>
-            </FilterButtons>
+          {!loading && files.length > 0 ? (
+            <Controls>
+              <FilterButtons>
+                <FilterButton
+                  $active={timeFilter === 7}
+                  onClick={() => setTimeFilter(7)}
+                >
+                  Last 7 days
+                </FilterButton>
+                <FilterButton
+                  $active={timeFilter === 30}
+                  onClick={() => setTimeFilter(30)}
+                >
+                  Last 30 days
+                </FilterButton>
+                <FilterButton
+                  $active={timeFilter === 90}
+                  onClick={() => setTimeFilter(90)}
+                >
+                  Last 90 days
+                </FilterButton>
+              </FilterButtons>
 
-            {files.length > 0 && (
-              <FileCount>
-                {files.length} {files.length === 1 ? "file" : "files"}
-              </FileCount>
-            )}
-          </Controls>
+              {files.length > 0 && (
+                <FileCount>
+                  {files.length} {files.length === 1 ? "file" : "files"}
+                </FileCount>
+              )}
+            </Controls>
+          ) : (
+            <></>
+          )}
+        </Header>
+
+        {!loading && files.length === 0 ? (
+          <EmptyState>
+            <Clock size={48} />
+            <EmptyTitle>No recent activity</EmptyTitle>
+            <EmptyText>
+              Files you edit will appear here. Try editing a document to see it
+              in this list.
+            </EmptyText>
+          </EmptyState>
         ) : (
-          <></>
+          <EnhancedFilesTable
+            files={transformedFiles}
+            loading={loading}
+            showOwner={false}
+            showLocation={true}
+            onFilePreview={handlePreview}
+            onFileSelect={handleFileSelect}
+            selectedFiles={selectedFiles}
+            emptyMessage="No recent activity"
+            emptySubtext="Files you edit will appear here"
+            maxHeight={770}
+          />
         )}
-      </Header>
 
-      {!loading && files.length === 0 ? (
-        <EmptyState>
-          <Clock size={48} />
-          <EmptyTitle>No recent activity</EmptyTitle>
-          <EmptyText>
-            Files you edit will appear here. Try editing a document to see it in
-            this list.
-          </EmptyText>
-        </EmptyState>
-      ) : (
-        <EnhancedFilesTable
-          files={transformedFiles}
-          loading={loading}
-          showOwner={false}
-          showLocation={true}
-          onFilePreview={handlePreview}
-          onFileSelect={handleFileSelect}
-          selectedFiles={selectedFiles}
-          emptyMessage="No recent activity"
-          emptySubtext="Files you edit will appear here"
-          maxHeight={770}
-        />
-      )}
-
-      {previewFile && (
-        <FilePreview
-          fileId={previewFile.id}
-          fileName={previewFile.name}
-          mimeType={previewFile.mimeType}
-          onClose={handleClosePreview}
-          allFiles={navigableFiles}
-          currentIndex={previewIndex}
-          onNavigate={handleNavigate}
-        />
-      )}
-    </Container>
+        {previewFile && (
+          <FilePreview
+            fileId={previewFile.id}
+            fileName={previewFile.name}
+            mimeType={previewFile.mimeType}
+            onClose={handleClosePreview}
+            allFiles={navigableFiles}
+            currentIndex={previewIndex}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 

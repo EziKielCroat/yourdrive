@@ -6,6 +6,7 @@ import { type FileItem } from "../../../shared/files_table/FilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import SidebarToggle from "../sidebar/SidebarToggle";
+import PageTransition from "../../../shared/PageTransition";
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -113,44 +114,46 @@ const Favorited: React.FC = () => {
   const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 
   return (
-    <Container>
-      <Header>
-        <SidebarToggle />
-        <Title>Favorites</Title>
-        {files.length > 0 && (
-          <FileCount>
-            {files.length} {files.length === 1 ? "file" : "files"}
-          </FileCount>
-        )}
-      </Header>
+    <PageTransition>
+      <Container>
+        <Header>
+          <SidebarToggle />
+          <Title>Favorites</Title>
+          {files.length > 0 && (
+            <FileCount>
+              {files.length} {files.length === 1 ? "file" : "files"}
+            </FileCount>
+          )}
+        </Header>
 
-      <EnhancedFilesTable
-        files={files}
-        loading={loading}
-        emptyMessage="No favorited files"
-        emptySubtext="Star files to add them to your favorites"
-        onFilePreview={handleFilePreview}
-        onFileSelect={handleFileSelect}
-        selectedFiles={selectedFiles}
-        showOwner={false}
-        showLocation={true}
-        singleClickMode="preview"
-        maxHeight={770}
-      />
-
-      {previewFile && (
-        <FilePreview
-          fileId={previewFile.id}
-          fileName={previewFile.name}
-          mimeType={previewFile.mimeType}
-          onClose={handleClosePreview}
-          onFavorite={fetchFavorites}
-          allFiles={navigableFiles}
-          currentIndex={previewIndex}
-          onNavigate={handleNavigate}
+        <EnhancedFilesTable
+          files={files}
+          loading={loading}
+          emptyMessage="No favorited files"
+          emptySubtext="Star files to add them to your favorites"
+          onFilePreview={handleFilePreview}
+          onFileSelect={handleFileSelect}
+          selectedFiles={selectedFiles}
+          showOwner={false}
+          showLocation={true}
+          singleClickMode="preview"
+          maxHeight={770}
         />
-      )}
-    </Container>
+
+        {previewFile && (
+          <FilePreview
+            fileId={previewFile.id}
+            fileName={previewFile.name}
+            mimeType={previewFile.mimeType}
+            onClose={handleClosePreview}
+            onFavorite={fetchFavorites}
+            allFiles={navigableFiles}
+            currentIndex={previewIndex}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </Container>
+    </PageTransition>
   );
 };
 
