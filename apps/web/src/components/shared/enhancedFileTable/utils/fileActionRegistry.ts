@@ -149,17 +149,17 @@ const registry: Record<FileActionId, FileActionDefinition> = {
       ctx.selectedFiles.every((f) => f.isLocked),
   },
 
-  optimize: {
-    id: "optimize",
-    label: "Optimize image",
-    icon: Image,
-    shortcut: "Alt+K O",
-    available: (ctx: ActionContext) =>
-      ctx.selectionCount === 1 &&
-      isImageFile(ctx.selectedFiles[0]) &&
-      !ctx.selectedFiles[0].isLocked &&
-      !ctx.isRecycleBin,
-  },
+  // optimize: {
+  //   id: "optimize",
+  //   label: "Optimize image",
+  //   icon: Image,
+  //   shortcut: "Alt+K O",
+  //   available: (ctx: ActionContext) =>
+  //     ctx.selectionCount === 1 &&
+  //     isImageFile(ctx.selectedFiles[0]) &&
+  //     !ctx.selectedFiles[0].isLocked &&
+  //     !ctx.isRecycleBin,
+  // },
 
   watermark: {
     id: "watermark",
