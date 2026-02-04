@@ -58,11 +58,11 @@ favoritesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId;
     const result = await pool.query(
-      `SELECT uf.*, ff.created_at AS favorited_at
+      `SELECT uf.*, uf.created_at AS favorited_at
        FROM favorited_files ff
        JOIN user_files uf ON uf.id = ff.file_id
        WHERE ff.user_id = $1
-       ORDER BY ff.created_at DESC`,
+       ORDER BY uf.created_at DESC`,
       [userId],
     );
 

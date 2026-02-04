@@ -56,6 +56,8 @@ interface AuthStore {
   fetchDevices: () => Promise<void>;
 }
 
+let isCheckingAuth = false;
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -76,35 +78,80 @@ export const useAuthStore = create<AuthStore>()(
       // Auth
       // ----------------------
       login: async (email, password) => {
+        console.log("🔵 Login started");
         set({ isLoading: true, error: null });
 
-        const res = await api.post("/auth/login", { email, password });
+        try {
+          const res = await api.post("/auth/login", { email, password });
+          console.log("✅ Login response:", res.data);
 
-        if (res.data.requires2FA) {
+          if (res.data.requires2FA) {
+            console.log("⚠️ 2FA required");
+            set({
+              requires2FA: true,
+              tempToken: res.data.tempToken,
+              isLoading: false,
+            });
+            return;
+          }
+
+          // Set auth state
           set({
-            requires2FA: true,
-            tempToken: res.data.tempToken,
+            user: res.data.user,
+            accessToken: res.data.accessToken,
+            isAuthenticated: true,
             isLoading: false,
+            requires2FA: false,
+            tempToken: null,
           });
-          return;
+
+          // Set axios default header
+          if (res.data.accessToken) {
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${res.data.accessToken}`;
+          }
+
+          // Fetch devices (don't await - let it happen in background)
+          get()
+            .fetchDevices()
+            .catch((err) => {
+              console.warn("Failed to fetch devices after login:", err);
+            });
+        } catch (error: any) {
+          console.error("❌ Login failed:", error);
+          set({
+            isLoading: false,
+            error: error.response?.data?.error || "Login failed",
+          });
+          throw error;
         }
-
-        set({
-          user: res.data.user,
-          accessToken: res.data.accessToken,
-          isAuthenticated: true,
-          isLoading: false,
-          requires2FA: false,
-          tempToken: null,
-        });
-
-        await get().fetchDevices();
       },
 
       register: async (email, password, firstName) => {
+        console.log("🔵 Register started");
         set({ isLoading: true, error: null });
-        await api.post("/auth/register", { email, password, firstName });
-        await get().login(email, password);
+
+        try {
+          console.log("📝 Calling /auth/register");
+          const res = await api.post("/auth/register", {
+            email,
+            password,
+            firstName,
+          });
+          console.log("✅ Registration successful:", res.data);
+
+          // Auto-login after registration
+          console.log("🔵 Starting auto-login");
+          await get().login(email, password);
+          console.log("✅ Auto-login complete");
+        } catch (error: any) {
+          console.error("❌ Registration failed:", error);
+          set({
+            isLoading: false,
+            error: error.response?.data?.error || "Registration failed",
+          });
+          throw error;
+        }
       },
 
       logout: async () => {
@@ -113,6 +160,9 @@ export const useAuthStore = create<AuthStore>()(
         } catch {
           // ignore
         } finally {
+          // Clear axios auth header
+          delete api.defaults.headers.common["Authorization"];
+
           set({
             user: null,
             accessToken: null,
@@ -129,32 +179,76 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       refreshToken: async () => {
+        console.log("Refreshing token");
         const res = await api.post("/auth/refresh");
-        set({ accessToken: res.data.accessToken });
+        const newToken = res.data.accessToken;
+
+        set({ accessToken: newToken });
+
+        if (newToken) {
+          api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+        }
       },
 
       checkAuth: async () => {
+        if (isCheckingAuth) {
+          console.log("checkAuth already running, skipping...");
+          return;
+        }
+
+        console.log("Checking auth");
+        isCheckingAuth = true;
+
         try {
-          await get().refreshToken();
+          // Step 1: confirm session is valid via cookie
           const res = await api.get("/auth/me");
 
-          set({
-            user: res.data.user,
-            isAuthenticated: true,
-            isAuthReady: true,
-          });
+          if (res.data.authenticated && res.data.user) {
+            console.log("Auth check: authenticated");
 
-          await get().fetchDevices();
-        } catch {
+            // Step 2: get a fresh access token via the refresh cookie
+            // This is required because accessToken is not persisted
+            // and is null after any page reload.
+            let freshToken = get().accessToken;
+            if (!freshToken) {
+              console.log("No access token in memory, refreshing...");
+              const refreshRes = await api.post("/auth/refresh");
+              freshToken = refreshRes.data.accessToken;
+              api.defaults.headers.common["Authorization"] =
+                `Bearer ${freshToken}`;
+            }
+
+            set({
+              user: res.data.user,
+              accessToken: freshToken,
+              isAuthenticated: true,
+              isAuthReady: true,
+            });
+          } else {
+            console.log("Auth check: not authenticated");
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              isAuthReady: true,
+            });
+
+            delete api.defaults.headers.common["Authorization"];
+          }
+        } catch (error) {
+          console.log("Auth check failed:", error);
           set({
             user: null,
             accessToken: null,
             isAuthenticated: false,
             isAuthReady: true,
           });
+
+          delete api.defaults.headers.common["Authorization"];
+        } finally {
+          isCheckingAuth = false;
         }
       },
-
       // ----------------------
       // Devices
       // ----------------------
@@ -164,8 +258,8 @@ export const useAuthStore = create<AuthStore>()(
           if (res.data?.device) {
             set({ currentDevice: res.data.device });
           }
-        } catch {
-          // DO NOT retry, DO NOT logout
+        } catch (error) {
+          console.warn("Failed to fetch current device:", error);
         }
       },
 
@@ -178,8 +272,8 @@ export const useAuthStore = create<AuthStore>()(
             const current = res.data.devices.find((d: Device) => d.is_current);
             if (current) set({ currentDevice: current });
           }
-        } catch {
-          // silent fail
+        } catch (error) {
+          console.warn("Failed to fetch devices:", error);
         }
       },
     }),

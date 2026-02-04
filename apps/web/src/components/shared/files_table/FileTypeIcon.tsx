@@ -1,19 +1,19 @@
-// components/shared/FileTypeIcon.tsx
 import React from "react";
 import styled from "styled-components";
 
 interface FileTypeIconProps {
-  fileName: string;
+  fileName?: string;
   mimeType?: string;
   size?: number;
 }
 
-const getFileExtension = (fileName: string): string => {
+const getFileExtension = (fileName: string | undefined): string => {
+  if (!fileName || typeof fileName !== "string") return "";
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return ext;
 };
 
-const getFileInfo = (fileName: string, mimeType?: string) => {
+const getFileInfo = (fileName: string | undefined, mimeType?: string) => {
   const ext = getFileExtension(fileName);
 
   // Images
@@ -59,7 +59,7 @@ const getFileInfo = (fileName: string, mimeType?: string) => {
   // Code
   if (
     ["js", "jsx", "ts", "tsx", "html", "css", "json", "py", "java"].includes(
-      ext
+      ext,
     )
   ) {
     return { type: "code", color: "#9334e6", ext };
@@ -314,7 +314,7 @@ const FileTypeIcon: React.FC<FileTypeIconProps> = ({
           </>
         )}
       </svg>
-      {ext && ext.length <= 4 && (
+      {ext && ext.length > 0 && ext.length <= 4 && (
         <Extension $color={color}>{ext.toUpperCase()}</Extension>
       )}
     </IconContainer>

@@ -1,24 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import styled, { keyframes } from "styled-components";
-import FilesTable, { type FileItem } from "../files_table/FilesTable";
-import {
-  Download,
-  Share2,
-  Trash2,
-  Star,
-  Link2,
-  Edit3,
-  Info,
-  MoreVertical,
-  X,
-  RotateCcw,
-  Eye,
-  Zap,
-} from "lucide-react";
-import { useFileActions } from "./fileActions";
+import { MoreVertical, X, Keyboard, Star } from "lucide-react";
 
-import { ConversionModal } from "../popups/conversion/ConversionPopup";
-import { toast } from "react-hot-toast";
+import FilesTable, { type FileItem } from "../files_table/FilesTable";
+import { FileContextMenu } from "./FileContextMenu";
+import { RenameModal } from "./modals/RenameModal";
+import { DetailsModal } from "./modals/DetailsModal";
+import { MoveModal } from "./modals/MoveModal";
+import { WatermarkModal } from "./modals/WatermarkModal";
+import { OptimizeModal } from "./modals/OptimizeModal";
+
+import { useFileActions } from "./hooks/useFileAction";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+
+import type {
+  EnhancedFileItem,
+  FileActionId,
+  ActionListItem,
+  FileActionDefinition,
+} from "./types/fileActions";
+import SharePopup from "../popups/share/SharePopup";
+import { usePopupStore } from "../popups/popup.store";
 
 interface EnhancedFilesTableProps {
   files: EnhancedFileItem[];
@@ -29,8 +31,6 @@ interface EnhancedFilesTableProps {
   showOwner?: boolean;
   showLocation?: boolean;
   isRecycleBin?: boolean;
-  onRestoreFile?: (fileId: string) => void;
-  onDeletePermanently?: (fileId: string) => void;
   emptyMessage?: string;
   emptySubtext?: string;
   maxHeight?: number;
@@ -38,12 +38,8 @@ interface EnhancedFilesTableProps {
   onFilesUpload?: (files: FileList) => Promise<void>;
   checkStorageLimit?: (totalSize: number) => boolean;
   showFolderStructure?: boolean;
-}
-
-export interface EnhancedFileItem extends FileItem {
-  onDelete?: () => void;
-  onDeletePermanently?: () => void;
-  onRestore?: () => void;
+  currentUser?: string;
+  onRefresh?: () => void;
 }
 
 const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
@@ -54,221 +50,593 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   selectedFiles: externalSelectedFiles,
   showOwner,
   showLocation,
-  isRecycleBin,
-  onRestoreFile,
-  onDeletePermanently,
+  isRecycleBin = false,
   emptyMessage,
   emptySubtext,
   maxHeight = 770,
-  isShared,
+  isShared = false,
   onFilesUpload,
   checkStorageLimit,
   showFolderStructure,
+  currentUser,
+  onRefresh,
 }) => {
   const [internalSelectedFiles, setInternalSelectedFiles] = useState<
     Set<string>
   >(new Set());
+  const selectedFiles = externalSelectedFiles ?? internalSelectedFiles;
+
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
   const [quickActionsFile, setQuickActionsFile] = useState<string | null>(null);
-  const [conversionFile, setConversionFile] = useState<FileItem | null>(null);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const isSharingPopupOpen = usePopupStore((state) => state.isSharingPopupOpen);
 
-  const selectedFiles = externalSelectedFiles ?? internalSelectedFiles;
-  const setSelectedFiles = onFileSelect
-    ? (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-        const newSet =
-          typeof updater === "function" ? updater(selectedFiles) : updater;
-        const oldSet = selectedFiles;
+  const [shareFile, setShareFile] = useState<EnhancedFileItem | null>(null);
 
-        newSet.forEach((id) => {
-          if (!oldSet.has(id)) {
-            const file = files.find((f) => f.id === id);
-            if (file) onFileSelect(file, true);
-          }
-        });
+  const toggleSharingPopup = usePopupStore((state) => state.toggleSharingPopup);
 
-        oldSet.forEach((id) => {
-          if (!newSet.has(id)) {
-            const file = files.find((f) => f.id === id);
-            if (file) onFileSelect(file, false);
-          }
-        });
-      }
-    : setInternalSelectedFiles;
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    selectedFiles: EnhancedFileItem[];
+  }>({ visible: false, x: 0, y: 0, selectedFiles: [] });
 
-  const { performFileAction } = useFileActions();
+  const [renameModal, setRenameModal] = useState<{
+    isOpen: boolean;
+    file: EnhancedFileItem | null;
+  }>({ isOpen: false, file: null });
+  const [detailsModal, setDetailsModal] = useState<{
+    isOpen: boolean;
+    file: EnhancedFileItem | null;
+  }>({ isOpen: false, file: null });
+  const [moveModal, setMoveModal] = useState<{
+    isOpen: boolean;
+    files: EnhancedFileItem[];
+  }>({ isOpen: false, files: [] });
+  const [watermarkModal, setWatermarkModal] = useState<{
+    isOpen: boolean;
+    files: EnhancedFileItem[];
+  }>({ isOpen: false, files: [] });
+  const [optimizeModal, setOptimizeModal] = useState<{
+    isOpen: boolean;
+    file: EnhancedFileItem | null;
+  }>({ isOpen: false, file: null });
 
-  const handleFileClick = (file: FileItem) => {
-    if (onFileSelect) {
-      const isSelected = selectedFiles.has(file.id);
-      onFileSelect(file, !isSelected);
-    } else {
-      setSelectedFiles((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(file.id)) {
-          newSet.delete(file.id);
-        } else {
-          newSet.add(file.id);
-        }
-        return newSet;
-      });
-    }
-  };
+  const tableRef = useRef<HTMLDivElement>(null);
 
-  const handleFileDoubleClick = (file: FileItem) => {
-    onFilePreview?.(file);
-  };
+  const selectedFileObjects = useMemo(
+    () => files.filter((f) => selectedFiles.has(f.id)),
+    [files, selectedFiles],
+  );
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     if (onFileSelect) {
       selectedFiles.forEach((id) => {
         const file = files.find((f) => f.id === id);
         if (file) onFileSelect(file, false);
       });
     } else {
-      setSelectedFiles(new Set());
+      setInternalSelectedFiles(new Set());
     }
-  };
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }, [files, onFileSelect, selectedFiles]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (onFileSelect) {
       files.forEach((file) => onFileSelect(file, true));
     } else {
-      setSelectedFiles(new Set(files.map((f) => f.id)));
+      setInternalSelectedFiles(new Set(files.map((f) => f.id)));
     }
-  };
+  }, [files, onFileSelect]);
 
-  const handleAction = (action: "delete" | "deletePermanently" | "restore") => {
-    if (action === "restore") {
-      selectedFiles.forEach((id) => onRestoreFile?.(id));
-    } else if (action === "deletePermanently") {
-      selectedFiles.forEach((id) => onDeletePermanently?.(id));
-    } else {
-      performFileAction(action, { fileIds: Array.from(selectedFiles) });
-    }
-    handleClearSelection();
-  };
+  const {
+    executeAction,
+    isExecuting,
+    getSelectionBarActions,
+    getQuickMenuActions,
+  } = useFileActions({
+    onSuccess: () => {
+      handleClearSelection();
+      onRefresh?.();
+    },
+    onError: (error: Error) => {
+      console.error("Action failed:", error);
+    },
+    currentUser,
+    onOpenRenameModal: (file) => setRenameModal({ isOpen: true, file }),
+    onOpenMoveModal: (files) => setMoveModal({ isOpen: true, files }),
+    onOpenDetailsModal: (file) => setDetailsModal({ isOpen: true, file }),
+    onOpenWatermarkModal: (files) => setWatermarkModal({ isOpen: true, files }),
+    onOpenOptimizeModal: (file) => setOptimizeModal({ isOpen: true, file }),
+  });
 
-  const handlePreviewSelected = () => {
-    if (selectedFiles.size >= 1) {
-      const fileId = Array.from(selectedFiles)[0];
-      const file = files.find((f) => f.id === fileId);
-      if (file) {
-        onFilePreview?.(file);
+  const { isPrefixActive, currentKey, shortcutInfo } = useKeyboardShortcuts({
+    selectedFiles: selectedFileObjects,
+    isRecycleBin,
+    isShared,
+    currentUser,
+    enabled:
+      !renameModal.isOpen &&
+      !moveModal.isOpen &&
+      !watermarkModal.isOpen &&
+      !optimizeModal.isOpen &&
+      !detailsModal.isOpen,
+    onActionExecuted: async (actionId) => {
+      await handleActionClick(actionId, selectedFileObjects);
+    },
+    onSelectAll: handleSelectAll,
+    onUnselectAll: handleClearSelection,
+  });
+
+  const selectionBarActions = useMemo(
+    () => getSelectionBarActions(selectedFileObjects, isRecycleBin, isShared),
+    [getSelectionBarActions, selectedFileObjects, isRecycleBin, isShared],
+  );
+
+  const handleActionClick = useCallback(
+    async (actionId: FileActionId, filesToActOn?: EnhancedFileItem[]) => {
+      const targetFiles = filesToActOn ?? selectedFileObjects;
+      if (targetFiles.length === 0) return;
+
+      const filesAsFileItems = targetFiles as EnhancedFileItem[];
+
+      switch (actionId) {
+        case "share":
+          setShareFile(targetFiles[0]);
+          toggleSharingPopup();
+          return;
+
+        case "rename":
+          setRenameModal({ isOpen: true, file: targetFiles[0] });
+          return;
+        case "move":
+          setMoveModal({ isOpen: true, files: targetFiles });
+          return;
+        case "details":
+          setDetailsModal({ isOpen: true, file: targetFiles[0] });
+          return;
+        case "watermark":
+          setWatermarkModal({ isOpen: true, files: targetFiles });
+          return;
+        case "optimize":
+          setOptimizeModal({ isOpen: true, file: targetFiles[0] });
+          return;
+        case "preview":
+          if (targetFiles[0])
+            onFilePreview?.(targetFiles[0] as unknown as FileItem);
+          return;
       }
-    }
-  };
 
-  const handleConvert = () => {
-    if (selectedFiles.size === 1) {
-      const fileId = Array.from(selectedFiles)[0];
-      const file = files.find((f) => f.id === fileId);
-      if (file) {
-        setConversionFile(file);
+      await executeAction(actionId, filesAsFileItems);
+    },
+    [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup],
+  );
+
+  const handleRename = useCallback(
+    async (fileId: string, newName: string) => {
+      await executeAction("rename", [{ id: fileId } as EnhancedFileItem], {
+        newName,
+      });
+      setRenameModal({ isOpen: false, file: null });
+    },
+    [executeAction],
+  );
+
+  const handleMove = useCallback(
+    async (fileIds: string[], folderId: string) => {
+      await executeAction(
+        "move",
+        fileIds.map((id) => ({ id }) as EnhancedFileItem),
+        { targetFolderPath: folderId },
+      );
+      setMoveModal({ isOpen: false, files: [] });
+    },
+    [executeAction],
+  );
+
+  const handleWatermark = useCallback(
+    async (
+      watermarkFiles: EnhancedFileItem[],
+      options: { text?: string; position?: string; opacity?: number },
+    ) => {
+      await executeAction("watermark", watermarkFiles, { watermark: options });
+      setWatermarkModal({ isOpen: false, files: [] });
+    },
+    [executeAction],
+  );
+
+  const handleOptimize = useCallback(
+    async (
+      file: EnhancedFileItem,
+      options: { quality?: number; format?: string },
+    ) => {
+      await executeAction("optimize", [file], { optimize: options });
+      setOptimizeModal({ isOpen: false, file: null });
+    },
+    [executeAction],
+  );
+
+  const handleContextMenu = useCallback(
+    (file: FileItem, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const enhanced = file as EnhancedFileItem;
+      const isSelected = selectedFiles.has(enhanced.id);
+
+      if (!isSelected) {
+        handleClearSelection();
+        if (onFileSelect) {
+          onFileSelect(enhanced, true);
+        } else {
+          setInternalSelectedFiles(new Set([enhanced.id]));
+        }
+      }
+
+      setContextMenu({
+        visible: true,
+        x: event.clientX,
+        y: event.clientY,
+        selectedFiles: isSelected ? selectedFileObjects : [enhanced],
+      });
+    },
+    [selectedFiles, selectedFileObjects, handleClearSelection, onFileSelect],
+  );
+
+  const handleFileClick = useCallback(
+    (file: FileItem) => {
+      if (file.type === "folder") return;
+
+      if (onFileSelect) {
+        onFileSelect(file, !selectedFiles.has(file.id));
       } else {
-        toast.error("File not found for conversion");
+        setInternalSelectedFiles((prev) => {
+          const next = new Set(prev);
+          next.has(file.id) ? next.delete(file.id) : next.add(file.id);
+          return next;
+        });
       }
-    } else {
-      toast.error("Please select a single file to convert");
-    }
-  };
+    },
+    [onFileSelect, selectedFiles],
+  );
+
+  const handleFileDoubleClick = useCallback(
+    (file: FileItem) => {
+      onFilePreview?.(file);
+    },
+    [onFilePreview],
+  );
+
+  const renderRowActions = useCallback(
+    (file: FileItem) => {
+      const actions = getQuickMenuActions(
+        file as EnhancedFileItem,
+        isRecycleBin,
+        isShared,
+      );
+
+      return (
+        <QuickActionsWrapper
+          onMouseEnter={() => setHoveredFileId(file.id)}
+          onMouseLeave={() => setHoveredFileId(null)}
+        >
+          {(hoveredFileId === file.id || quickActionsFile === file.id) && (
+            <>
+              <QuickActionsButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickActionsFile(
+                    quickActionsFile === file.id ? null : file.id,
+                  );
+                }}
+                $active={quickActionsFile === file.id}
+              >
+                <MoreVertical size={16} />
+              </QuickActionsButton>
+
+              {quickActionsFile === file.id && (
+                <QuickActionsMenu onClick={(e) => e.stopPropagation()}>
+                  {actions.map((item, index) => {
+                    if (item === "divider") {
+                      return <QuickActionDivider key={`divider-${index}`} />;
+                    }
+
+                    const action = item as FileActionDefinition;
+                    const isStar = action.id === "star";
+                    const isUnstar = action.id === "unstar";
+
+                    return (
+                      <QuickAction
+                        key={action.id}
+                        $danger={action.danger}
+                        onClick={() => {
+                          handleActionClick(action.id, [
+                            file as EnhancedFileItem,
+                          ]);
+                          setQuickActionsFile(null);
+                        }}
+                        disabled={isExecuting}
+                      >
+                        {isStar || isUnstar ? (
+                          <Star
+                            size={16}
+                            fill={isUnstar ? "#fbbc04" : "none"}
+                            stroke={isUnstar ? "#fbbc04" : "currentColor"}
+                          />
+                        ) : (
+                          <action.icon size={16} />
+                        )}
+                        <span>{action.label}</span>
+                        {action.shortcut && (
+                          <QuickShortcut>
+                            {action.shortcut.split(" ").slice(1).join("+")}
+                          </QuickShortcut>
+                        )}
+                      </QuickAction>
+                    );
+                  })}
+                </QuickActionsMenu>
+              )}
+            </>
+          )}
+        </QuickActionsWrapper>
+      );
+    },
+    [
+      getQuickMenuActions,
+      isRecycleBin,
+      isShared,
+      quickActionsFile,
+      hoveredFileId,
+      handleActionClick,
+      isExecuting,
+    ],
+  );
 
   return (
-    <Container>
+    <Container ref={tableRef}>
+      <FileContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        selectedFiles={contextMenu.selectedFiles}
+        isRecycleBin={isRecycleBin}
+        isShared={isShared}
+        currentUser={currentUser}
+        onAction={handleActionClick}
+        onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+      />
+
+      {renameModal.isOpen && renameModal.file && (
+        <RenameModal
+          isOpen={renameModal.isOpen}
+          file={renameModal.file}
+          onClose={() => setRenameModal({ isOpen: false, file: null })}
+          onRename={handleRename}
+        />
+      )}
+
+      {detailsModal.isOpen && detailsModal.file && (
+        <DetailsModal
+          isOpen={detailsModal.isOpen}
+          file={detailsModal.file}
+          onClose={() => setDetailsModal({ isOpen: false, file: null })}
+          onDownload={(file) => handleActionClick("download", [file])}
+          onShare={(file) => handleActionClick("share", [file])}
+          onDelete={(file) => handleActionClick("delete", [file])}
+          onToggleStar={(file) =>
+            handleActionClick(file.isStarred ? "unstar" : "star", [file])
+          }
+          onToggleLock={(file) =>
+            handleActionClick(file.isLocked ? "unlock" : "lock", [file])
+          }
+        />
+      )}
+
+      {moveModal.isOpen && moveModal.files.length > 0 && (
+        <MoveModal
+          isOpen={moveModal.isOpen}
+          files={moveModal.files}
+          onClose={() => setMoveModal({ isOpen: false, files: [] })}
+          onMove={handleMove}
+        />
+      )}
+
+      {watermarkModal.isOpen && watermarkModal.files.length > 0 && (
+        <WatermarkModal
+          isOpen={watermarkModal.isOpen}
+          files={watermarkModal.files}
+          onClose={() => setWatermarkModal({ isOpen: false, files: [] })}
+          onApply={handleWatermark}
+        />
+      )}
+
+      {optimizeModal.isOpen && optimizeModal.file && (
+        <OptimizeModal
+          isOpen={optimizeModal.isOpen}
+          file={optimizeModal.file}
+          onClose={() => setOptimizeModal({ isOpen: false, file: null })}
+          onOptimize={handleOptimize}
+        />
+      )}
+
+      {isPrefixActive && (
+        <ShortcutIndicator>
+          <ShortcutText>
+            {shortcutInfo
+              ? `Press ${shortcutInfo.key.toUpperCase()} → ${shortcutInfo.description}`
+              : "Press action key"}
+          </ShortcutText>
+          {currentKey && (
+            <ShortcutKeyDisplay>{currentKey.toUpperCase()}</ShortcutKeyDisplay>
+          )}
+        </ShortcutIndicator>
+      )}
+
       {selectedFiles.size > 0 && (
         <SelectionBar>
           <LeftSection>
             <SelectionCount>{selectedFiles.size} selected</SelectionCount>
-            <ClearButton onClick={handleClearSelection}>
+            <ClearButton
+              onClick={handleClearSelection}
+              title="Clear selection (Esc)"
+            >
               <X size={16} />
             </ClearButton>
           </LeftSection>
 
           <CenterSection>
-            {selectedFiles.size >= 1 && !isRecycleBin && (
-              <IconButton onClick={handlePreviewSelected} title="Preview">
-                <Eye size={18} />
-              </IconButton>
-            )}
-            <IconButton
-              onClick={() => console.log("Share:", selectedFiles)}
-              title="Share"
-            >
-              <Share2 size={18} />
-            </IconButton>
+            {selectionBarActions.map((item, index) => {
+              if (item === "divider") {
+                return <VerticalDivider key={`divider-${index}`} />;
+              }
 
-            <IconButton
-              onClick={() => {
-                handleConvert();
-              }}
-            >
-              <Zap size={16} />
-            </IconButton>
-            <IconButton
-              onClick={() => console.log("Download:", selectedFiles)}
-              title="Download"
-            >
-              <Download size={18} />
-            </IconButton>
-            {selectedFiles.size === 1 && (
-              <IconButton
-                onClick={() => console.log("Rename:", selectedFiles)}
-                title="Rename"
-              >
-                <Edit3 size={18} />
-              </IconButton>
-            )}
-            <IconButton
-              onClick={() => console.log("Get link:", selectedFiles)}
-              title="Get link"
-            >
-              <Link2 size={18} />
-            </IconButton>
-            {selectedFiles.size === 1 && (
-              <IconButton
-                onClick={() => console.log("View details:", selectedFiles)}
-                title="View details"
-              >
-                <Info size={18} />
-              </IconButton>
-            )}
-            <IconButton
-              onClick={() => console.log("Star:", selectedFiles)}
-              title="Star"
-            >
-              <Star size={18} />
-            </IconButton>
-            <VerticalDivider />
-            {isRecycleBin ? (
-              <>
+              const action = item as FileActionDefinition;
+              const isStar = action.id === "star";
+              const isUnstar = action.id === "unstar";
+
+              return (
                 <IconButton
-                  onClick={() => handleAction("restore")}
-                  title="Restore"
+                  key={action.id}
+                  onClick={() => handleActionClick(action.id)}
+                  title={
+                    action.shortcut
+                      ? `${action.label} (${action.shortcut})`
+                      : action.label
+                  }
+                  $danger={action.danger}
+                  disabled={isExecuting}
                 >
-                  <RotateCcw size={18} />
+                  {isStar || isUnstar ? (
+                    <Star
+                      size={18}
+                      fill={isUnstar ? "#fbbc04" : "none"}
+                      stroke={isUnstar ? "#fbbc04" : "currentColor"}
+                    />
+                  ) : (
+                    <action.icon size={18} />
+                  )}
                 </IconButton>
-                <IconButton
-                  $danger
-                  onClick={() => handleAction("deletePermanently")}
-                  title="Delete Forever"
-                >
-                  <Trash2 size={18} />
-                </IconButton>
-              </>
-            ) : (
-              <IconButton
-                $danger
-                onClick={() => handleAction("delete")}
-                title="Delete"
-              >
-                <Trash2 size={18} />
-              </IconButton>
-            )}
+              );
+            })}
           </CenterSection>
 
           <RightSection>
-            <TextButton onClick={handleSelectAll}>Select all</TextButton>
+            <TextButton onClick={handleSelectAll} title="Select all (Ctrl+A)">
+              Select all
+            </TextButton>
+            <IconButton
+              onClick={() => setShowShortcutsHelp(!showShortcutsHelp)}
+              title="View keyboard shortcuts"
+              style={{ marginLeft: "8px" }}
+            >
+              <Keyboard size={18} />
+            </IconButton>
           </RightSection>
         </SelectionBar>
+      )}
+
+      {showShortcutsHelp && (
+        <ShortcutsHelp>
+          <ShortcutsHeader>
+            <h3>Keyboard Shortcuts</h3>
+            <CloseButton onClick={() => setShowShortcutsHelp(false)}>
+              <X size={20} />
+            </CloseButton>
+          </ShortcutsHeader>
+          <ShortcutsContent>
+            <ShortcutSection>
+              <SectionTitle>General</SectionTitle>
+              <ShortcutRow>
+                <ShortcutKey>Ctrl+A</ShortcutKey>
+                <ShortcutDesc>Select all files</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>Esc</ShortcutKey>
+                <ShortcutDesc>Clear selection</ShortcutDesc>
+              </ShortcutRow>
+            </ShortcutSection>
+
+            <ShortcutSection>
+              <SectionTitle>File Actions (Alt+K then…)</SectionTitle>
+              <ShortcutRow>
+                <ShortcutKey>P</ShortcutKey>
+                <ShortcutDesc>Preview file</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>R</ShortcutKey>
+                <ShortcutDesc>Rename</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>D</ShortcutKey>
+                <ShortcutDesc>Duplicate</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>W</ShortcutKey>
+                <ShortcutDesc>Download</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>S</ShortcutKey>
+                <ShortcutDesc>Share</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>L</ShortcutKey>
+                <ShortcutDesc>Get link</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>F</ShortcutKey>
+                <ShortcutDesc>Star / Unstar</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>Z</ShortcutKey>
+                <ShortcutDesc>Compress</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>E</ShortcutKey>
+                <ShortcutDesc>Extract archive</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>X</ShortcutKey>
+                <ShortcutDesc>Delete</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>V</ShortcutKey>
+                <ShortcutDesc>Move</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>M</ShortcutKey>
+                <ShortcutDesc>Watermark</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>O</ShortcutKey>
+                <ShortcutDesc>Optimize</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>I</ShortcutKey>
+                <ShortcutDesc>Details</ShortcutDesc>
+              </ShortcutRow>
+              <ShortcutRow>
+                <ShortcutKey>K</ShortcutKey>
+                <ShortcutDesc>Lock / Unlock</ShortcutDesc>
+              </ShortcutRow>
+            </ShortcutSection>
+
+            {isRecycleBin && (
+              <ShortcutSection>
+                <SectionTitle>Recycle Bin (Alt+K then…)</SectionTitle>
+                <ShortcutRow>
+                  <ShortcutKey>U</ShortcutKey>
+                  <ShortcutDesc>Restore</ShortcutDesc>
+                </ShortcutRow>
+                <ShortcutRow>
+                  <ShortcutKey>Shift+X</ShortcutKey>
+                  <ShortcutDesc>Delete permanently</ShortcutDesc>
+                </ShortcutRow>
+              </ShortcutSection>
+            )}
+          </ShortcutsContent>
+        </ShortcutsHelp>
       )}
 
       <TableWrapper>
@@ -288,132 +656,74 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           onFilesUpload={onFilesUpload}
           checkStorageLimit={checkStorageLimit}
           showFolderStructure={showFolderStructure}
-          renderRowActions={(file) => (
-            <QuickActionsWrapper
-              onMouseEnter={() => setHoveredFileId(file.id)}
-              onMouseLeave={() =>
-                hoveredFileId !== file.id && setHoveredFileId(null)
-              }
-            >
-              {(hoveredFileId === file.id || quickActionsFile === file.id) && (
-                <>
-                  <QuickActionsButton
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setQuickActionsFile(
-                        quickActionsFile === file.id ? null : file.id,
-                      );
-                    }}
-                    $active={quickActionsFile === file.id}
-                  >
-                    <MoreVertical size={16} />
-                  </QuickActionsButton>
-
-                  {quickActionsFile === file.id && (
-                    <QuickActionsMenu>
-                      {isRecycleBin ? (
-                        <>
-                          <QuickAction
-                            onClick={() => {
-                              console.log("Restoring file:", file.id);
-                              onRestoreFile?.(file.id);
-                              setQuickActionsFile(null);
-                            }}
-                          >
-                            <RotateCcw size={16} /> Restore
-                          </QuickAction>
-                          <QuickActionDivider />
-                          <QuickAction
-                            $danger
-                            onClick={() => {
-                              console.log(
-                                "Permanently deleting file:",
-                                file.id,
-                              );
-                              onDeletePermanently?.(file.id);
-                              setQuickActionsFile(null);
-                            }}
-                          >
-                            <Trash2 size={16} /> Delete forever
-                          </QuickAction>
-                        </>
-                      ) : (
-                        <>
-                          <QuickAction
-                            onClick={() => {
-                              onFilePreview?.(file);
-                              setQuickActionsFile(null);
-                            }}
-                          >
-                            <Eye size={16} /> Preview
-                          </QuickAction>
-                          <QuickActionDivider />
-                          {/* <QuickAction
-                            onClick={() => {
-                              setConversionFile(file);
-                              setQuickActionsFile(null);
-                            }}
-                            >
-                            <Zap size={16} /> Convert
-                            </QuickAction> */}
-
-                          <QuickAction
-                            onClick={() => {
-                              console.log("Share:", file.id);
-                              setQuickActionsFile(null);
-                            }}
-                          >
-                            <Share2 size={16} /> Share
-                          </QuickAction>
-                          <QuickAction
-                            $danger
-                            onClick={() => {
-                              performFileAction("delete", {
-                                fileIds: [file.id],
-                              });
-                              setQuickActionsFile(null);
-                            }}
-                          >
-                            <Trash2 size={16} /> Delete
-                          </QuickAction>
-                        </>
-                      )}
-                    </QuickActionsMenu>
-                  )}
-                </>
-              )}
-            </QuickActionsWrapper>
-          )}
+          onRowContextMenu={handleContextMenu}
+          renderRowActions={renderRowActions}
         />
       </TableWrapper>
 
-      {conversionFile && (
-        <ConversionModal
-          fileId={conversionFile.id}
-          fileName={conversionFile.name}
-          mimeType={conversionFile.mimeType}
-          onClose={() => setConversionFile(null)}
+      {isSharingPopupOpen && shareFile && (
+        <SharePopup
+          fileId={shareFile.id}
+          fileName={shareFile.name}
+          onClose={() => {
+            toggleSharingPopup();
+            setShareFile(null);
+          }}
         />
       )}
     </Container>
   );
 };
 
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+export default EnhancedFilesTable;
+
+const slideDown = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0);     }
 `;
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+`;
+
+const ShortcutIndicator = styled.div`
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #363840;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10000;
+  animation: ${slideDown} 0.3s ease-out;
+  font-weight: 500;
+  justify-content: center;
+`;
+
+const KeyboardIconSpan = styled.span`
+  font-size: 20px;
+`;
+
+const ShortcutText = styled.span`
+  font-size: 14px;
+  flex: 1;
+`;
+
+const ShortcutKeyDisplay = styled.span`
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 16px;
 `;
 
 const SelectionBar = styled.div`
@@ -448,6 +758,7 @@ const RightSection = styled.div`
   min-width: 140px;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 `;
 
 const SelectionCount = styled.span`
@@ -475,14 +786,13 @@ const ClearButton = styled.button`
   color: #5f6368;
   cursor: pointer;
   transition: all 0.15s ease;
-
   &:hover {
     background: #f1f3f4;
     color: #202124;
   }
 `;
 
-const IconButton = styled.button<{ $danger?: boolean; $active?: boolean }>`
+const IconButton = styled.button<{ $danger?: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
@@ -490,60 +800,20 @@ const IconButton = styled.button<{ $danger?: boolean; $active?: boolean }>`
   width: 36px;
   height: 36px;
   padding: 0;
-  background: ${(props) => (props.$active ? "#f1f3f4" : "transparent")};
+  background: transparent;
   border: none;
   border-radius: 50%;
-  color: ${(props) => (props.$danger ? "#d93025" : "#5f6368")};
+  color: ${(p) => (p.$danger ? "#d93025" : "#5f6368")};
   cursor: pointer;
   transition: all 0.15s ease;
-
-  &:hover {
-    background: ${(props) => (props.$danger ? "#fce8e6" : "#f1f3f4")};
-    color: ${(props) => (props.$danger ? "#d93025" : "#202124")};
+  &:hover:not(:disabled) {
+    background: ${(p) => (p.$danger ? "#fce8e6" : "#f1f3f4")};
+    color: ${(p) => (p.$danger ? "#d93025" : "#202124")};
   }
-
-  &:hover::before {
-    content: attr(title);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 6px 10px;
-    background: #202124;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 500;
-    font-family:
-      "Inter",
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
-    border-radius: 6px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    animation: ${fadeIn} 0.2s ease forwards 0.5s;
-    z-index: 1001;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-
-  &:hover::after {
-    content: "";
-    position: absolute;
-    bottom: calc(100% + 2px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid #202124;
-    pointer-events: none;
-    opacity: 0;
-    animation: ${fadeIn} 0.2s ease forwards 0.5s;
-    z-index: 1001;
-  }
-
   svg {
     flex-shrink: 0;
   }
@@ -572,7 +842,6 @@ const TextButton = styled.button`
   color: #1a73e8;
   cursor: pointer;
   transition: all 0.15s ease;
-
   &:hover {
     background: #e8f0fe;
   }
@@ -596,13 +865,12 @@ const QuickActionsButton = styled.button<{ $active?: boolean }>`
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: ${(props) => (props.$active ? "#f1f3f4" : "transparent")};
+  background: ${(p) => (p.$active ? "#f1f3f4" : "transparent")};
   border: none;
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.15s ease;
   color: #5f6368;
-
   &:hover {
     background: #f1f3f4;
   }
@@ -613,7 +881,7 @@ const QuickActionsMenu = styled.div`
   right: 0;
   top: 100%;
   margin-top: 4px;
-  min-width: 200px;
+  min-width: 220px;
   background: #fff;
   border-radius: 12px;
   box-shadow:
@@ -632,19 +900,33 @@ const QuickAction = styled.button<{ $danger?: boolean }>`
   background: transparent;
   border: none;
   font-size: 14px;
-  color: ${(props) => (props.$danger ? "#d93025" : "#202124")};
+  color: ${(p) => (p.$danger ? "#d93025" : "#202124")};
   cursor: pointer;
   transition: background 0.15s ease;
   text-align: left;
-
-  &:hover {
-    background: ${(props) => (props.$danger ? "#fce8e6" : "#f1f3f4")};
+  &:hover:not(:disabled) {
+    background: ${(p) => (p.$danger ? "#fce8e6" : "#f1f3f4")};
   }
-
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   svg {
     flex-shrink: 0;
-    color: ${(props) => (props.$danger ? "#d93025" : "#5f6368")};
+    color: ${(p) => (p.$danger ? "#d93025" : "#5f6368")};
   }
+  span {
+    flex: 1;
+  }
+`;
+
+const QuickShortcut = styled.span`
+  font-size: 11px;
+  color: #5f6368;
+  background: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
 `;
 
 const QuickActionDivider = styled.div`
@@ -653,4 +935,96 @@ const QuickActionDivider = styled.div`
   margin: 8px 0;
 `;
 
-export default EnhancedFilesTable;
+const ShortcutsHelp = styled.div`
+  background: white;
+  border-radius: 16px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  animation: ${slideDown} 0.3s ease-out;
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 90%;
+  max-width: 800px;
+`;
+
+const ShortcutsHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #202124;
+  }
+`;
+
+const CloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  &:hover {
+    background: #f1f3f4;
+    color: #202124;
+  }
+`;
+
+const ShortcutsContent = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+`;
+
+const ShortcutSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const SectionTitle = styled.h4`
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const ShortcutRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const ShortcutKey = styled.kbd`
+  min-width: 60px;
+  padding: 6px 12px;
+  background: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+  text-align: center;
+  color: #202124;
+`;
+
+const ShortcutDesc = styled.span`
+  font-size: 14px;
+  color: #5f6368;
+  flex: 1;
+`;

@@ -202,57 +202,50 @@ const YourFiles: React.FC = () => {
       }
 
       const filesData = await response.json();
-      const transformedFiles: FileItem[] = [];
 
-      console.log("Fetched files data:", filesData);
-
-      if (filesData.success) {
-        filesData.files.forEach((file: ApiFile) => {
-          // Check if it's a folder (has is_folder = true OR type = 'folder')
-          const isFolder = file.is_folder === true || file.type === "folder";
-
-          if (isFolder) {
-            // display it as a folder
-            transformedFiles.push({
-              id: file.id,
-              name: file.folder_path.split("/").pop() || file.folder_path,
-              type: "folder",
-              mimeType: file.mime_type,
-              lastInteraction: formatDate(file.created_at),
-              lastInteractionType: "uploaded" as const,
-              location: file.folder_path || "Your Files",
-              owner: {
-                name: user?.firstName || user?.email || "You",
-                isYou: true,
-              },
-              size: file.size,
-              url: file.s3_key,
-            });
-          } else {
-            // display it normally
-            transformedFiles.push({
-              id: file.id,
-              name: file.original_name,
-              type: "file",
-              mimeType: file.mime_type,
-              lastInteraction: formatDate(file.created_at),
-              lastInteractionType: "uploaded" as const,
-              location: file.folder_path || "Your Files",
-              owner: {
-                name: user?.firstName || user?.email || "You",
-                isYou: true,
-              },
-              size: file.size,
-              url: file.s3_key,
-            });
-          }
-        });
+      if (!filesData.success || !Array.isArray(filesData.files)) {
+        console.warn("Unexpected response shape:", filesData);
+        setFiles([]);
+        return;
       }
+
+      console.log(filesData.files);
+
+      const transformedFiles: FileItem[] = filesData.files.map((file: any) => ({
+        id: String(file.id),
+
+        name: file.name || file.original_name || "Untitled",
+
+        type: file.type || "file",
+
+        mimeType: file.mimeType || file.mime_type || "application/octet-stream",
+
+        lastInteraction: file.createdAt
+          ? formatDate(file.createdAt)
+          : "Unknown",
+
+        lastInteractionType: "uploaded",
+
+        location:
+          file.folderPath && file.folderPath.trim() !== ""
+            ? file.folderPath
+            : "Your Files",
+
+        owner: {
+          name: "You",
+          isYou: true,
+        },
+
+        size: Number(file.size) || 0,
+
+        url: file.s3Key,
+      }));
 
       console.log("Transformed files:", transformedFiles);
       setFiles(transformedFiles);
     } catch (err) {
       console.error("Error fetching files:", err);
+      setFiles([]);
     } finally {
       setLoading(false);
     }

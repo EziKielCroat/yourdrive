@@ -14,12 +14,15 @@ import { eventBus } from "../../../../../events/eventBus";
 
 interface ApiFile {
   id: string;
-  original_name: string;
+  original_name?: string;
+  name?: string;
   s3_key: string;
-  folder_path: string;
-  size: number;
-  mime_type: string;
-  created_at: string;
+  folder_path?: string;
+  size?: number;
+  mime_type?: string;
+  mimeType?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 // Consistent API base URL
@@ -47,25 +50,21 @@ const getEmptySubtext = (hasActiveFilters: boolean): string => {
   return "Files you upload or interact with will appear here";
 };
 
-const formatDate = (dateString: string): string => {
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return "Unknown";
+
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Unknown";
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) {
-    return "Today";
-  } else if (diffDays === 1) {
-    return "Yesterday";
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else {
-    return date.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-    });
-  }
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return date.toLocaleDateString("en-GB");
 };
 
 const RecentFiles: React.FC = () => {
@@ -256,18 +255,32 @@ const RecentFiles: React.FC = () => {
       if (data.success) {
         const transformedFiles: FileItem[] = data.files.map(
           (file: ApiFile) => ({
-            id: file.id,
-            name: file.original_name,
-            type: "file" as const,
-            mimeType: file.mime_type,
-            lastInteraction: formatDate(file.created_at),
-            lastInteractionType: "uploaded" as const,
-            location: file.folder_path || "Your Files",
+            id: String(file.id),
+
+            name: file.original_name || file.name || "Untitled",
+
+            type: "file",
+
+            mimeType:
+              file.mime_type || file.mimeType || "application/octet-stream",
+
+            lastInteraction: formatDate(file.created_at || file.createdAt),
+
+            lastInteractionType: "uploaded",
+
+            location:
+              file.folder_path && file.folder_path.trim() !== ""
+                ? file.folder_path
+                : "Your Files",
+
             owner: {
               name: user?.firstName || user?.email || "You",
               isYou: true,
             },
-            size: file.size,
+
+            size: Number(file.size) || 0,
+
+            // ✅ preview / download
             url: file.s3_key,
           }),
         );

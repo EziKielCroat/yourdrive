@@ -4,15 +4,13 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 
-import { Pool } from "pg";
-import { prisma } from "./lib/prisma";
-
 import authRoutes from "./routes/auth.routes";
 import filesRoutes from "./routes/files.routes";
 import settingsRoutes from "./routes/settings.routes";
 import sharingRoutes from "./routes/sharing.routes";
 import devicesRoutes from "./routes/devices.routes";
 import conversionRoutes from "./routes/conversion.routes";
+import fileActionsRoutes from "./routes/fileActions.routes";
 
 dotenv.config();
 
@@ -31,30 +29,13 @@ app.use(express.json({ limit: "50mb" }));
 
 app.use(cookieParser());
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error("❌ PostgreSQL connection error:", err.stack);
-  } else {
-    console.log("✅ PostgreSQL connected");
-    release();
-  }
-});
-
 app.use("/api/auth", authRoutes);
-
 app.use("/api/files", filesRoutes);
-
 app.use("/api/sharing", sharingRoutes);
-
 app.use("/api/settings", settingsRoutes);
-
 app.use("/api/devices", devicesRoutes);
-
 app.use("/api/conversion", conversionRoutes);
+app.use("/api/file-actions", fileActionsRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "API is healthy" });
@@ -64,18 +45,31 @@ app.get("/api/version", (req, res) => {
   res.json({ version: "1.10" });
 });
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, shutting down gracefully");
-  await prisma.$disconnect();
-  await pool.end();
-  process.exit(0);
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error(err.stack);
+    res.status(err.status || 500).json({
+      success: false,
+      error:
+        process.env.NODE_ENV === "production"
+          ? "Internal server error"
+          : err.message,
+    });
+  },
+);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: "Endpoint not found" });
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+  console.log(`✅ API server running on http://localhost:${PORT}`);
 });
 
-server.timeout = 120000;
-server.keepAliveTimeout = 65000;
-server.headersTimeout = 66000;
+export default app;

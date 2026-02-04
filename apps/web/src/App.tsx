@@ -1,15 +1,42 @@
-// OPTION 2: Remove animation from Application.tsx and add it to each page
-
-// Application.tsx - SIMPLIFIED VERSION (no animation wrapper)
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import styled from "styled-components";
+import ToastManager from "./components/toast/ToastManager";
+import { toast } from "./services/toast.service";
 
 interface ApplicationProps {
   children: ReactNode;
 }
 
+declare global {
+  interface Window {
+    toast?: typeof toast;
+  }
+}
+
 const Application = ({ children }: ApplicationProps) => {
-  return <ApplicationContainer>{children}</ApplicationContainer>;
+  useEffect(() => {
+    // Initialize the toast service
+    toast.initialize();
+
+    // Expose toast globally for debugging
+    window.toast = toast;
+
+    // Add a small delay then test the toast system
+    setTimeout(() => {
+      toast.success("Application loaded successfully!");
+    }, 500);
+
+    return () => {
+      delete window.toast;
+    };
+  }, []);
+
+  return (
+    <>
+      <ApplicationContainer>{children}</ApplicationContainer>
+      <ToastManager />
+    </>
+  );
 };
 
 const ApplicationContainer = styled.div`

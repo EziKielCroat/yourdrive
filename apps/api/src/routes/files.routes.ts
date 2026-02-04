@@ -25,6 +25,7 @@ import favoritesRoutes from "./favorite.routes";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
+import { FileActionsHandlers } from "./fileActionsHandlers";
 
 const filesRoutes = express.Router();
 
@@ -122,12 +123,11 @@ filesRoutes.post(
         });
 
         await upload.done();
-
         const result = await pool.query(
           `INSERT INTO user_files 
-           (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder)
-           VALUES ($1, (SELECT email FROM "User" WHERE id = $1), $2, $3, $4, $5, $6, false)
-           RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at`,
+           (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder, created_at, updated_at)
+           VALUES ($1, (SELECT email FROM "User" WHERE id = $1), $2, $3, $4, $5, $6, false, NOW(), NOW())
+           RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at, updated_at`,
           [
             userId,
             file.originalname,
@@ -168,23 +168,36 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
 
     const filesResult = await pool.query(
       `SELECT 
-        id, 
-        original_name, 
-        s3_key, 
-        folder_path, 
-        size, 
-        mime_type, 
-        created_at,
-        is_folder
-       FROM user_files
-       WHERE user_id = $1
-       ORDER BY is_folder DESC, created_at DESC`,
+        uf.id, 
+        uf.original_name, 
+        uf.s3_key, 
+        uf.folder_path, 
+        uf.size, 
+        uf.mime_type, 
+        uf.created_at,
+        uf.updated_at,
+        uf.is_folder,
+        uf.is_locked,
+        CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
+       FROM user_files uf
+       LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
+       WHERE uf.user_id = $1
+       ORDER BY uf.is_folder DESC, uf.created_at DESC`,
       [req.userId],
     );
 
     const transformedFiles = filesResult.rows.map((row) => ({
-      ...row,
+      id: row.id,
+      name: row.original_name,
+      mimeType: row.mime_type,
+      size: parseInt(row.size, 10),
+      folderPath: row.folder_path,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
       type: row.is_folder ? "folder" : "file",
+      isLocked: row.is_locked || false,
+      isStarred: row.is_favorited || false,
+      s3Key: row.s3_key,
     }));
 
     res.json({
@@ -837,7 +850,6 @@ filesRoutes.get(
       if (!userId)
         return res.status(401).json({ success: false, error: "Unauthorized" });
 
-      // Fetch files shared with the user
       const sharedResult = await pool.query(
         `
       SELECT
@@ -850,15 +862,16 @@ filesRoutes.get(
         uf.size,
         uf.mime_type,
         uf.folder_path,
+        uf.is_locked,
         u.name AS owner_name,
         u.email AS owner_email,
-        CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS is_favorited
+        CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
       FROM share_recipients sr
       JOIN file_shares fs ON fs.id = sr.share_id
       JOIN user_files uf ON uf.id = fs.file_id
       JOIN "User" u ON u.id = fs.owner_id
-      LEFT JOIN favorited_files f
-        ON f.user_id = $1 AND f.file_id = uf.id
+      LEFT JOIN favorited_files ff
+        ON ff.user_id = $1 AND ff.file_id = uf.id
       WHERE sr.recipient_user_id = $1
         AND fs.is_active = true
       ORDER BY fs.created_at DESC
@@ -878,7 +891,8 @@ filesRoutes.get(
         expires_at: row.expires_at,
         owner_name: row.owner_name,
         owner_email: row.owner_email,
-        isFavorited: row.is_favorited,
+        is_locked: row.is_locked || false,
+        is_favorited: row.is_favorited || false,
       }));
 
       return res.json({ success: true, sharedFiles });
@@ -891,224 +905,37 @@ filesRoutes.get(
   },
 );
 
-// Get recycle bin files
 filesRoutes.get(
   "/recycle-bin",
   authMiddleware,
   async (req: AuthRequest, res) => {
     const userId = req.userId;
-    const client = await pool.connect();
-
-    try {
-      const result = await client.query(
-        `
-        SELECT
-          file_id,
-          original_name,
-          s3_key,
-          user_email,
-          mime_type,
-          size,
-          folder_path,
-          deleted_at
-        FROM recycle_bin
-        WHERE user_id = $1
-        ORDER BY deleted_at DESC
-      `,
-        [userId],
-      );
-
-      res.json({ success: true, files: result.rows });
-    } catch (err) {
-      console.error(err);
-      res
-        .status(500)
-        .json({ success: false, error: "Failed to fetch recycle bin" });
-    } finally {
-      client.release();
-    }
+    const fileActions = new FileActionsHandlers(pool);
+    return await fileActions.getRecycleBinContents(userId, req, res);
   },
 );
 
-// Delete file with id (move to recycle bin)
 filesRoutes.post(
   "/delete/:fileId",
   authMiddleware,
   async (req: AuthRequest, res) => {
     const { fileId } = req.params;
     const userId = req.userId;
-    const client = await pool.connect();
 
-    try {
-      await client.query("BEGIN");
-
-      const fileRes = await client.query(
-        `SELECT * FROM user_files WHERE id = $1 AND user_id = $2`,
-        [fileId, userId],
-      );
-
-      if (!fileRes.rowCount) {
-        await client.query("ROLLBACK");
-        return res
-          .status(404)
-          .json({ success: false, error: "File not found" });
-      }
-
-      const file = fileRes.rows[0];
-      console.log("Moving file to recycle bin:", file);
-
-      await client.query(
-        `INSERT INTO recycle_bin (
-          user_id, 
-          file_id, 
-          original_name, 
-          mime_type, 
-          size, 
-          folder_path, 
-          s3_key, 
-          user_email,
-          deleted_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-        ON CONFLICT (user_id, file_id) 
-        DO UPDATE SET deleted_at = CURRENT_TIMESTAMP`,
-        [
-          userId,
-          file.id,
-          file.original_name,
-          file.mime_type,
-          file.size,
-          file.folder_path,
-          file.s3_key,
-          file.user_email,
-        ],
-      );
-
-      await client.query(
-        `DELETE FROM user_files WHERE id = $1 AND user_id = $2`,
-        [fileId, userId],
-      );
-
-      await client.query("COMMIT");
-
-      console.log(`File ${fileId} successfully moved to recycle bin`);
-
-      res.json({
-        success: true,
-        message: "File moved to Recycle Bin",
-        fileId: file.id,
-      });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error("Delete operation failed:", err);
-      res.status(500).json({
-        success: false,
-        error: "Delete failed",
-        details: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      client.release();
-    }
+    const fileActions = new FileActionsHandlers(pool);
+    return await fileActions.handleDelete([fileId], userId, req, res);
   },
 );
 
-// Restore file from recycle bin
 filesRoutes.post(
   "/recycle-bin/restore/:fileId",
   authMiddleware,
   async (req: AuthRequest, res) => {
     const { fileId } = req.params;
     const userId = req.userId;
-    const client = await pool.connect();
 
-    try {
-      await client.query("BEGIN");
-
-      const recycleRes = await client.query(
-        `SELECT * FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
-        [userId, fileId],
-      );
-
-      if (!recycleRes.rowCount) {
-        await client.query("ROLLBACK");
-        return res
-          .status(404)
-          .json({ success: false, error: "File not in recycle bin" });
-      }
-
-      const file = recycleRes.rows[0];
-      console.log("Restoring file from recycle bin:", file);
-
-      const existingFile = await client.query(
-        `SELECT id FROM user_files WHERE id = $1`,
-        [file.file_id],
-      );
-
-      if (existingFile.rowCount > 0) {
-        console.log(
-          "File already exists in user_files, just removing from recycle bin",
-        );
-        await client.query(
-          `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
-          [userId, fileId],
-        );
-      } else {
-        const insertResult = await client.query(
-          `INSERT INTO user_files (
-            id, 
-            user_id, 
-            user_email, 
-            original_name, 
-            s3_key, 
-            folder_path, 
-            size, 
-            mime_type, 
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-          RETURNING id`,
-          [
-            file.file_id,
-            file.user_id,
-            file.user_email,
-            file.original_name,
-            file.s3_key,
-            file.folder_path || "",
-            file.size,
-            file.mime_type,
-          ],
-        );
-
-        console.log("File restored with ID:", insertResult.rows[0].id);
-
-        await client.query(
-          `SELECT setval('user_files_id_seq', (SELECT MAX(id) FROM user_files))`,
-        );
-
-        await client.query(
-          `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
-          [userId, fileId],
-        );
-      }
-
-      await client.query("COMMIT");
-
-      res.json({
-        success: true,
-        message: "File restored successfully",
-        fileId: file.file_id,
-      });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error("Restore failed:", err);
-      res.status(500).json({
-        success: false,
-        error: "Restore failed",
-        details: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      client.release();
-    }
+    const fileActions = new FileActionsHandlers(pool);
+    return await fileActions.handleRestore([fileId], userId, req, res);
   },
 );
 
@@ -1119,27 +946,14 @@ filesRoutes.post(
   async (req: AuthRequest, res) => {
     const { fileId } = req.params;
     const userId = req.userId;
-    const client = await pool.connect();
 
-    try {
-      await client.query("BEGIN");
-
-      await client.query(
-        `DELETE FROM recycle_bin WHERE user_id = $1 AND file_id = $2`,
-        [userId, fileId],
-      );
-
-      await client.query("COMMIT");
-      res.json({ success: true, message: "File permanently deleted" });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error(err);
-      res
-        .status(500)
-        .json({ success: false, error: "Permanent delete failed" });
-    } finally {
-      client.release();
-    }
+    const fileActions = new FileActionsHandlers(pool);
+    return await fileActions.handleDeletePermanently(
+      [fileId],
+      userId,
+      req,
+      res,
+    );
   },
 );
 
@@ -1155,7 +969,6 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
 
     const { days = 30, limit = 50 } = req.query;
 
-    // Get files edited in the last X days
     const result = await pool.query(
       `
       SELECT 
@@ -1167,6 +980,7 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
         uf.mime_type,
         uf.created_at,
         uf.updated_at,
+        uf.is_locked,
         COALESCE(
           (SELECT created_at 
            FROM file_activity 
@@ -1205,10 +1019,16 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
       [req.userId, limit],
     );
 
+    const files = result.rows.map((row) => ({
+      ...row,
+      is_locked: row.is_locked || false,
+      is_favorited: row.is_favorited || false,
+    }));
+
     res.json({
       success: true,
-      files: result.rows,
-      count: result.rows.length,
+      files,
+      count: files.length,
     });
   } catch (err) {
     console.error("Error fetching recent files:", err);

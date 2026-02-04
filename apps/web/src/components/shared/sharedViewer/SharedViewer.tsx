@@ -24,6 +24,7 @@ interface SharedFile {
   expiresAt: string | null;
   maxDownloads: number | null;
   downloadCount: number;
+  is_locked: boolean;
 }
 
 interface Comment {
@@ -357,6 +358,10 @@ const SharedViewer: React.FC = () => {
 
   const renderPreview = () => {
     if (!fileUrl || !file) return null;
+
+    if (file.is_locked) {
+      return; // Locked file, no preview
+    }
 
     const mimeType = file.mimeType.toLowerCase();
     const extension = getFileExtension(file.fileName);
