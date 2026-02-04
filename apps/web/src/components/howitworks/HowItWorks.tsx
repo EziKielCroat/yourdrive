@@ -10,7 +10,6 @@ import Tryout from "../landing/components/tryout/Tryout";
 const HowItWorks: React.FC = () => {
   return (
     <>
-      <GlobalReset />
       <Navbar_main />
       <HeroSection />
       <TutorialSection />

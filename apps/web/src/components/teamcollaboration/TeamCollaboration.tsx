@@ -1,15 +1,15 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
+import { HeroContGrad } from "../landing/components/hero/styles/hero";
 import {
   PageContainer,
   HeroSection,
   HeroContent,
   HeroTitle,
   HeroSubtitle,
-  CTAButton,
   FeaturesGrid,
   FeatureCard,
   FeatureIcon,
@@ -24,170 +24,258 @@ import {
   CardDescription,
   ImagePlaceholder,
   HighlightBox
-} from "./styles/teamCollaboration.ts";
-import LandingButton from "../shared/landingbutton/LandingButton.tsx";
+} from "./styles/teamCollaboration";
+import LandingButton from "../shared/landingbutton/LandingButton";
 
 const TeamCollaboration: React.FC = () => {
   return (
     <>
-      <GlobalReset />
       <Navbar_main />
 
       <PageContainer>
-        <HeroSection>
+        <HeroSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
           <HeroContent>
             <HeroTitle>
-              Collaborate seamlessly<br />
-              with your entire team.
+              Collaborate without<br />
+              compromising privacy.
             </HeroTitle>
             <HeroSubtitle>
-              Work together in real-time, share files instantly, and keep everyone 
-              on the same page. Built for teams that move fast.
+              Shared folders, real-time presence, and team-wide file access with 
+              granular permissions. All while keeping your data private and secure.
             </HeroSubtitle>
-            <LandingButton variant="primary" size="lg" purp="register">Start collaborating</LandingButton>
+            <LandingButton variant="primary" size="lg" purp="register">
+              Start collaborating
+            </LandingButton>
           </HeroContent>
         </HeroSection>
 
-        <FeaturesGrid>
-          <FeatureCard>
-            <FeatureIcon>👥</FeatureIcon>
-            <FeatureTitle>Team Workspaces</FeatureTitle>
+        <FeaturesGrid
+          as={motion.div}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Users Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
+            <FeatureTitle>Shared Folders</FeatureTitle>
             <FeatureDescription>
-              Create dedicated spaces for each project with customizable permissions and access controls.
+              Create team folders with automatic access for all members. New files are 
+              instantly available to everyone.
             </FeatureDescription>
           </FeatureCard>
 
-          <FeatureCard>
-            <FeatureIcon>⚡</FeatureIcon>
-            <FeatureTitle>Real-Time Sync</FeatureTitle>
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Sync Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
+            <FeatureTitle>Real-Time Presence</FeatureTitle>
             <FeatureDescription>
-              Everyone sees the latest version instantly. No more confusion about which file is current.
+              See who's viewing or editing files in real-time. Know when teammates 
+              are active and available.
             </FeatureDescription>
           </FeatureCard>
 
-          <FeatureCard>
-            <FeatureIcon>💬</FeatureIcon>
-            <FeatureTitle>Built-in Comments</FeatureTitle>
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Comment Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
+            <FeatureTitle>File Comments</FeatureTitle>
             <FeatureDescription>
-              Discuss files directly with threaded comments. Keep all feedback in context.
+              Discuss files and folders with threaded comments. Mention teammates 
+              to get their attention.
             </FeatureDescription>
           </FeatureCard>
         </FeaturesGrid>
 
-        <ContentSection>
-          <SectionTitle>Work together in real-time with powerful collaboration tools</SectionTitle>
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Manage access with precise role-based permissions</SectionTitle>
           <SectionDescription>
-            See who's working on what, track changes, and collaborate seamlessly 
-            without ever leaving your workflow.
+            Owner, editor, and viewer roles give you complete control over who can 
+            do what. Change permissions instantly without file copies.
           </SectionDescription>
 
+          <ImagePlaceholder style={{ height: '400px', margin: '0 auto 60px', maxWidth: '900px' }}>
+            [Screenshot: Team permissions panel showing role management]
+          </ImagePlaceholder>
+
           <CardsContainer>
-            <InfoCard>
-              <ImagePlaceholder>👀</ImagePlaceholder>
-              <CardTitle>Live Presence</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <CardTitle>Three Permission Levels</CardTitle>
               <CardDescription>
-                See who's viewing or editing files in real-time. Know when teammates 
-                are active and available to collaborate.
+                Owner has full control, Editor can modify files, Viewer has read-only 
+                access. Simple and effective.
               </CardDescription>
             </InfoCard>
 
-            <InfoCard>
-              <ImagePlaceholder>✏️</ImagePlaceholder>
-              <CardTitle>Co-Editing</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <CardTitle>Instant Permission Changes</CardTitle>
               <CardDescription>
-                Multiple team members can edit documents simultaneously. Changes 
-                sync instantly without conflicts.
+                Update roles on the fly. Changes take effect immediately without 
+                disrupting team workflow.
               </CardDescription>
             </InfoCard>
 
-            <InfoCard>
-              <ImagePlaceholder>📝</ImagePlaceholder>
-              <CardTitle>Activity Feed</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <CardTitle>Folder-Level Permissions</CardTitle>
               <CardDescription>
-                Stay updated with a central feed showing all team activity, edits, 
-                comments, and file uploads.
+                Set permissions at the folder level. All files inside inherit the 
+                same access controls automatically.
               </CardDescription>
             </InfoCard>
           </CardsContainer>
         </ContentSection>
 
-        <HighlightBox>
+        <HighlightBox
+          as={motion.div}
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.6 }}
+        >
           <SectionTitle style={{ marginBottom: '16px' }}>
-            Streamline team communication and file management
+            Stay in sync across all devices
           </SectionTitle>
           <SectionDescription style={{ marginBottom: '0' }}>
-            Eliminate endless email chains and scattered files. Everything your team 
-            needs is organized in one central hub.
+            Automatic synchronization keeps everyone on the same page. Changes appear 
+            instantly across desktop, mobile, and web.
           </SectionDescription>
         </HighlightBox>
 
-        <ContentSection>
-          <SectionTitle>Manage permissions and access with precision</SectionTitle>
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Track team activity with detailed feeds</SectionTitle>
           <SectionDescription>
-            Control who can view, edit, or share files. Set up teams, assign roles, 
-            and manage access at scale.
+            Activity feed shows all recent changes, edits, comments, and uploads. 
+            Never miss an important update from your team.
           </SectionDescription>
 
           <CardsContainer>
             <InfoCard>
-              <CardTitle>Role-Based Access</CardTitle>
+              <CardTitle>Activity Timeline</CardTitle>
               <CardDescription>
-                Assign roles like Admin, Editor, or Viewer. Each role has specific 
-                permissions to keep your data secure.
+                See a chronological list of all team actions. Filter by user, file type, 
+                or date range for specific insights.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>Team Folders</CardTitle>
+              <CardTitle>Mention Notifications</CardTitle>
               <CardDescription>
-                Create folders that automatically grant access to specific teams. 
-                New members get instant access to relevant files.
+                Get notified when teammates mention you in comments. Stay informed 
+                without checking constantly.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>Guest Access</CardTitle>
+              <CardTitle>File Version History</CardTitle>
               <CardDescription>
-                Invite external collaborators with limited permissions. They can 
-                access specific files without seeing your entire workspace.
+                Track every change made to shared files. See who edited what and 
+                restore previous versions if needed.
               </CardDescription>
             </InfoCard>
           </CardsContainer>
         </ContentSection>
 
-        <ContentSection>
-          <SectionTitle>Track progress and stay aligned</SectionTitle>
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Collaborate with external partners securely</SectionTitle>
           <SectionDescription>
-            Monitor team activity, track file versions, and ensure everyone is 
-            working towards the same goals.
+            Share specific files or folders with people outside your organization. 
+            Control their access level and revoke anytime.
           </SectionDescription>
 
-          <ImagePlaceholder style={{ height: '300px', margin: '40px auto' }}>
-            📊 Team Analytics Dashboard
+          <ImagePlaceholder style={{ height: '300px', margin: '0 auto 60px', maxWidth: '800px' }}>
+            [Illustration: External sharing interface with permission controls]
           </ImagePlaceholder>
 
-          <CardsContainer style={{ marginTop: '40px' }}>
+          <CardsContainer>
             <InfoCard>
-              <CardTitle>Version History</CardTitle>
+              <CardTitle>Guest Access Links</CardTitle>
               <CardDescription>
-                See every change made to files. Restore previous versions if needed 
-                and track who made what changes.
+                Create secure sharing links for external collaborators. They can 
+                access specific files without seeing your entire workspace.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>Task Integration</CardTitle>
+              <CardTitle>Time-Limited Sharing</CardTitle>
               <CardDescription>
-                Link files to tasks and projects. Keep everything connected and 
-                easily find related documents.
+                Set expiration dates on shared links. Access automatically revokes 
+                after the specified time period.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>Team Reports</CardTitle>
+              <CardTitle>Password Protection</CardTitle>
               <CardDescription>
-                Get insights into team productivity, storage usage, and collaboration 
-                patterns with detailed analytics.
+                Add password protection to any share link for an extra layer of 
+                security on sensitive files.
               </CardDescription>
             </InfoCard>
           </CardsContainer>

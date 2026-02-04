@@ -118,8 +118,16 @@ export const FeatureCard = styled.div`
 `;
 
 export const FeatureIcon = styled.div`
-  font-size: 48px;
   margin-bottom: 16px;
+  color: #1F9AFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  svg {
+    width: 48px;
+    height: 48px;
+  }
 `;
 
 export const FeatureTitle = styled.h3`
@@ -179,6 +187,10 @@ export const InfoCard = styled.div`
   border-radius: 16px;
   padding: 32px;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 
   &:hover {
     border-color: #1F9AFE;
@@ -191,6 +203,7 @@ export const CardTitle = styled.h4`
   font-weight: 600;
   color: #2E3038;
   margin: 0 0 12px 0;
+  text-align: center;
 `;
 
 export const CardDescription = styled.p`
@@ -198,6 +211,7 @@ export const CardDescription = styled.p`
   color: #6b7280;
   line-height: 1.6;
   margin: 0;
+  text-align: center;
 `;
 
 export const ImagePlaceholder = styled.div`
@@ -208,8 +222,10 @@ export const ImagePlaceholder = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+  font-size: 14px;
   margin-bottom: 20px;
   color: #6b7280;
   text-align: center;
+  padding: 20px;
+  line-height: 1.5;
 `;

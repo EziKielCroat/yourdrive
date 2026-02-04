@@ -1,15 +1,15 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
+import { HeroContGrad } from "../landing/components/hero/styles/hero";
 import {
   PageContainer,
   HeroSection,
   HeroContent,
   HeroTitle,
   HeroSubtitle,
-  CTAButton,
   FeaturesGrid,
   FeatureCard,
   FeatureIcon,
@@ -23,131 +23,242 @@ import {
   CardTitle,
   CardDescription,
   ImagePlaceholder
-} from "./styles/personalStorage.ts";
-import LandingButton from "../shared/landingbutton/LandingButton.tsx";
+} from "./styles/personalStorage";
+import LandingButton from "../shared/landingbutton/LandingButton";
 
 const PersonalStorage: React.FC = () => {
   return (
     <>
-      <GlobalReset />
       <Navbar_main />
 
       <PageContainer>
-        <HeroSection>
+        <HeroSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
           <HeroContent>
             <HeroTitle>
-              Your personal vault<br />
-              for everything that matters.
+              Your files, your rules.<br />
+              Complete privacy guaranteed.
             </HeroTitle>
             <HeroSubtitle>
-              Store your documents, photos, videos, and files securely in one place. 
-              Access them from anywhere, anytime, on any device.
+              Store your documents, photos, and files with true privacy. No tracking, 
+              no data mining, no AI training on your content. Just secure, private storage.
             </HeroSubtitle>
-            <LandingButton variant="primary" size="lg" purp="register">Start for free</LandingButton>
+            <LandingButton variant="primary" size="lg" purp="register">
+              Start for free
+            </LandingButton>
           </HeroContent>
         </HeroSection>
 
-        <FeaturesGrid>
-          <FeatureCard>
-            <FeatureIcon>📁</FeatureIcon>
-            <FeatureTitle>Unlimited Storage</FeatureTitle>
+        <FeaturesGrid
+          as={motion.div}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Lock Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
+            <FeatureTitle>Privacy-First Storage</FeatureTitle>
             <FeatureDescription>
-              Store as many files as you need without worrying about running out of space.
+              Your data is encrypted at rest and in transit. We can't access your files, 
+              and neither can anyone else.
             </FeatureDescription>
           </FeatureCard>
 
-          <FeatureCard>
-            <FeatureIcon>🔒</FeatureIcon>
-            <FeatureTitle>Private & Secure</FeatureTitle>
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Folder Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
+            <FeatureTitle>Smart Organization</FeatureTitle>
             <FeatureDescription>
-              Your files are encrypted and protected with enterprise-grade security measures.
+              Nested folders, bulk operations, and powerful search make file 
+              management effortless.
             </FeatureDescription>
           </FeatureCard>
 
-          <FeatureCard>
-            <FeatureIcon>📱</FeatureIcon>
+          <FeatureCard
+            as={motion.div}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <FeatureIcon>
+              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
+                [Device Icon]
+              </ImagePlaceholder>
+            </FeatureIcon>
             <FeatureTitle>Access Anywhere</FeatureTitle>
             <FeatureDescription>
-              Seamlessly access your files from desktop, mobile, or web browser.
+              PWA support and offline mode mean your files are accessible on any 
+              device, even without internet.
             </FeatureDescription>
           </FeatureCard>
         </FeaturesGrid>
 
-        <ContentSection>
-          <SectionTitle>Keep your memories safe with intelligent organization</SectionTitle>
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Upload and manage with drag-and-drop simplicity</SectionTitle>
           <SectionDescription>
-            Automatically organize your photos, documents, and files with smart folders 
-            and AI-powered tagging. Never lose track of important files again.
+            Chunked uploads for large files, resume interrupted uploads, and track 
+            progress in real-time. File management has never been this smooth.
           </SectionDescription>
 
+          <ImagePlaceholder style={{ height: '400px', margin: '0 auto 60px', maxWidth: '900px' }}>
+            [Screenshot: Drag-and-drop upload interface with progress indicators]
+          </ImagePlaceholder>
+
           <CardsContainer>
-            <InfoCard>
-              <ImagePlaceholder>📊</ImagePlaceholder>
-              <CardTitle>Smart Categories</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <CardTitle>Instant File Preview</CardTitle>
               <CardDescription>
-                Automatically categorize your files by type, date, and content. 
-                Find what you need in seconds with intelligent search.
+                View images, PDFs, and text files instantly without downloading. 
+                Thumbnails generate automatically for quick browsing.
               </CardDescription>
             </InfoCard>
 
-            <InfoCard>
-              <ImagePlaceholder>🎨</ImagePlaceholder>
-              <CardTitle>Photo Albums</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <CardTitle>Bulk Operations</CardTitle>
               <CardDescription>
-                Create beautiful photo albums with automatic date sorting and 
-                face recognition to organize your precious memories.
+                Multi-select files for bulk download, delete, or move. Save time 
+                with keyboard shortcuts and context menus.
               </CardDescription>
             </InfoCard>
 
-            <InfoCard>
-              <ImagePlaceholder>📄</ImagePlaceholder>
-              <CardTitle>Document Scanning</CardTitle>
+            <InfoCard
+              as={motion.div}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <CardTitle>Storage Dashboard</CardTitle>
               <CardDescription>
-                Scan physical documents with your phone and store them digitally. 
-                Extract text and make everything searchable.
+                Monitor your storage quota with a visual dashboard. See what's 
+                taking up space and optimize accordingly.
               </CardDescription>
             </InfoCard>
           </CardsContainer>
         </ContentSection>
 
-        <ContentSection>
-          <SectionTitle>Backup your life automatically</SectionTitle>
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Find anything instantly with powerful search</SectionTitle>
           <SectionDescription>
-            Set it and forget it. Automatic backup ensures your important files are 
-            always safe, even if something happens to your device.
-          </SectionDescription>
-
-        </ContentSection>
-
-        <ContentSection>
-          <SectionTitle>Personalize your storage experience</SectionTitle>
-          <SectionDescription>
-            Customize folders, create shortcuts, and set up your workspace exactly 
-            how you want it. Your storage, your way.
+            Smart search with filters by date, type, size, and owner. Starred favorites 
+            and recent files for quick access to what matters most.
           </SectionDescription>
 
           <CardsContainer>
             <InfoCard>
-              <CardTitle>Custom Folders</CardTitle>
+              <CardTitle>Universal Search</CardTitle>
               <CardDescription>
-                Create unlimited folders and subfolders to organize your content 
-                in a way that makes sense to you.
+                Search by filename across all your folders. Filter results by file type, 
+                date modified, or size for precision.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>Quick Access</CardTitle>
+              <CardTitle>Duplicate Detection</CardTitle>
               <CardDescription>
-                Pin your most-used files and folders for instant access. 
-                Save time with smart shortcuts.
+                Automatically detect duplicate files to free up storage space and 
+                keep your library organized.
               </CardDescription>
             </InfoCard>
 
             <InfoCard>
-              <CardTitle>File Versioning</CardTitle>
+              <CardTitle>30-Day Recovery</CardTitle>
               <CardDescription>
-                Never worry about losing changes. Keep multiple versions of 
-                files and restore any previous version.
+                Deleted files go to trash with 30-day recovery window. Restore 
+                accidentally deleted content with one click.
+              </CardDescription>
+            </InfoCard>
+          </CardsContainer>
+        </ContentSection>
+
+        <ContentSection
+          as={motion.section}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.6 }}
+        >
+          <SectionTitle>Your data stays yours, always</SectionTitle>
+          <SectionDescription>
+            Optional end-to-end encryption for sensitive files. Encrypted filenames and 
+            metadata when enabled. Zero telemetry or analytics tracking.
+          </SectionDescription>
+
+          <ImagePlaceholder style={{ height: '300px', margin: '0 auto 60px', maxWidth: '800px' }}>
+            [Illustration: Shield with lock showing end-to-end encryption]
+          </ImagePlaceholder>
+
+          <CardsContainer>
+            <InfoCard>
+              <CardTitle>Audit Logs</CardTitle>
+              <CardDescription>
+                View complete access history for your files. Know exactly who accessed 
+                what and when.
+              </CardDescription>
+            </InfoCard>
+
+            <InfoCard>
+              <CardTitle>Two-Factor Authentication</CardTitle>
+              <CardDescription>
+                Add an extra layer of security with 2FA. Protect your account from 
+                unauthorized access.
+              </CardDescription>
+            </InfoCard>
+
+            <InfoCard>
+              <CardTitle>Data Retention Control</CardTitle>
+              <CardDescription>
+                You control your data retention policies. Export or delete your data 
+                at any time.
               </CardDescription>
             </InfoCard>
           </CardsContainer>

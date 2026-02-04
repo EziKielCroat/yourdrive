@@ -9,6 +9,16 @@ interface User {
   firstName: string | null;
   emailVerified: boolean;
   createdAt: string;
+  totpEnabled?: boolean;
+}
+
+interface LoginResponse {
+  requires2FA: boolean;
+  userId?: string;
+  tempToken?: string;
+  user?: User;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface Device {
@@ -42,7 +52,10 @@ interface AuthStore {
   requires2FA: boolean;
   tempToken: string | null;
 
-  login: (email: string, password: string) => Promise<void>;
+  setUser: (user: User | null) => void;
+  setAuthenticated: (value: boolean) => void;
+
+  login: (email: string, password: string) => Promise<LoginResponse>;
   register: (
     email: string,
     password: string,
@@ -72,39 +85,72 @@ export const useAuthStore = create<AuthStore>()(
       requires2FA: false,
       tempToken: null,
 
+      // Helper setters
+      setUser: (user) => set({ user }),
+      setAuthenticated: (value) => set({ isAuthenticated: value }),
+
       // ----------------------
       // Auth
       // ----------------------
-      login: async (email, password) => {
+      login: async (email: string, password: string): Promise<LoginResponse> => {
         set({ isLoading: true, error: null });
 
-        const res = await api.post("/auth/login", { email, password });
+        try {
+          const response = await api.post("/auth/login", { email, password });
+          const data: LoginResponse = response.data;
 
-        if (res.data.requires2FA) {
+          // Check if 2FA is required
+          if (data.requires2FA) {
+            set({ 
+              isLoading: false, 
+              requires2FA: true, 
+              tempToken: data.tempToken 
+            });
+            return {
+              requires2FA: true,
+              userId: data.userId,
+              tempToken: data.tempToken,
+            };
+          }
+
+          // Normal login (no 2FA)
           set({
-            requires2FA: true,
-            tempToken: res.data.tempToken,
+            user: data.user,
+            accessToken: data.accessToken,
+            isAuthenticated: true,
             isLoading: false,
+            requires2FA: false,
+            tempToken: null,
           });
-          return;
+
+          await get().fetchDevices();
+
+          return {
+            requires2FA: false,
+            user: data.user,
+            accessToken: data.accessToken,
+          };
+        } catch (error: any) {
+          set({ 
+            error: error.message || "Login failed", 
+            isLoading: false 
+          });
+          throw error;
         }
-
-        set({
-          user: res.data.user,
-          accessToken: res.data.accessToken,
-          isAuthenticated: true,
-          isLoading: false,
-          requires2FA: false,
-          tempToken: null,
-        });
-
-        await get().fetchDevices();
       },
 
       register: async (email, password, firstName) => {
         set({ isLoading: true, error: null });
-        await api.post("/auth/register", { email, password, firstName });
-        await get().login(email, password);
+        try {
+          await api.post("/auth/register", { email, password, firstName });
+          await get().login(email, password);
+        } catch (error: any) {
+          set({ 
+            error: error.message || "Registration failed", 
+            isLoading: false 
+          });
+          throw error;
+        }
       },
 
       logout: async () => {
@@ -187,6 +233,7 @@ export const useAuthStore = create<AuthStore>()(
       name: "auth-storage",
       partialize: (state) => ({
         user: state.user,
+        accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
         requires2FA: state.requires2FA,
         tempToken: state.tempToken,

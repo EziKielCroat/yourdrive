@@ -15,6 +15,7 @@
     "@aws-sdk/credential-providers": "^3.958.0",
     "@aws-sdk/lib-storage": "^3.940.0",
     "@aws-sdk/s3-request-presigner": "^3.975.0",
+    "@otplib/preset-default": "^12.0.1",
     "@prisma/client": "^5.9.1",
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.2",

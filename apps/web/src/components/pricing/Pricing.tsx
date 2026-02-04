@@ -8,7 +8,6 @@ import { HeroContGrad} from "../landing/components/hero/styles/hero";
 const Pricing: React.FC = () => {
   return (
     <>
-    <GlobalReset />
     <Navbar_main/>
     <PlanSection />
     <HeroContGrad style={{transform: "rotate(180deg)"}} />

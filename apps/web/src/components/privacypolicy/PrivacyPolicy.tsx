@@ -23,7 +23,6 @@ import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles
 const PrivacyPolicy: React.FC = () => {
   return (
     <>
-      <GlobalReset />
       <Navbar_main />
       <HeroContGradTop />
 

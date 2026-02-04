@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import styled from "styled-components";
 import { Lock, Mail, X, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
+import TwoFactorModal from "../auth/TwoFactorModal";
 
 const Page = styled.div`
   min-height: 100vh;
@@ -231,6 +232,16 @@ const RightContent = styled.div`
   }
 `;
 
+const ErrorMessage = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #991b1b;
+  font-size: 14px;
+  margin-bottom: 16px;
+`;
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading } = useAuthStore();
@@ -238,90 +249,170 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  
+  // 2FA state
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [twoFactorError, setTwoFactorError] = useState("");
+  const [is2FALoading, setIs2FALoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
-    navigate({ to: "/dashboard" });
+    setError("");
+    
+    try {
+      const result = await login(email, password);
+      
+      // Check if 2FA is required
+      if (result.requires2FA) {
+        setTempToken(result.tempToken);
+        setShow2FAModal(true);
+      } else {
+        // Normal login successful, navigate to dashboard
+        navigate({ to: "/dashboard" });
+      }
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    }
+  };
+
+  const handle2FAVerification = async (code: string, isRecoveryCode: boolean = false) => {
+    setIs2FALoading(true);
+    setTwoFactorError("");
+
+    try {
+      // YourDrive uses a single endpoint that accepts both TOTP and recovery codes
+      const response = await fetch("/api/auth/totp/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tempToken,
+          ...(isRecoveryCode ? { recoveryCode: code } : { token: code })
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Invalid verification code");
+      }
+
+      const data = await response.json();
+      
+      // YourDrive returns refreshToken in cookie, just store accessToken
+      localStorage.setItem("accessToken", data.accessToken);
+      
+      // Update auth store
+      useAuthStore.getState().setUser(data.user);
+      useAuthStore.getState().setAuthenticated(true);
+      
+      // Close modal and navigate
+      setShow2FAModal(false);
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      setTwoFactorError(err.message || "Verification failed");
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
+  const handle2FAClose = () => {
+    setShow2FAModal(false);
+    setTempToken("");
+    setTwoFactorError("");
   };
 
   return (
-    <Page>
-      <Left>
-        <Header>
-          <Logo>YOURDRIVE</Logo>
-          <CloseButton onClick={() => navigate({ to: "/" })}>
-            <X size={20} />
-            Close
-          </CloseButton>
-        </Header>
+    <>
+      <Page>
+        <Left>
+          <Header>
+            <Logo>YOURDRIVE</Logo>
+            <CloseButton onClick={() => navigate({ to: "/" })}>
+              <X size={20} />
+              Close
+            </CloseButton>
+          </Header>
 
-        <Content>
-          <Card>
-            <Title>Welcome Back,</Title>
-            <Subtitle>Please enter your details to login.</Subtitle>
+          <Content>
+            <Card>
+              <Title>Welcome Back,</Title>
+              <Subtitle>Please enter your details to login.</Subtitle>
 
-            <Form onSubmit={handleSubmit}>
-              <InputWrapper>
-                <Icon>
-                  <Mail size={20} />
-                </Icon>
-                <Input
-                  type="email"
-                  placeholder="Email Address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </InputWrapper>
+              {error && <ErrorMessage>{error}</ErrorMessage>}
 
-              <InputWrapper>
-                <Icon>
-                  <Lock size={20} />
-                </Icon>
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <ToggleIcon
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </ToggleIcon>
-              </InputWrapper>
+              <Form onSubmit={handleSubmit}>
+                <InputWrapper>
+                  <Icon>
+                    <Mail size={20} />
+                  </Icon>
+                  <Input
+                    type="email"
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </InputWrapper>
 
-              <ForgotPassword>
-                <button type="button">Forgot Password?</button>
-              </ForgotPassword>
+                <InputWrapper>
+                  <Icon>
+                    <Lock size={20} />
+                  </Icon>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <ToggleIcon
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </ToggleIcon>
+                </InputWrapper>
 
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
-            </Form>
+                <ForgotPassword>
+                  <button type="button">Forgot Password?</button>
+                </ForgotPassword>
 
-            <LinkRow>
-              Don't have an account?{" "}
-              <button onClick={() => navigate({ to: "/register" })}>
-                Sign Up
-              </button>
-            </LinkRow>
-          </Card>
-        </Content>
-      </Left>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Logging in..." : "Login"}
+                </Button>
+              </Form>
 
-      <Right>
-        <RightContent>
-          <h2>
-            Send, receive and edit files
-            <br />
-            with <span>YourDrive</span>
-          </h2>
-        </RightContent>
-      </Right>
-    </Page>
+              <LinkRow>
+                Don't have an account?{" "}
+                <button onClick={() => navigate({ to: "/register" })}>
+                  Sign Up
+                </button>
+              </LinkRow>
+            </Card>
+          </Content>
+        </Left>
+
+        <Right>
+          <RightContent>
+            <h2>
+              Send, receive and edit files
+              <br />
+              with <span>YourDrive</span>
+            </h2>
+          </RightContent>
+        </Right>
+      </Page>
+
+      <TwoFactorModal
+        isOpen={show2FAModal}
+        onClose={handle2FAClose}
+        onVerify={handle2FAVerification}
+        isLoading={is2FALoading}
+        error={twoFactorError}
+      />
+    </>
   );
 }

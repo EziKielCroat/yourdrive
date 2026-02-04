@@ -1,7 +1,7 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { authenticator } from "otplib";
+import { authenticator } from "@otplib/preset-default";
 import QRCode from "qrcode";
 import crypto from "crypto";
 import {

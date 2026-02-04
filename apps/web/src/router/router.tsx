@@ -25,7 +25,7 @@ import RecentlyEdited from "../components/dashboard/component/recentlyEdited/Rec
 import Favorited from "../components/dashboard/component/favorited/Favorited";
 import Home from "../components/dashboard/component/main/Home";
 import Settings from "../components/settings/Settings";
-import SharedViewer from "../components/shared/sharedViewer/sharedViewer";
+import SharedViewer from "../components/shared/sharedViewer/SharedViewer";
 import Features from "../components/features/Features";
 import TermsOfService from "../components/termsofservice/TermsOfService";
 import PrivacyPolicy from "../components/privacypolicy/PrivacyPolicy";
@@ -34,6 +34,7 @@ import PersonalStorage from "../components/personalstorage/PersonalStorage";
 import FileSharingEditing from "../components/filesharingediting/FileSharingEditing";
 import SecureStorage from "../components/securestorage/SecureStorage";
 import TeamCollaboration from "../components/teamcollaboration/TeamCollaboration";
+import { GlobalReset } from "../components/landing/styles/landing";
 
 export const ROUTES = {
   HOME: "/",
@@ -62,7 +63,7 @@ export const ROUTES = {
 } as const;
 
 function RootComponent() {
-  return <Outlet />;
+  return <><GlobalReset /><Outlet /></>;
 }
 
 function redirectIfAuthenticated(): void {

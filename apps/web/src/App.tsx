@@ -9,7 +9,7 @@ interface ApplicationProps {
 }
 
 const Application = ({ children }: ApplicationProps) => {
-  return <ApplicationContainer>{children}</ApplicationContainer>;
+  return <><ApplicationContainer>{children}</ApplicationContainer></>;
 };
 
 const ApplicationContainer = styled.div`

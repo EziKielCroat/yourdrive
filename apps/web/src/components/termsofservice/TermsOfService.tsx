@@ -24,7 +24,6 @@ import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles
 const TermsOfService: React.FC = () => {
   return (
     <>
-    <GlobalReset />
     <Navbar_main/>
     <HeroContGradTop /> 
     <PageContainer>

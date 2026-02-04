@@ -6,29 +6,21 @@ export const GlobalReset = createGlobalStyle`
   }
 
   html {
-    overflow-x: hidden;
-    width: 100vw;
     height: 100%;
+    overflow-x: hidden;
   }
 
   body {
     margin: 0;
     padding: 0;
-    width: 100%;
-    max-width: 100vw;
     min-height: 100vh;
-    height: auto;
     overflow-x: hidden;
-    overflow-y: auto;
     background-color: #ffffff;
     display: flex;
     flex-direction: column;
   }
 
   #root {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -36,8 +28,8 @@ export const GlobalReset = createGlobalStyle`
 
   @font-face {
     font-family: "Forma DJR Display";
-    src: url("../../../../../../public/fonts/FormaDJRDisplay-Bold-Testing.woff2") format("woff2"),
-         url("../../../../../../public/fonts/FormaDJRDisplay-Bold-Testing.woff") format("woff");
+    src: url("/fonts/FormaDJRDisplay-Bold-Testing.woff2") format("woff2"),
+         url("/fonts/FormaDJRDisplay-Bold-Testing.woff") format("woff");
     font-weight: 700;
     font-style: normal;
     font-display: swap;

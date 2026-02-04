@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Shield, Eye, EyeOff } from "lucide-react";
+import TwoFactorSettings from "./TwoFactorSettings";
 import {
   Section,
   SectionTitle,
@@ -62,6 +63,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
 
   return (
     <>
+      <TwoFactorSettings />
       <Section>
         <SectionTitle>Security Settings</SectionTitle>
         <SectionDescription>

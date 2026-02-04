@@ -317,13 +317,24 @@ authRoutes.post(
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
+      console.log("=== TOTP Setup Request ===");
+      console.log("User ID:", req.userId);
+      console.log("Auth header:", req.headers.authorization);
+      
       const result = await AuthService.setupTOTP(req.userId!);
+
+      console.log("=== TOTP Setup Success ===");
+      console.log("Secret generated:", result.secret);
 
       res.json({
         success: true,
         ...result,
       });
     } catch (error: any) {
+      console.error("=== TOTP Setup Error ===");
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      
       res.status(400).json({
         success: false,
         error: error.message,

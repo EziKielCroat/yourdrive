@@ -10,7 +10,6 @@ import CoreValues from "./components/coreValues/CoreValues";
 const AboutUs: React.FC = () => {
   return (
     <>
-    <GlobalReset />
     <Navbar_main/>
     <Heading />
     <Reason></Reason>

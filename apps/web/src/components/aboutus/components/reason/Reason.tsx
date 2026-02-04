@@ -1,78 +1,95 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { 
   Title, 
   ReasonCont, 
   SubTitle, 
   InfoWrapper, 
   TextWrapper,
-  ImageWrapper 
+  ImageWrapper,
+  TextBlock,
+  ValuesSection,
+  ValuesTitle,
+  ValuesSubtitle,
+  Highlight,
+  StyledSubTitle,
+  MainText,
+  HighlightText
 } from "./styles/reason";
 import Image from "../../../shared/image/Image";
-import styled from "styled-components";
 
-const Highlight = styled.span`
-  color: #0E84FF;
-`;
+const fadeInUp = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 }
+};
 
-const StyledSubTitle = styled(SubTitle)`
-  padding: 0;
-  margin-bottom: 1%;
-
-  @media (max-width: 768px) {
-    margin-bottom: 2%;
-  }
-
-  @media (max-width: 480px) {
-    margin-bottom: 3%;
-  }
-`;
-
-const TextSubTitle = styled(SubTitle)`
-  font-weight: 400;
-  line-height: 1.6;
-  white-space: normal;
-  
-  br {
-    @media (max-width: 1024px) {
-      display: none;
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12
     }
   }
-`;
-
-const DarkTextSubTitle = styled(TextSubTitle)`
-  color: #2E3038;
-`;
+};
 
 const Reason: React.FC = () => {
   return (
-    <>
-      <ReasonCont>
+    <ReasonCont>
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={fadeInUp}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
         <Title>
           Why We Built <Highlight>YourDrive</Highlight>
         </Title>
         <StyledSubTitle>
           Born from the frustration of scattered files
         </StyledSubTitle>
+      </motion.div>
+
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-80px" }}
+        variants={staggerContainer}
+      >
         <InfoWrapper>
-          <TextWrapper>
-            <TextSubTitle>
-              From classrooms to startups, we've all experienced the pain of juggling too many tools and losing track of files.
-            </TextSubTitle>
-            <DarkTextSubTitle>
-              <Highlight>YourDrive</Highlight> was created to bring everything together in one simple, private, and polished space—so you can focus on what matters, not where your files are.
-            </DarkTextSubTitle>
-          </TextWrapper>
-          <ImageWrapper>
-            <Image 
-              src="./Images/skibidi.png" 
-              width={878} 
-              height={625}
-              alt="YourDrive illustration"
-            />
-          </ImageWrapper>
+          <motion.div 
+            variants={fadeInUp} 
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <TextWrapper>
+              <TextBlock>
+                <MainText>
+                  From classrooms to startups, we've all experienced the pain of juggling too many tools and losing track of files.
+                </MainText>
+                <HighlightText>
+                  <Highlight>YourDrive</Highlight> was created to bring everything together in one simple, private, and polished space—so you can focus on what matters, not where your files are.
+                </HighlightText>
+              </TextBlock>
+            </TextWrapper>
+          </motion.div>
+
+          <motion.div 
+            variants={fadeInUp} 
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <ImageWrapper>
+              <Image 
+                src="./Images/skibidi.png" 
+                width={878} 
+                height={625}
+                alt="YourDrive illustration"
+              />
+            </ImageWrapper>
+          </motion.div>
         </InfoWrapper>
-      </ReasonCont>
-    </>
+      </motion.div>
+    </ReasonCont>
   );
 };
 

@@ -11,7 +11,6 @@ import CardsSection from "./components/cardsSection/CardsSection";
 const Features: React.FC = () => {
   return (
     <>
-    <GlobalReset />
     <Navbar_main/>
     <HeroContGradTop /> 
     

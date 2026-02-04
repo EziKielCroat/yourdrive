@@ -2,8 +2,21 @@ import styled from 'styled-components';
 
 export const PageContainer = styled.div`
   width: 100%;
+  max-width: 100vw;
   background: #ffffff;
   margin-top: 120px;
+  overflow-x: hidden;
+  padding: 0 20px;
+
+  @media (max-width: 968px) {
+    margin-top: 100px;
+    padding: 0 15px;
+  }
+
+  @media (max-width: 640px) {
+    margin-top: 80px;
+    padding: 0 10px;
+  }
 `;
 
 export const HeroSection = styled.section`
@@ -12,6 +25,14 @@ export const HeroSection = styled.section`
   display: flex;
   justify-content: center;
   align-items: center;
+
+  @media (max-width: 968px) {
+    margin-bottom: 60px;
+  }
+
+  @media (max-width: 640px) {
+    margin-bottom: 50px;
+  }
 `;
 
 export const HeroContent = styled.div`
@@ -22,6 +43,10 @@ export const HeroContent = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 24px;
+
+  @media (max-width: 640px) {
+    gap: 20px;
+  }
 `;
 
 export const HeroTitle = styled.h1`
@@ -32,8 +57,20 @@ export const HeroTitle = styled.h1`
   margin: 0;
   letter-spacing: -0.02em;
 
+  @media (max-width: 1200px) {
+    font-size: 48px;
+  }
+
   @media (max-width: 768px) {
     font-size: 36px;
+  }
+
+  @media (max-width: 640px) {
+    font-size: 32px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 28px;
   }
 `;
 
@@ -45,25 +82,12 @@ export const HeroSubtitle = styled.p`
   max-width: 600px;
 
   @media (max-width: 768px) {
-    font-size: 16px;
+    font-size: 17px;
+    max-width: 100%;
   }
-`;
 
-export const CTAButton = styled.button`
-  background: #1F9AFE;
-  color: white;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 14px 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 16px;
-
-  &:hover {
-    background: #0d7dd4;
-    transform: translateY(-2px);
+  @media (max-width: 640px) {
+    font-size: 16px;
   }
 `;
 
@@ -74,9 +98,18 @@ export const FeaturesGrid = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 32px;
 
+  @media (max-width: 1200px) {
+    gap: 24px;
+  }
+
   @media (max-width: 968px) {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
+    margin-bottom: 80px;
+  }
+
+  @media (max-width: 640px) {
+    margin-bottom: 60px;
   }
 `;
 
@@ -94,11 +127,16 @@ export const FeatureCard = styled.div`
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
+
+  @media (max-width: 640px) {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
 `;
 
 export const FeatureIcon = styled.div`
-  font-size: 48px;
   margin-bottom: 16px;
+  width: 100%;
 `;
 
 export const FeatureTitle = styled.h3`
@@ -106,6 +144,10 @@ export const FeatureTitle = styled.h3`
   font-weight: 600;
   color: #2E3038;
   margin: 0 0 12px 0;
+
+  @media (max-width: 640px) {
+    font-size: 18px;
+  }
 `;
 
 export const FeatureDescription = styled.p`
@@ -113,11 +155,23 @@ export const FeatureDescription = styled.p`
   color: #6b7280;
   line-height: 1.6;
   margin: 0;
+
+  @media (max-width: 640px) {
+    font-size: 14px;
+  }
 `;
 
 export const ContentSection = styled.section`
   max-width: 1200px;
   margin: 0 auto 80px;
+
+  @media (max-width: 968px) {
+    margin-bottom: 60px;
+  }
+
+  @media (max-width: 640px) {
+    margin-bottom: 50px;
+  }
 `;
 
 export const SectionTitle = styled.h2`
@@ -128,8 +182,17 @@ export const SectionTitle = styled.h2`
   margin: 0 0 16px 0;
   letter-spacing: -0.01em;
 
+  @media (max-width: 968px) {
+    font-size: 32px;
+  }
+
   @media (max-width: 768px) {
     font-size: 28px;
+  }
+
+  @media (max-width: 640px) {
+    font-size: 24px;
+    margin-bottom: 12px;
   }
 `;
 
@@ -140,6 +203,16 @@ export const SectionDescription = styled.p`
   line-height: 1.6;
   margin: 0 auto 48px;
   max-width: 700px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin-bottom: 40px;
+  }
+
+  @media (max-width: 640px) {
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
 `;
 
 export const CardsContainer = styled.div`
@@ -147,8 +220,28 @@ export const CardsContainer = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 
+  @media (max-width: 1200px) {
+    gap: 20px;
+  }
+
   @media (max-width: 968px) {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+export const TwoColumnGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+
+  @media (max-width: 1200px) {
+    gap: 20px;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 `;
 
@@ -163,6 +256,11 @@ export const InfoCard = styled.div`
     border-color: #1F9AFE;
     box-shadow: 0 4px 12px rgba(31, 154, 254, 0.1);
   }
+
+  @media (max-width: 640px) {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
 `;
 
 export const CardTitle = styled.h4`
@@ -170,6 +268,11 @@ export const CardTitle = styled.h4`
   font-weight: 600;
   color: #2E3038;
   margin: 0 0 12px 0;
+
+  @media (max-width: 640px) {
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
 `;
 
 export const CardDescription = styled.p`
@@ -177,6 +280,10 @@ export const CardDescription = styled.p`
   color: #6b7280;
   line-height: 1.6;
   margin: 0;
+
+  @media (max-width: 640px) {
+    font-size: 14px;
+  }
 `;
 
 export const ImagePlaceholder = styled.div`
@@ -187,9 +294,19 @@ export const ImagePlaceholder = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+  font-size: 14px;
   margin-bottom: 20px;
   color: #6b7280;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+
+  @media (max-width: 640px) {
+    height: 150px;
+    font-size: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
 `;
 
 export const HighlightBox = styled.div`
@@ -199,7 +316,19 @@ export const HighlightBox = styled.div`
   background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
   border-radius: 24px;
 
+  @media (max-width: 968px) {
+    margin-bottom: 60px;
+    padding: 50px 30px;
+  }
+
   @media (max-width: 768px) {
     padding: 40px 24px;
+    border-radius: 20px;
+  }
+
+  @media (max-width: 640px) {
+    margin-bottom: 50px;
+    padding: 32px 20px;
+    border-radius: 16px;
   }
 `;

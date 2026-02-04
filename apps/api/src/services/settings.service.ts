@@ -56,7 +56,7 @@ export class SettingsService {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true },
+      select: { email: true, firstName: true },
     });
 
     const usageResult = await pool.query(
@@ -70,13 +70,14 @@ export class SettingsService {
     const totalStorage = 15 * 1024 * 1024 * 1024;
 
     const profile = settings.profile || {};
-    const [firstName, lastName] = (user?.name || "").split(" ");
+    const firstName = user?.firstName || profile.firstName || "";
+    const lastName = profile.lastName || "";
 
     return {
       profile: {
         email: user?.email || profile.email || "",
-        firstName: firstName || profile.firstName || "",
-        lastName: lastName || profile.lastName || "",
+        firstName: firstName,
+        lastName: lastName,
         avatarUrl: profile.avatarUrl || null,
         avatarInitials: this.getInitials(firstName, lastName),
       },
@@ -106,19 +107,10 @@ export class SettingsService {
       });
     }
 
-    if (data.firstName || data.lastName) {
-      const currentSettings = await pool.query(
-        `SELECT profile FROM user_settings WHERE user_id = $1`,
-        [userId]
-      );
-      const currentProfile = currentSettings.rows[0]?.profile || {};
-
-      const firstName = data.firstName || currentProfile.firstName || "";
-      const lastName = data.lastName || currentProfile.lastName || "";
-
+    if (data.firstName) {
       await prisma.user.update({
         where: { id: userId },
-        data: { name: `${firstName} ${lastName}`.trim() },
+        data: { firstName: data.firstName },
       });
     }
 
