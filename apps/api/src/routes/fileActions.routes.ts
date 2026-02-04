@@ -329,7 +329,7 @@ fileActionsRoutes.get(
         return res.status(401).json({ success: false, error: "Unauthorized" });
       }
 
-      const file = await getFileDetails(fileId, userId);
+      const file = await getFileDetails(pool, fileId, userId);
       if (!file) {
         return res
           .status(404)

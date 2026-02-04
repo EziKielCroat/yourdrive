@@ -135,7 +135,7 @@ const registry: Record<FileActionId, FileActionDefinition> = {
     available: (ctx: ActionContext) =>
       !ctx.isRecycleBin &&
       !ctx.isShared &&
-      ctx.selectedFiles.every((f) => !f.isLocked), // FIXED: Only show if ALL files are unlocked
+      ctx.selectedFiles.every((f) => !f.isLocked),
   },
 
   unlock: {
@@ -146,7 +146,7 @@ const registry: Record<FileActionId, FileActionDefinition> = {
     available: (ctx: ActionContext) =>
       !ctx.isRecycleBin &&
       !ctx.isShared &&
-      ctx.selectedFiles.every((f) => f.isLocked), // FIXED: Only show if ALL files are locked
+      ctx.selectedFiles.every((f) => f.isLocked),
   },
 
   optimize: {
@@ -173,7 +173,6 @@ const registry: Record<FileActionId, FileActionDefinition> = {
       !ctx.isRecycleBin,
   },
 
-  // RESTRICTED: Generate PDF only available for non-shared, non-recycle bin contexts
   generatePdf: {
     id: "generatePdf",
     label: "Generate PDF",
@@ -183,7 +182,7 @@ const registry: Record<FileActionId, FileActionDefinition> = {
       ctx.selectionCount >= 1 &&
       !ctx.selectedFiles.some((f) => f.isLocked) &&
       !ctx.isRecycleBin &&
-      !ctx.isShared, // RESTRICTED: Not available in shared context
+      !ctx.isShared,
   },
 
   star: {
