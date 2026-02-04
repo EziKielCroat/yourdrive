@@ -1,4 +1,11 @@
-import { Cont, BlueTitle, SwitchCont, Title, PlanWrapper, Option } from "./styles/PlanSection";
+import { 
+  Cont, 
+  BlueTitle, 
+  SwitchCont, 
+  Title, 
+  PlanWrapper, 
+  Option 
+} from "./styles/PlanSection";
 import Plan from "./components/plan/Plan";
 import Switch from "../../../shared/switch/Switch";
 import React, { useState } from "react";
@@ -56,9 +63,7 @@ const PlanSection: React.FC = () => {
     <Cont>
       <BlueTitle>Pricing & Plans</BlueTitle>
       <Title>
-        We have exclusive plans for you to
-        <br />
-        choose
+        We have exclusive plans for you to choose
       </Title>
 
       <SwitchCont>

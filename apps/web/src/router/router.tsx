@@ -26,6 +26,14 @@ import Favorited from "../components/dashboard/component/favorited/Favorited";
 import Home from "../components/dashboard/component/main/Home";
 import Settings from "../components/settings/Settings";
 import SharedViewer from "../components/shared/sharedViewer/sharedViewer";
+import Features from "../components/features/Features";
+import TermsOfService from "../components/termsofservice/TermsOfService";
+import PrivacyPolicy from "../components/privacypolicy/PrivacyPolicy";
+
+import PersonalStorage from "../components/personalstorage/PersonalStorage";
+import FileSharingEditing from "../components/filesharingediting/FileSharingEditing";
+import SecureStorage from "../components/securestorage/SecureStorage";
+import TeamCollaboration from "../components/teamcollaboration/TeamCollaboration";
 
 export const ROUTES = {
   HOME: "/",
@@ -33,9 +41,16 @@ export const ROUTES = {
   PRICING: "/pricing",
   HOWITWORKS: "/howitworks",
   HELPCENTER: "/helpcenter",
+  FEATURES: "/features",
   LOGIN: "/login",
   REGISTER: "/register",
   DASHBOARD: "/dashboard",
+  TERMS: "/terms",
+  PRIVACY: "/privacy",
+  PERSONAL_STORAGE: "/personal",
+  FILE_SHARING_EDITING: "/file-editing",
+  SECURE_STORAGE: "/secure",
+  TEAM_COLLABORATION: "/team",
   YOUR_FILES: "/dashboard/your-files",
   SHARED_WITH_YOU: "/dashboard/shared-with-you",
   RECYCLE_BIN: "/dashboard/recycle-bin",
@@ -112,6 +127,48 @@ const aboutUsRoute = createRoute({
   component: AboutUs,
 });
 
+const personalStorageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/personal",
+  component: PersonalStorage,
+});
+
+const fileSharingEditingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/file-editing",
+  component: FileSharingEditing,
+});
+
+const secureStorageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/secure",
+  component: SecureStorage,
+});
+
+const teamCollaborationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/team",
+  component: TeamCollaboration,
+});
+
+const privacyPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/privacy",
+  component: PrivacyPolicy,
+});
+
+const termsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/terms",
+  component: TermsOfService,
+});
+
+const featuresRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/features",
+  component: Features,
+});
+
 const howItWorksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/howitworks",
@@ -186,6 +243,13 @@ const routeTree = rootRoute.addChildren([
   aboutUsRoute,
   howItWorksRoute,
   pricingRoute,
+  privacyPolicyRoute,
+  termsRoute,
+  personalStorageRoute,
+  fileSharingEditingRoute,
+  secureStorageRoute,
+  teamCollaborationRoute,
+  featuresRoute,
   helpCenterRoute,
   sharedFileRoute,
   dashboardRoute.addChildren([

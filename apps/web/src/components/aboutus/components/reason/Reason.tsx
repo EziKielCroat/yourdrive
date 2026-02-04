@@ -1,28 +1,77 @@
 import React from "react";
-import { Title, ReasonCont, SubTitle, InfoWrapper, TextWrapper } from "./styles/reason";
+import { 
+  Title, 
+  ReasonCont, 
+  SubTitle, 
+  InfoWrapper, 
+  TextWrapper,
+  ImageWrapper 
+} from "./styles/reason";
 import Image from "../../../shared/image/Image";
+import styled from "styled-components";
+
+const Highlight = styled.span`
+  color: #0E84FF;
+`;
+
+const StyledSubTitle = styled(SubTitle)`
+  padding: 0;
+  margin-bottom: 1%;
+
+  @media (max-width: 768px) {
+    margin-bottom: 2%;
+  }
+
+  @media (max-width: 480px) {
+    margin-bottom: 3%;
+  }
+`;
+
+const TextSubTitle = styled(SubTitle)`
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: normal;
+  
+  br {
+    @media (max-width: 1024px) {
+      display: none;
+    }
+  }
+`;
+
+const DarkTextSubTitle = styled(TextSubTitle)`
+  color: #2E3038;
+`;
 
 const Reason: React.FC = () => {
   return (
     <>
-    <ReasonCont>
-        <Title>Why We Built <span style={{color: "#0E84FF"}}>YourDrive</span></Title>
-        <SubTitle style={{padding: "0%", marginBottom: "1%"}}>Born from the frustration of scattered files</SubTitle>
+      <ReasonCont>
+        <Title>
+          Why We Built <Highlight>YourDrive</Highlight>
+        </Title>
+        <StyledSubTitle>
+          Born from the frustration of scattered files
+        </StyledSubTitle>
         <InfoWrapper>
-            <TextWrapper>
-                <SubTitle style={{fontWeight: 400}}>
-                    From classrooms to startups, we’ve all experienced the<br />
-                    pain of juggling too many tools and losing track of files.
-                </SubTitle>
-                <SubTitle style={{fontWeight: 400, color: "#2E3038"}}>
-                    <span style={{color: "#0E84FF"}}>YourDrive</span> was created to bring everything together in<br />
-                    one simple, private, and polished space—so you can<br />
-                    focus on what matters, not where your files are.
-                </SubTitle>
-            </TextWrapper>
-            <Image src="./Images/skibidi.png" width={878} height={625}></Image>
+          <TextWrapper>
+            <TextSubTitle>
+              From classrooms to startups, we've all experienced the pain of juggling too many tools and losing track of files.
+            </TextSubTitle>
+            <DarkTextSubTitle>
+              <Highlight>YourDrive</Highlight> was created to bring everything together in one simple, private, and polished space—so you can focus on what matters, not where your files are.
+            </DarkTextSubTitle>
+          </TextWrapper>
+          <ImageWrapper>
+            <Image 
+              src="./Images/skibidi.png" 
+              width={878} 
+              height={625}
+              alt="YourDrive illustration"
+            />
+          </ImageWrapper>
         </InfoWrapper>
-    </ReasonCont>
+      </ReasonCont>
     </>
   );
 };

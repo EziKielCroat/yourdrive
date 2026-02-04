@@ -1,16 +1,37 @@
 import { createGlobalStyle } from "styled-components";
 
 export const GlobalReset = createGlobalStyle`
-  html, body {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    overflow-x: hidden;
+    width: 100vw;
+    height: 100%;
+  }
+
+  body {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
     width: 100%;
-    min-height: 100%;
-    height: auto;        /* prevents scroll locking */
-    overflow-x: hidden;  /* stop horizontal scroll */
-    overflow-y: auto;   /* allow vertical scroll */
-    background-color: #ffffffff;
+    max-width: 100vw;
+    min-height: 100vh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   @font-face {

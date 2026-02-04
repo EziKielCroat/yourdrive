@@ -17,10 +17,10 @@ const Plan = ({ year, plan }: PlanProps) => {
   return (
     <Cont main={!plan.special}>
       <PlanTitle>{plan.planTitle}</PlanTitle>
-      <PlanPrice>${!year ? plan.price : ((typeof plan.price === 'number' && plan.price!=0) ? plan.price*12-20 : plan.price)}</PlanPrice>
+      <PlanPrice>${!year ? plan.price : ((typeof plan.price === 'number' && plan.price !== 0) ? plan.price * 12 - 20 : plan.price)}</PlanPrice>
       <TimeText>{year ? "Per Year" : "Per Month"}</TimeText>
-      {plan.capabilities.map((cap) => (
-        <CapText>{cap}</CapText>
+      {plan.capabilities.map((cap, index) => (
+        <CapText key={index}>{cap}</CapText>
       ))}
       <BoxLink to="/register">
         <LandingButton variant="primary" size="lg" style={{padding: "8px 12px"}}>Get Started</LandingButton>
