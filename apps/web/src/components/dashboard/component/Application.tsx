@@ -1,5 +1,5 @@
 import { type FC, type ReactNode, useEffect, useId, memo } from "react";
-import { Root, Layout } from "../styles/application";
+import { Root, Layout, SidebarBackdrop } from "../styles/application";
 
 import Sidebar from "./sidebar/Sidebar";
 import Main from "./main/Main";
@@ -21,6 +21,7 @@ const Application: FC<ApplicationProps> = ({
 }) => {
   const id = useId();
   const isOpen = useSidebarStore((s) => s.isOpen);
+  const setOpen = useSidebarStore((s) => s.setOpen);
 
   useEffect(() => {
     if (title) {
@@ -34,6 +35,13 @@ const Application: FC<ApplicationProps> = ({
 
   return (
     <Root id={`application-${id}`} className={`application-root ${className}`}>
+      {isOpen && (
+        <SidebarBackdrop
+          onClick={() => {
+            setOpen(false);
+          }}
+        />
+      )}
       <Layout>
         {isOpen && <Sidebar />}
         <Main>{children}</Main>

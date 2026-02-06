@@ -25,6 +25,19 @@ export const SidebarWrapper = styled(motion.aside).attrs<SidebarWrapperProps>(
   position: relative;
   overflow: hidden;
   height: 100%;
+  pointer-events: ${({ $isOpen }) => ($isOpen ? "auto" : "none")};
+  z-index: 20;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 80px;
+    left: 0;
+    bottom: 0;
+    margin-right: 0;
+    height: calc(100vh - 80px);
+    background: rgba(248, 249, 250, 0.98);
+    box-shadow: 2px 0 16px rgba(15, 23, 42, 0.25);
+  }
 
   & > *:not(button) {
     opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};

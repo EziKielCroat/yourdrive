@@ -10,7 +10,7 @@ import {
   MobileMenu,
   MobileNavLink,
   MobileButtonsContainer,
-  Overlay
+  Overlay,
 } from "./styles/navbar_main";
 import Image from "../image/Image";
 import LandingButton from "../landingbutton/LandingButton";
@@ -36,22 +36,22 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
 
   useEffect(() => {
     if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.top = '0';
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.top = "0";
     } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.top = '';
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
     }
 
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.top = '';
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
     };
   }, [isMobileMenuOpen]);
 
@@ -61,12 +61,16 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
         <NContLeft>
           <Link
             to="/"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
             onClick={closeMobileMenu}
           >
             <Image src="/logo.svg" alt="Logo" width={135} height={90} />
           </Link>
-          
+
           <NavLinkCont>
             <NavLink>
               <Link to="/aboutus">About Us</Link>
@@ -117,9 +121,6 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
         </MobileNavLink>
         <MobileNavLink onClick={closeMobileMenu}>
           <Link to="/howitworks">How It Works</Link>
-        </MobileNavLink>
-        <MobileNavLink onClick={closeMobileMenu}>
-          <Link to="/helpcenter">Help Center</Link>
         </MobileNavLink>
 
         <MobileButtonsContainer>

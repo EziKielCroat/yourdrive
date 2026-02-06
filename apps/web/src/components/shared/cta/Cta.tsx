@@ -28,7 +28,7 @@ const Cta: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           style={{color: "#667799"}}
         >
-          Try YourDrive for free today.
+          Try NexaCore for free today.
         </Text>
         <ButtonWrapper
           as={motion.div}

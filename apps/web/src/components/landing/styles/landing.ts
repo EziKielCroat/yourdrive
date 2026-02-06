@@ -15,7 +15,7 @@ export const GlobalReset = createGlobalStyle`
     padding: 0;
     min-height: 100vh;
     overflow-x: hidden;
-    background-color: #ffffff;
+    background-color: transparent;
     display: flex;
     flex-direction: column;
   }

@@ -34,13 +34,19 @@ async function setupDatabase() {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         "emailVerified" BOOLEAN DEFAULT false NOT NULL,
+        email_verification_token TEXT,
+        email_verification_expires TIMESTAMP,
         "loginAttempts" INT DEFAULT 0 NOT NULL,
         "lockUntil" TIMESTAMP,
         totp_secret TEXT,
         totp_enabled BOOLEAN DEFAULT false NOT NULL,
+        password_reset_token TEXT,
+        password_reset_expires TIMESTAMP,
+        password_reset_code_hash TEXT,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
+      CREATE INDEX IF NOT EXISTS idx_user_email_verification_token ON "User"(email_verification_token);
     `);
 
     // ============================
@@ -153,6 +159,63 @@ async function setupDatabase() {
     `);
 
     // ============================
+    // FILE SHARES (public sharing links)
+    // ============================
+
+    await client.query(`
+      CREATE TABLE file_shares (
+        id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
+        file_id INTEGER NOT NULL,
+        owner_id TEXT NOT NULL,
+        share_token TEXT UNIQUE NOT NULL,
+        share_type TEXT NOT NULL,
+        permission TEXT NOT NULL,
+        password TEXT,
+        expires_at TIMESTAMP,
+        max_downloads INTEGER,
+        download_count INTEGER DEFAULT 0 NOT NULL,
+        is_active BOOLEAN DEFAULT true NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT file_shares_file_fk
+          FOREIGN KEY (file_id) REFERENCES user_files(id) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT file_shares_owner_fk
+          FOREIGN KEY (owner_id) REFERENCES "User"(id) ON DELETE CASCADE ON UPDATE CASCADE
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE share_comments (
+        id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::TEXT,
+        share_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT share_comments_share_fk
+          FOREIGN KEY (share_id) REFERENCES file_shares(id) ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE INDEX share_comments_share_id_idx ON share_comments(share_id);
+    `);
+
+    await client.query(`
+      CREATE TABLE share_activity (
+        id SERIAL PRIMARY KEY,
+        share_id TEXT NOT NULL,
+        user_id TEXT,
+        action TEXT NOT NULL,
+        ip_address TEXT,
+        user_agent TEXT,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT share_activity_share_fk
+          FOREIGN KEY (share_id) REFERENCES file_shares(id) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT share_activity_user_fk
+          FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE SET NULL ON UPDATE CASCADE
+      );
+      CREATE INDEX share_activity_share_id_idx ON share_activity(share_id);
+    `);
+
+    // ============================
     // USER SETTINGS
     // ============================
 
@@ -176,7 +239,15 @@ async function setupDatabase() {
     `);
 
     await client.query(`
-      CREATE OR REPLACE FUNCTION set_updated_at()
+      CREATE OR REPLACE FUNCTION set_user_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW."updatedAt" = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE OR REPLACE FUNCTION set_files_updated_at()
       RETURNS TRIGGER AS $$
       BEGIN
         NEW.updated_at = CURRENT_TIMESTAMP;
@@ -186,15 +257,27 @@ async function setupDatabase() {
 
       CREATE TRIGGER trg_user_updated
         BEFORE UPDATE ON "User"
-        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+        FOR EACH ROW EXECUTE FUNCTION set_user_updated_at();
 
       CREATE TRIGGER trg_user_files_insert
         BEFORE INSERT ON user_files
-        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+        FOR EACH ROW EXECUTE FUNCTION set_files_updated_at();
 
       CREATE TRIGGER trg_user_files_update
         BEFORE UPDATE ON user_files
-        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+        FOR EACH ROW EXECUTE FUNCTION set_files_updated_at();
+
+      CREATE OR REPLACE FUNCTION set_file_shares_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER trg_file_shares_updated
+        BEFORE UPDATE ON file_shares
+        FOR EACH ROW EXECUTE FUNCTION set_file_shares_updated_at();
     `);
 
     // =====================================================

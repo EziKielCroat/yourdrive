@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useAuthStore } from "../../../../../store/authStore";
 import FilesIcon from "../../../../shared/icons/files";
 import FilePreview from "../../../../shared/filesPreview/FilesPreview";
 
 import FileTypeIcon from "../../../../shared/files_table/FileTypeIcon";
+import api from "../../../../../lib/axios";
 
 interface FolderPreviewModalProps {
   folder: { name: string; path: string };
@@ -26,7 +26,6 @@ const FolderPreviewModal: React.FC<FolderPreviewModalProps> = ({
   folder,
   onClose,
 }) => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const [content, setContent] = useState<FolderContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPath, setCurrentPath] = useState(folder.path);
@@ -40,14 +39,11 @@ const FolderPreviewModal: React.FC<FolderPreviewModalProps> = ({
   const fetchContent = async (path: string) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/files/folder-contents?path=${encodeURIComponent(path)}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+      const response = await api.get(
+        `/files/folder-contents?path=${encodeURIComponent(path)}`,
       );
 
-      if (!response.ok) throw new Error("Failed to fetch");
-
-      const data = await response.json();
+      const data = response.data;
       if (data.success) setContent(data.content);
     } catch (err) {
       console.error("Error:", err);

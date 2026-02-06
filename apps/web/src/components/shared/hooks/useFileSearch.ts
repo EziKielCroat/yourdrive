@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { type FileItem } from "../files_table/FilesTable";
-import { useSearchStore, type SearchFilters } from "../../../store/searchStore";
+import {
+  useSearchStore,
+  type SearchFilters,
+  type PersonFilter,
+} from "../../../store/searchStore";
 
 const MIME_TYPE_CATEGORIES = {
   documents: [
@@ -41,19 +45,26 @@ function matchesFileType(file: FileItem, fileTypeFilter: string): boolean {
   return category === fileTypeFilter;
 }
 
-function matchesPerson(file: FileItem, personFilter: string | null): boolean {
+function matchesPerson(
+  file: FileItem,
+  personFilter: PersonFilter | null,
+): boolean {
   if (!personFilter) return true;
 
-  if (personFilter === "me") {
+  if (personFilter.isYou) {
     return file.owner.isYou === true;
   }
 
-  return file.owner.name === personFilter;
+  // Match by owner name or email
+  return (
+    file.owner.name === personFilter.name ||
+    (file.owner as any).email === personFilter.name
+  );
 }
 
 function matchesLastModified(
   file: FileItem,
-  lastModifiedFilter: string
+  lastModifiedFilter: string,
 ): boolean {
   if (lastModifiedFilter === "all") return true;
 
@@ -74,14 +85,14 @@ function matchesLastModified(
 
     // Check date format
     const dateParts = file.lastInteraction.match(
-      /(\d{1,2})\/(\d{1,2})\/(\d{4})/
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
     );
     if (dateParts) {
       const [, day, month, year] = dateParts;
       const fileDate = new Date(
         parseInt(year),
         parseInt(month) - 1,
-        parseInt(day)
+        parseInt(day),
       );
       const diffTime = now.getTime() - fileDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -100,14 +111,14 @@ function matchesLastModified(
     }
 
     const dateParts = file.lastInteraction.match(
-      /(\d{1,2})\/(\d{1,2})\/(\d{4})/
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
     );
     if (dateParts) {
       const [, day, month, year] = dateParts;
       const fileDate = new Date(
         parseInt(year),
         parseInt(month) - 1,
-        parseInt(day)
+        parseInt(day),
       );
       const diffTime = now.getTime() - fileDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -120,14 +131,14 @@ function matchesLastModified(
   if (lastModifiedFilter === "year") {
     // Everything within a year
     const dateParts = file.lastInteraction.match(
-      /(\d{1,2})\/(\d{1,2})\/(\d{4})/
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
     );
     if (dateParts) {
       const [, day, month, year] = dateParts;
       const fileDate = new Date(
         parseInt(year),
         parseInt(month) - 1,
-        parseInt(day)
+        parseInt(day),
       );
       const diffTime = now.getTime() - fileDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -161,7 +172,7 @@ function matchesQuery(file: FileItem, query: string): boolean {
 
 function matchesAdvancedFilters(
   file: FileItem,
-  filters: SearchFilters
+  filters: SearchFilters,
 ): boolean {
   if (!filters.advanced) {
     return true;
@@ -213,7 +224,7 @@ function matchesAdvancedFilters(
   if (advanced.minSize) {
     const minSizeInBytes = convertToBytes(
       parseFloat(advanced.minSize),
-      advanced.minSizeUnit
+      advanced.minSizeUnit,
     );
     if (fileSizeInBytes < minSizeInBytes) {
       return false;
@@ -223,7 +234,7 @@ function matchesAdvancedFilters(
   if (advanced.maxSize) {
     const maxSizeInBytes = convertToBytes(
       parseFloat(advanced.maxSize),
-      advanced.maxSizeUnit
+      advanced.maxSizeUnit,
     );
     if (fileSizeInBytes > maxSizeInBytes) {
       return false;

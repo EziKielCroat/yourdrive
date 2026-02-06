@@ -1,9 +1,40 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FooterCont, WrapperOne, IconWrapper, IconText, BottomCont, RightsText, BackGround, ItemBox, Title, Link, SystemInfCont, SocialsWrapper } from "./styles/footer";
+import {
+  FooterCont,
+  WrapperOne,
+  BottomCont,
+  RightsText,
+  BackGround,
+  ItemBox,
+  Title,
+  Link,
+  SystemInfCont,
+  SocialsWrapper,
+} from "./styles/footer";
 import Image from "../image/Image";
+import { Github, Twitter, Youtube } from "lucide-react";
+import api from "../../../lib/axios";
 
 const Footer: React.FC = () => {
+  const [isApiHealthy, setIsApiHealthy] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkApiHealth = async () => {
+      try {
+        const response = await api.get("/health");
+        setIsApiHealthy(response.data?.status === "OK");
+      } catch {
+        setIsApiHealthy(false);
+      }
+    };
+
+    checkApiHealth();
+    // Check health every 30 seconds
+    const interval = setInterval(checkApiHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <BackGround>
       <FooterCont
@@ -34,6 +65,7 @@ const Footer: React.FC = () => {
             <Link href="/features">Features</Link>
             <Link href="/guide">Guide</Link>
             <Link href="/api-docs">API Docs</Link>
+            <Link href="/howitworks">How It Works</Link>
           </ItemBox>
           <ItemBox
             as={motion.div}
@@ -55,33 +87,44 @@ const Footer: React.FC = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Title>Legal</Title>
+            <Title>Company</Title>
+            <Link href="/aboutus">About Us</Link>
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/terms">Terms of Service</Link>
           </ItemBox>
         </WrapperOne>
-        <SystemInfCont>
-          <Image src="/Images/Link.svg" width={185} height={34}></Image>
-        </SystemInfCont>
-        <IconWrapper>
-          <Image src="/Images/CCPA.svg" width={52} height={52}></Image>
-          <Image src="/Images/CCPA.svg" width={52} height={52}></Image>
-          <Image src="/Images/CCPA.svg" width={52} height={52}></Image>
-          <Image src="/Images/CCPA.svg" width={52} height={52}></Image>
-          <Image src="/Images/CCPA.svg" width={52} height={52}></Image>
-        </IconWrapper>
-        <IconText>
-          *In observation period for SOC 2 Type II compliance. List of subprocessors.
-        </IconText>
+        {isApiHealthy && (
+          <SystemInfCont>
+            <Image src="/Images/Link.svg" width={185} height={34} />
+          </SystemInfCont>
+        )}
         <BottomCont>
-          <RightsText>
-            © 2026 YourDrive. All rights reserved.
-          </RightsText>
+          <RightsText>© 2026 NexaCore. All rights reserved.</RightsText>
           <SocialsWrapper>
-            <Image src="/Images/github.svg" width={20} height={20}></Image>
-            <Image src="/Images/github.svg" width={20} height={20}></Image>
-            <Image src="/Images/github.svg" width={20} height={20}></Image>
-            <Image src="/Images/github.svg" width={20} height={20}></Image>
+            <a
+              href="https://x.com/NexaCorehr"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NexaCore on X"
+            >
+              <Twitter size={20} />
+            </a>
+            <a
+              href="https://github.com/Nexacorehr"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NexaCore on GitHub"
+            >
+              <Github size={20} />
+            </a>
+            <a
+              href="https://youtube.com/@nexacorehr"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="NexaCore on YouTube"
+            >
+              <Youtube size={20} />
+            </a>
           </SocialsWrapper>
         </BottomCont>
       </FooterCont>

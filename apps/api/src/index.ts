@@ -19,18 +19,39 @@ import fileActionsRoutes from "./routes/fileActions.routes";
 
 dotenv.config();
 
+// Startup check: warn if required env is missing (avoids cryptic Prisma/DB errors later)
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error(
+    "❌ DATABASE_URL is not set. Create apps/api/.env from apps/api/.env.example and set DATABASE_URL to your PostgreSQL connection string.",
+  );
+  process.exit(1);
+}
+
 const app = express();
 const PORT: number = parseInt(process.env.PORT ?? "3000", 10);
+const HOST: string = process.env.HOST ?? "0.0.0.0";
 
-// Allowed origins for CORS
+// Allowed origins for CORS (localhost + FRONTEND_URL so setup works on any machine)
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "http://192.168.100.10:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
-app.use("/api/storage", storageRoutes);
-app.use(helmet());
+
+// Helmet: relax COOP/origin-agent-cluster so HTTP dev origins don't trigger console warnings
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: false,
+    originAgentCluster: false,
+  })
+);
+// Remove Permissions-Policy so browsers don't complain about unrecognized features (e.g. browsing-topics, interest-cohort)
+app.use((_req, res, next) => {
+  res.removeHeader("Permissions-Policy");
+  next();
+});
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -59,11 +80,10 @@ app.use("/api/sharing", sharingRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/file-actions", fileActionsRoutes);
-
 app.use("/api/storage", storageRoutes);
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "API is healthy" });
+  res.json({ status: "OK" });
 });
 
 app.get("/api/version", (req, res) => {
@@ -93,8 +113,9 @@ app.use((req, res) => {
   res.status(404).json({ success: false, error: "Endpoint not found" });
 });
 
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ API server running on http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  const base = HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+  console.log(`✅ API server running on ${base} (listening on ${HOST}:${PORT})`);
 });
 
 server.timeout = 120000;

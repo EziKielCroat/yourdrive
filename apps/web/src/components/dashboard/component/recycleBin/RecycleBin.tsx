@@ -3,14 +3,12 @@ import styled from "styled-components";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
 import SidebarToggle from "../sidebar/SidebarToggle";
-import { useAuthStore } from "../../../../store/authStore";
-import axios from "axios";
-import toast from "react-hot-toast";
+import { toast } from "../../../../services/toast.service";
 import { formatDate } from "../yourFiles/YourFiles";
 import PageTransition from "../../../shared/PageTransition";
+import api from "../../../../lib/axios";
 
 const RecycleBin: React.FC = () => {
-  const token = useAuthStore((s) => s.accessToken);
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
@@ -37,9 +35,7 @@ const RecycleBin: React.FC = () => {
   const fetchRecycleBin = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/files/recycle-bin", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/files/recycle-bin");
       setFiles(res.data.files || []);
     } catch (err: any) {
       console.error("Failed to fetch deleted files:", err);
@@ -50,8 +46,8 @@ const RecycleBin: React.FC = () => {
   };
 
   useEffect(() => {
-    if (token) fetchRecycleBin();
-  }, [token]);
+    fetchRecycleBin();
+  }, []);
 
   const handlePreview = (file: any) => {
     const index = navigableFiles.findIndex((f) => f.id === file.id);
@@ -82,11 +78,9 @@ const RecycleBin: React.FC = () => {
 
   const handleRestore = async (fileId: string) => {
     try {
-      const response = await axios.post(
-        "/api/file-actions/restore",
-        { fileIds: [fileId] },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post("/file-actions/restore", {
+        fileIds: [fileId],
+      });
 
       if (response.data.success) {
         toast.success("File restored successfully");
@@ -115,11 +109,9 @@ const RecycleBin: React.FC = () => {
     }
 
     try {
-      const response = await axios.post(
-        "/api/file-actions/delete-permanently",
-        { fileIds: [fileId] },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post("/file-actions/delete-permanently", {
+        fileIds: [fileId],
+      });
 
       if (response.data.success) {
         toast.success("File permanently deleted");
@@ -142,11 +134,9 @@ const RecycleBin: React.FC = () => {
     if (selectedFiles.size === 0) return;
 
     try {
-      const response = await axios.post(
-        "/api/file-actions/restore",
-        { fileIds: Array.from(selectedFiles) },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post("/file-actions/restore", {
+        fileIds: Array.from(selectedFiles),
+      });
 
       if (response.data.success) {
         toast.success(`${selectedFiles.size} file(s) restored`);
@@ -170,11 +160,9 @@ const RecycleBin: React.FC = () => {
     }
 
     try {
-      const response = await axios.post(
-        "/api/file-actions/delete-permanently",
-        { fileIds: Array.from(selectedFiles) },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post("/file-actions/delete-permanently", {
+        fileIds: Array.from(selectedFiles),
+      });
 
       if (response.data.success) {
         toast.success(`${selectedFiles.size} file(s) permanently deleted`);
@@ -202,11 +190,9 @@ const RecycleBin: React.FC = () => {
 
     try {
       const allFileIds = files.map((f) => f.id.toString());
-      const response = await axios.post(
-        "/api/file-actions/delete-permanently",
-        { fileIds: allFileIds },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post("/file-actions/delete-permanently", {
+        fileIds: allFileIds,
+      });
 
       if (response.data.success) {
         toast.success("Recycle bin emptied successfully");

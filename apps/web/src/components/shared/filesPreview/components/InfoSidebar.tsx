@@ -48,11 +48,17 @@ export const InfoSidebar = ({
             </InfoRow>
             <InfoRow>
               <InfoLabel>Size:</InfoLabel>
-              <InfoValue>{metadata?.size || "Unknown"}</InfoValue>
+              <InfoValue>{metadata?.size ?? "Unknown"}</InfoValue>
             </InfoRow>
+            {(metadata?.created ?? metadata?.createdAt) != null && (
+              <InfoRow>
+                <InfoLabel>Created:</InfoLabel>
+                <InfoValue>{String(metadata?.created ?? metadata?.createdAt)}</InfoValue>
+              </InfoRow>
+            )}
             <InfoRow>
               <InfoLabel>Modified:</InfoLabel>
-              <InfoValue>{metadata?.modified || "Unknown"}</InfoValue>
+              <InfoValue>{metadata?.modified ?? metadata?.updatedAt ?? "Unknown"}</InfoValue>
             </InfoRow>
           </InfoSection>
 

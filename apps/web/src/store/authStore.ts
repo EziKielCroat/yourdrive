@@ -19,6 +19,7 @@ interface LoginResponse {
   user?: User;
   accessToken?: string;
   refreshToken?: string;
+  currentDevice?: Device | null;
 }
 
 export interface Device {
@@ -72,6 +73,12 @@ interface AuthStore {
 }
 
 let isCheckingAuth = false;
+
+// Resolved when persisted auth state has been rehydrated from localStorage (so router sees correct isAuthenticated).
+let resolveRehydrated: () => void;
+export const authRehydratedPromise = new Promise<void>((r) => {
+  resolveRehydrated = r;
+});
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -132,14 +139,21 @@ export const useAuthStore = create<AuthStore>()(
             };
           }
 
-          // Normal login (no 2FA)
+          // Normal login (no 2FA) - persist token so axios interceptor sends it on next request
+          const token = data.accessToken;
+          if (token) {
+            localStorage.setItem("accessToken", token);
+            api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          }
           set({
             user: data.user,
-            accessToken: data.accessToken,
+            accessToken: token ?? null,
             isAuthenticated: true,
+            isAuthReady: true,
             isLoading: false,
             requires2FA: false,
             tempToken: null,
+            currentDevice: data.currentDevice || null,
           });
 
           await get().fetchDevices();
@@ -149,27 +163,30 @@ export const useAuthStore = create<AuthStore>()(
             user: data.user,
             accessToken: data.accessToken,
           };
-        } catch (error: any) {
-          set({
-            error: error.message || "Login failed",
-            isLoading: false,
-          });
-          throw error;
+        } catch (error: unknown) {
+          const msg =
+            (error as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
+            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            (error instanceof Error ? error.message : null) ??
+            "Login failed";
+          set({ error: msg, isLoading: false });
+          throw new Error(msg);
         }
       },
 
       register: async (email, password, firstName) => {
-        console.log("🔵 Register started");
         set({ isLoading: true, error: null });
         try {
           await api.post("/auth/register", { email, password, firstName });
           await get().login(email, password);
-        } catch (error: any) {
-          set({
-            error: error.message || "Registration failed",
-            isLoading: false,
-          });
-          throw error;
+        } catch (error: unknown) {
+          const msg =
+            (error as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
+            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            (error instanceof Error ? error.message : null) ??
+            "Registration failed";
+          set({ error: msg, isLoading: false });
+          throw new Error(msg);
         }
       },
 
@@ -179,9 +196,10 @@ export const useAuthStore = create<AuthStore>()(
         } catch {
           // ignore
         } finally {
-          // Clear axios auth header
           delete api.defaults.headers.common["Authorization"];
-
+          if (typeof localStorage !== "undefined") {
+            localStorage.removeItem("accessToken");
+          }
           set({
             user: null,
             accessToken: null,
@@ -211,59 +229,62 @@ export const useAuthStore = create<AuthStore>()(
 
       checkAuth: async () => {
         if (isCheckingAuth) {
-          console.log("checkAuth already running, skipping...");
           return;
         }
-
-        console.log("Checking auth");
         isCheckingAuth = true;
 
         try {
-          // Step 1: confirm session is valid via cookie
           const res = await api.get("/auth/me");
 
           if (res.data.authenticated && res.data.user) {
-            console.log("Auth check: authenticated");
-
-            // Step 2: get a fresh access token via the refresh cookie
-            // This is required because accessToken is not persisted
-            // and is null after any page reload.
             let freshToken = get().accessToken;
             if (!freshToken) {
-              console.log("No access token in memory, refreshing...");
               const refreshRes = await api.post("/auth/refresh");
               freshToken = refreshRes.data.accessToken;
-              api.defaults.headers.common["Authorization"] =
-                `Bearer ${freshToken}`;
+              if (freshToken) {
+                localStorage.setItem("accessToken", freshToken);
+                api.defaults.headers.common["Authorization"] =
+                  `Bearer ${freshToken}`;
+              }
             }
 
             set({
               user: res.data.user,
-              accessToken: freshToken,
+              accessToken: freshToken ?? get().accessToken,
               isAuthenticated: true,
               isAuthReady: true,
             });
           } else {
-            console.log("Auth check: not authenticated");
+            // Explicit unauthenticated response from /auth/me (no cookie or invalid)
             set({
               user: null,
               accessToken: null,
               isAuthenticated: false,
               isAuthReady: true,
             });
-
+            if (typeof localStorage !== "undefined") {
+              localStorage.removeItem("accessToken");
+            }
             delete api.defaults.headers.common["Authorization"];
           }
-        } catch (error) {
-          console.log("Auth check failed:", error);
-          set({
-            user: null,
-            accessToken: null,
-            isAuthenticated: false,
-            isAuthReady: true,
-          });
-
-          delete api.defaults.headers.common["Authorization"];
+        } catch (error: unknown) {
+          // Don't clear state on network/transient errors - only clear on explicit 401
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401) {
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              isAuthReady: true,
+            });
+            if (typeof localStorage !== "undefined") {
+              localStorage.removeItem("accessToken");
+            }
+            delete api.defaults.headers.common["Authorization"];
+          } else {
+            // Leave auth state as is; just mark ready so we don't block navigation
+            set({ isAuthReady: true });
+          }
         } finally {
           isCheckingAuth = false;
         }
@@ -277,7 +298,13 @@ export const useAuthStore = create<AuthStore>()(
           if (res.data?.device) {
             set({ currentDevice: res.data.device });
           }
-        } catch (error) {
+        } catch (error: unknown) {
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          // 404 = no device cookie or device not found; treat as "no current device", don't log
+          if (status === 404) {
+            set({ currentDevice: null });
+            return;
+          }
           console.warn("Failed to fetch current device:", error);
         }
       },
@@ -305,6 +332,13 @@ export const useAuthStore = create<AuthStore>()(
         requires2FA: state.requires2FA,
         tempToken: state.tempToken,
       }),
+      onRehydrateStorage: () => (_state, err) => {
+        if (err) console.warn("Auth rehydration error:", err);
+        resolveRehydrated();
+        if (useAuthStore.getState().isAuthenticated) {
+          useAuthStore.setState({ isAuthReady: true });
+        }
+      },
     },
   ),
 );

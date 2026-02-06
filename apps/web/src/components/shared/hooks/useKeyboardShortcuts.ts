@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "../../services/toast.service";
 import {
   findActionByShortcut,
   getAvailableActions,
@@ -56,7 +56,6 @@ export function useKeyboardShortcuts({
         event.preventDefault();
         event.stopPropagation();
         onSelectAll?.();
-        toast.success("All files selected");
         return;
       }
 
@@ -65,7 +64,6 @@ export function useKeyboardShortcuts({
         event.preventDefault();
         event.stopPropagation();
         onUnselectAll?.();
-        toast.success("Selection cleared");
         return;
       }
 
@@ -77,10 +75,7 @@ export function useKeyboardShortcuts({
         setIsPrefixActive(true);
 
         // Show toast notification
-        toast.success("Shortcut mode activated - Press action key", {
-          duration: 2000,
-          icon: "⌨️",
-        });
+        toast.success("Shortcut mode activated - Press action key");
 
         // Clear any existing timeout
         if (prefixTimeoutRef.current) {
@@ -137,18 +132,8 @@ export function useKeyboardShortcuts({
             clearTimeout(prefixTimeoutRef.current);
           }
 
-          // Show executing toast
-          toast.loading(`Executing: ${matchedAction.label}...`, {
-            id: "action-executing",
-          });
-
           // Execute the action through the callback
           onActionExecuted?.(matchedAction.id);
-
-          // Dismiss loading toast after a short delay
-          setTimeout(() => {
-            toast.dismiss("action-executing");
-          }, 500);
         }
       }
     },

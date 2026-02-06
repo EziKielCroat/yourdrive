@@ -12,6 +12,8 @@ import { useAuthStore } from "../../../../store/authStore";
 import { eventBus } from "../../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import computeSHA256 from "../../utils/computeSHA256";
+import api from "../../../../lib/axios";
+import { toast } from "../../../../services/toast.service";
 
 interface UploadFile {
   id: string;
@@ -34,6 +36,7 @@ interface UppyUploadPopupProps {
   onClose: () => void;
   folderPath?: string;
   preSelectedFiles?: FileList | null;
+  preSelectedFilesArray?: File[];
 }
 
 const CHUNK_SIZE = 5 * 1024 * 1024;
@@ -66,27 +69,21 @@ const UppyUploadPopup = ({
   onClose,
   folderPath = "",
   preSelectedFiles,
+  preSelectedFilesArray,
 }: UppyUploadPopupProps) => {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   const generateFileId = () => `file-${Date.now()}-${Math.random()}`;
 
-  useEffect(() => {
-    if (preSelectedFiles && preSelectedFiles.length > 0) {
-      handleFileSelect(preSelectedFiles);
-    }
-  }, [preSelectedFiles]);
-
-  const handleFileSelect = (files: FileList | null) => {
+  const handleFileSelectFromArray = (files: File[]) => {
     if (!files || files.length === 0) return;
 
     const newFiles: UploadFile[] = [];
     let hasOversizedFile = false;
 
-    Array.from(files).forEach((file) => {
+    files.forEach((file) => {
       if (file.size > MAX_FILE_SIZE) {
         hasOversizedFile = true;
         return;
@@ -125,12 +122,34 @@ const UppyUploadPopup = ({
     }
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      // Use preSelectedFilesArray if available (more reliable on mobile), otherwise fall back to preSelectedFiles
+      const filesToProcess = preSelectedFilesArray && preSelectedFilesArray.length > 0
+        ? preSelectedFilesArray
+        : (preSelectedFiles && preSelectedFiles.length > 0 ? Array.from(preSelectedFiles) : null);
+      
+      if (filesToProcess && filesToProcess.length > 0) {
+        // Reset upload files when modal opens with new files
+        setUploadFiles([]);
+        // Process files immediately
+        handleFileSelectFromArray(filesToProcess);
+      }
+    } else if (!isOpen) {
+      // Reset when modal closes
+      setUploadFiles([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, preSelectedFiles, preSelectedFilesArray, folderPath]);
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    handleFileSelectFromArray(Array.from(files));
+  };
+
   const uploadDirectly = async (uploadFile: UploadFile): Promise<void> => {
     const { file, id: fileId, folderPath: fileFolderPath } = uploadFile;
     const startTime = Date.now();
-    const token = accessToken;
-
-    if (!token) throw new Error("Not authenticated");
 
     const uploadFolderPath = fileFolderPath || folderPath;
 
@@ -147,44 +166,26 @@ const UppyUploadPopup = ({
         formData.append("folderPaths", JSON.stringify({ 0: uploadFolderPath }));
       }
 
-      const xhr = new XMLHttpRequest();
       const abortController = new AbortController();
       abortControllersRef.current.set(fileId, abortController);
 
-      abortController.signal.addEventListener("abort", () => xhr.abort());
+      await api.post("/files/upload", formData, {
+        signal: abortController.signal,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const speed = progressEvent.loaded / elapsed;
+            const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
 
-      xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          const elapsed = (Date.now() - startTime) / 1000;
-          const speed = e.loaded / elapsed;
-          const progress = Math.round((e.loaded / e.total) * 100);
-
-          setUploadFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileId
-                ? { ...f, progress, uploadedBytes: e.loaded, speed }
-                : f,
-            ),
-          );
-        }
-      });
-
-      await new Promise((resolve, reject) => {
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(xhr.response);
-          } else {
-            reject(new Error(`Upload failed: ${xhr.statusText}`));
+            setUploadFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileId
+                  ? { ...f, progress, uploadedBytes: progressEvent.loaded, speed }
+                  : f,
+              ),
+            );
           }
-        });
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        xhr.addEventListener("abort", () =>
-          reject(new Error("Upload cancelled")),
-        );
-
-        xhr.open("POST", "/api/files/upload");
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.send(formData);
+        },
       });
 
       setUploadFiles((prev) =>
@@ -201,26 +202,43 @@ const UppyUploadPopup = ({
       );
 
       abortControllersRef.current.delete(fileId);
+      toast.success(`Uploaded "${file.name}" successfully`);
     } catch (error: any) {
       abortControllersRef.current.delete(fileId);
+      let errorMessage = "Upload failed";
+      
+      if (error.name === "AbortError" || error.message === "Upload cancelled") {
+        errorMessage = "Upload cancelled";
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.details) {
+        errorMessage = error.response.data.details;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error("Upload error:", error);
       setUploadFiles((prev) =>
         prev.map((f) =>
           f.id === fileId
-            ? { ...f, status: "error", error: error.message || "Upload failed" }
+            ? { ...f, status: "error", error: errorMessage }
             : f,
         ),
       );
+      toast.error(errorMessage);
     }
   };
 
   const uploadMultipart = async (uploadFile: UploadFile): Promise<void> => {
     const { file, id: fileId, folderPath: fileFolderPath } = uploadFile;
     const startTime = Date.now();
-    const token = accessToken;
+    
+    // computeSHA256 now has a pure JS fallback, so it should always succeed
     const fileHash = await computeSHA256(file);
-
-    if (!token) throw new Error("Not authenticated");
-
     const uploadFolderPath = fileFolderPath || folderPath;
 
     try {
@@ -230,24 +248,15 @@ const UppyUploadPopup = ({
         ),
       );
 
-      const initResponse = await fetch("/api/files/init-multipart-upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type || "application/octet-stream",
-          folderPath: uploadFolderPath,
-          fileHash,
-        }),
+      const initResponse = await api.post("/files/init-multipart-upload", {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || "application/octet-stream",
+        folderPath: uploadFolderPath,
+        fileHash,
       });
 
-      if (!initResponse.ok) throw new Error("Failed to initialize upload");
-
-      const initData = await initResponse.json();
+      const initData = initResponse.data;
 
       if (initData.duplicate) {
         setUploadFiles((prev) =>
@@ -300,17 +309,11 @@ const UppyUploadPopup = ({
         );
 
         try {
-          const uploadResponse = await fetch("/api/files/upload-chunk", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
+          const uploadResponse = await api.post("/files/upload-chunk", formData, {
             signal: abortController.signal,
           });
 
-          if (!uploadResponse.ok)
-            throw new Error(`Part ${partNumber} upload failed`);
-
-          const { ETag } = await uploadResponse.json();
+          const { ETag } = uploadResponse.data;
 
           uploadedParts.push({
             PartNumber: partNumber,
@@ -352,28 +355,16 @@ const UppyUploadPopup = ({
         await Promise.all(batch);
       }
 
-      const completeResponse = await fetch(
-        "/api/files/complete-multipart-upload",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            uploadId,
-            s3Key,
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type || "application/octet-stream",
-            folderPath: uploadFolderPath,
-            fileHash,
-            parts: uploadedParts.sort((a, b) => a.PartNumber - b.PartNumber),
-          }),
-        },
-      );
-
-      if (!completeResponse.ok) throw new Error("Failed to complete upload");
+      await api.post("/files/complete-multipart-upload", {
+        uploadId,
+        s3Key,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || "application/octet-stream",
+        folderPath: uploadFolderPath,
+        fileHash,
+        parts: uploadedParts.sort((a, b) => a.PartNumber - b.PartNumber),
+      });
 
       setUploadFiles((prev) =>
         prev.map((f) =>
@@ -387,14 +378,30 @@ const UppyUploadPopup = ({
             : f,
         ),
       );
+
+      toast.success(`Uploaded "${file.name}" successfully`);
     } catch (error: any) {
+      let errorMessage = "Upload failed";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.details) {
+        errorMessage = error.response.data.details;
+      }
+      
+      console.error("Upload error:", error);
       setUploadFiles((prev) =>
         prev.map((f) =>
           f.id === fileId
-            ? { ...f, status: "error", error: error.message || "Upload failed" }
+            ? { ...f, status: "error", error: errorMessage }
             : f,
         ),
       );
+      toast.error(errorMessage);
     }
   };
 
@@ -446,23 +453,13 @@ const UppyUploadPopup = ({
     });
 
     if (file.uploadId && file.s3Key) {
-      const token = accessToken;
-      if (token) {
-        try {
-          await fetch("/api/files/abort-multipart-upload", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              uploadId: file.uploadId,
-              s3Key: file.s3Key,
-            }),
-          });
-        } catch (err) {
-          console.error("Failed to abort upload:", err);
-        }
+      try {
+        await api.post("/files/abort-multipart-upload", {
+          uploadId: file.uploadId,
+          s3Key: file.s3Key,
+        });
+      } catch (err) {
+        console.error("Failed to abort upload:", err);
       }
     }
 

@@ -320,6 +320,16 @@ const RightContent = styled.div`
   }
 `;
 
+const ErrorMessage = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #991b1b;
+  font-size: 14px;
+  margin-bottom: 16px;
+`;
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register, isLoading } = useAuthStore();
@@ -333,14 +343,17 @@ export default function RegisterPage() {
     email: false,
     password: false,
   });
+  const [submitError, setSubmitError] = useState("");
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (emailVal: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(emailVal);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    setSubmitError("");
 
     const newErrors = {
       firstName: firstName.trim().length === 0,
@@ -351,11 +364,22 @@ export default function RegisterPage() {
     setErrors(newErrors);
 
     if (Object.values(newErrors).some((error) => error)) {
+      setSubmitError("Please fix the errors above.");
       return;
     }
 
-    await register(email, password, firstName);
-    navigate({ to: "/dashboard" });
+    try {
+      await register(email, password, firstName);
+      navigate({ to: "/dashboard" });
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            "Registration failed. Please try again.";
+      setSubmitError(msg);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -395,7 +419,9 @@ export default function RegisterPage() {
               <Title>Create an Account</Title>
               <Subtitle>Please enter your details to register.</Subtitle>
 
-              <Form onSubmit={handleSubmit}>
+              {submitError && <ErrorMessage>{submitError}</ErrorMessage>}
+
+              <Form onSubmit={handleSubmit} noValidate>
                 <InputWrapper>
                   <Icon>
                     <User size={20} />
@@ -472,7 +498,7 @@ export default function RegisterPage() {
 
               <LinkRow>
                 Already have an account?{" "}
-                <button onClick={() => navigate({ to: "/login" })}>
+                <button type="button" onClick={() => navigate({ to: "/login" })}>
                   Sign in
                 </button>
               </LinkRow>

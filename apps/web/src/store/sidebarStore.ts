@@ -10,7 +10,8 @@ interface SidebarState {
 export const useSidebarStore = create<SidebarState>()(
   persist(
     (set) => ({
-      isOpen: true,
+      // Start closed by default so it never overlaps content on mobile
+      isOpen: false,
       toggle: () => set((state) => ({ isOpen: !state.isOpen })),
       setOpen: (open) => set({ isOpen: open }),
     }),

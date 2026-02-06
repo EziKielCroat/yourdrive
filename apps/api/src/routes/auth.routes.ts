@@ -8,23 +8,23 @@ const authRoutes = express.Router();
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: "Too many accounts created from this IP. Try again in an hour.",
+  max: 30,
+  message: "Too many accounts created from this IP. Try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 50,
   message: "Too many login attempts from this IP. Try again in 15 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const passwordResetLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3, // Limit each IP to 3 password reset requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: "Too many password reset attempts. Try again in 15 minutes.",
   standardHeaders: true,
   legacyHeaders: false,
@@ -455,7 +455,18 @@ authRoutes.post(
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
-      const { token } = req.body;
+      const raw = req.body?.token ?? req.body?.code;
+      const token =
+        raw !== undefined && raw !== null
+          ? String(raw).trim().replace(/\s/g, "")
+          : "";
+      if (!token || !/^\d{6}$/.test(token)) {
+        return res.status(400).json({
+          success: false,
+          error: "Please provide a valid 6-digit code",
+          message: "Please provide a valid 6-digit code",
+        });
+      }
       const result = await AuthService.verifyAndEnableTOTP(req.userId!, token);
 
       res.json({
@@ -463,9 +474,11 @@ authRoutes.post(
         ...result,
       });
     } catch (error: any) {
+      const msg = error?.message || "Failed to verify code";
       res.status(400).json({
         success: false,
-        error: error.message,
+        error: msg,
+        message: msg,
       });
     }
   },

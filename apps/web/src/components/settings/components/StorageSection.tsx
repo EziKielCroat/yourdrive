@@ -19,13 +19,17 @@ import {
 import api from "../../../lib/axios";
 
 interface StorageSectionProps {
-  settings: any;
-  updateStorage: (data: any) => Promise<void>; // FIXED: Changed from updateSettings to updateStorage
+  settings: {
+    storage?: {
+      autoSync?: boolean;
+    };
+  };
+  updateStorage: (data: Record<string, unknown>) => Promise<void>;
 }
 
 interface StorageInfo {
-  limit: string;  // bytes as string
-  used: string;   // bytes as string
+  limit: string; // bytes as string
+  used: string; // bytes as string
   available: string; // bytes as string
   usagePercentage: number;
   tier: string;
@@ -41,13 +45,8 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageSettings, setStorageSettings] = useState<{
     autoSync: boolean;
-    fileVersioning: boolean;
-    maxVersionsToKeep: number;
-    [key: string]: any;
   }>({
     autoSync: settings?.storage?.autoSync ?? true,
-    fileVersioning: settings?.storage?.fileVersioning ?? true,
-    maxVersionsToKeep: settings?.storage?.maxVersionsToKeep ?? 10,
   });
 
   useEffect(() => {
@@ -58,7 +57,7 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
     try {
       setStorageLoading(true);
       const response = await api.get("/storage/info");
-      
+
       if (response.data.success) {
         setStorageInfo({
           limit: response.data.limit,
@@ -78,7 +77,7 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
 
   const formatBytes = (bytes: string | number | bigint): string => {
     let bytesNum: number;
-    
+
     if (typeof bytes === "bigint") {
       bytesNum = Number(bytes);
     } else if (typeof bytes === "string") {
@@ -86,14 +85,14 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
     } else {
       bytesNum = bytes;
     }
-    
+
     if (bytesNum === 0) return "0 B";
     if (isNaN(bytesNum)) return "0 B";
-    
+
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytesNum) / Math.log(k));
-    
+
     return `${(bytesNum / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
@@ -106,16 +105,13 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
   const handleToggle = async (field: string) => {
     try {
       setLoading(true);
-      const newValue = !storageSettings[field];
-      
-      // FIXED: Use updateStorage instead of updateSettings
-      await updateStorage({ 
-        [field]: newValue 
+      const newValue = !storageSettings[field as keyof typeof storageSettings];
+
+      await updateStorage({
+        [field]: newValue,
       });
-      
+
       setStorageSettings((prev) => ({ ...prev, [field]: newValue }));
-    } catch (error) {
-      console.error("Failed to update storage setting:", error);
     } finally {
       setLoading(false);
     }
@@ -124,7 +120,7 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
   const handleClearCache = async () => {
     if (
       !confirm(
-        "Are you sure you want to clear the cache? This may affect offline access."
+        "Are you sure you want to clear the cache? This may affect offline access.",
       )
     ) {
       return;
@@ -133,7 +129,7 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
       setLoading(true);
       await api.post("/storage/clear-cache");
       alert("Cache cleared successfully");
-    } catch (error) {
+    } catch {
       alert("Failed to clear cache");
     } finally {
       setLoading(false);
@@ -143,7 +139,7 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
   const handleRemoveDuplicates = async () => {
     if (
       !confirm(
-        "This will scan for and remove duplicate files. This may take some time."
+        "This will scan for and remove duplicate files. This may take some time.",
       )
     ) {
       return;
@@ -153,29 +149,14 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
       await api.post("/storage/remove-duplicates");
       alert("Duplicate files removed successfully");
       fetchStorageInfo(); // Refresh storage info
-    } catch (error) {
+    } catch {
       alert("Failed to remove duplicates");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMaxVersionsChange = async (value: number) => {
-    try {
-      setLoading(true);
-      
-      // FIXED: Use updateStorage instead of updateSettings
-      await updateStorage({ 
-        maxVersionsToKeep: value 
-      });
-      
-      setStorageSettings((prev) => ({ ...prev, maxVersionsToKeep: value }));
-    } catch (error) {
-      console.error("Failed to update max versions:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // File versioning is not supported in this version; no max versions setting.
 
   if (storageLoading) {
     return (
@@ -200,16 +181,18 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
         </SectionDescription>
 
         {storageInfo?.tier && (
-          <div style={{
-            background: "#f0f9ff",
-            border: "1px solid #1F9AFE",
-            borderRadius: "8px",
-            padding: "12px 16px",
-            marginBottom: "1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px"
-          }}>
+          <div
+            style={{
+              background: "#f0f9ff",
+              border: "1px solid #1F9AFE",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
             <HardDrive size={20} color="#1F9AFE" />
             <div>
               <div style={{ fontWeight: 600, color: "#1F9AFE" }}>
@@ -252,16 +235,21 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
           </div>
 
           <StorageBar>
-            <StorageFill percentage={usedPercentage} color={getUsageColor(usedPercentage)} />
+            <StorageFill
+              percentage={usedPercentage}
+              color={getUsageColor(usedPercentage)}
+            />
           </StorageBar>
 
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "0.5rem",
-            fontSize: "0.875rem",
-            color: "#6b7280"
-          }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: "0.5rem",
+              fontSize: "0.875rem",
+              color: "#6b7280",
+            }}
+          >
             <span>{formatBytes(usedStorage)} used</span>
             <span>{formatBytes(availableStorage)} available</span>
           </div>
@@ -269,17 +257,20 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
 
         {usedPercentage > 80 && (
           <InfoCard
-            style={{ 
-              background: usedPercentage > 90 ? "#fef2f2" : "#fef3c7", 
-              border: usedPercentage > 90 ? "1px solid #fecaca" : "1px solid #fde68a" 
+            style={{
+              background: usedPercentage > 90 ? "#fef2f2" : "#fef3c7",
+              border:
+                usedPercentage > 90 ? "1px solid #fecaca" : "1px solid #fde68a",
             }}
           >
-            <InfoText style={{ color: usedPercentage > 90 ? "#991b1b" : "#92400e" }}>
+            <InfoText
+              style={{ color: usedPercentage > 90 ? "#991b1b" : "#92400e" }}
+            >
               <AlertTriangle
                 size={16}
                 style={{ display: "inline", marginRight: "0.5rem" }}
               />
-              {usedPercentage > 90 
+              {usedPercentage > 90
                 ? "⚠️ Your storage is almost full! Please delete files or upgrade your plan."
                 : "You're running low on storage space. Consider upgrading or deleting unused files."}
             </InfoText>
@@ -290,76 +281,8 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
       <Section>
         <SectionTitle>Storage Settings</SectionTitle>
         <SectionDescription>
-          Configure how your files are stored and synced
+          Configure how your files are stored
         </SectionDescription>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Auto Sync</ToggleTitle>
-            <ToggleDescription>
-              Automatically sync files across all your devices
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={storageSettings.autoSync}
-            onClick={() => handleToggle("autoSync")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>File Versioning</ToggleTitle>
-            <ToggleDescription>
-              Keep previous versions of modified files
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={storageSettings.fileVersioning}
-            onClick={() => handleToggle("fileVersioning")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
-
-        {storageSettings.fileVersioning && (
-          <div style={{ marginTop: "1rem" }}>
-            <label style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              fontSize: "0.875rem",
-              color: "#4b5563",
-              fontWeight: 500
-            }}>
-              Max versions to keep per file
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <input
-                type="range"
-                min="1"
-                max="50"
-                value={storageSettings.maxVersionsToKeep}
-                onChange={(e) => handleMaxVersionsChange(parseInt(e.target.value))}
-                disabled={loading}
-                style={{
-                  flex: 1,
-                  height: "6px",
-                  borderRadius: "3px",
-                  background: "#e5e7eb",
-                  outline: "none",
-                  opacity: loading ? 0.6 : 1
-                }}
-              />
-              <span style={{
-                minWidth: "30px",
-                textAlign: "center",
-                fontWeight: 600,
-                color: "#1F9AFE"
-              }}>
-                {storageSettings.maxVersionsToKeep}
-              </span>
-            </div>
-          </div>
-        )}
       </Section>
 
       <Section>

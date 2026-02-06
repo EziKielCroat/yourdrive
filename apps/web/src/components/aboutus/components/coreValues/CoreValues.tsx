@@ -1,8 +1,11 @@
 import React from "react";
 import { SimpleDesc, DetailDesc } from "../../../landing/components/overview/styles/overview";
 import { FeaturesContainer, ImgNDescCont, ImgCont, Item, TextCont, Title, Desc, Wrap } from "../../../landing/components/features/styles/features";
-import Image from "../../../shared/image/Image";
-
+import {
+  PrivacyFirstIllustration,
+  CrossDeviceIllustration,
+  ReliabilityIllustration,
+} from "../../../shared/illustrations/CoreValuesIllustrations";
 
 const CoreValues: React.FC = () => {
     return (
@@ -12,18 +15,18 @@ const CoreValues: React.FC = () => {
                 <DetailDesc style={{ marginLeft: "5%" }}>Our Core Values</DetailDesc>
                 <ImgNDescCont>
                     <Item>
-                        <Title style={{}}>Privacy First.</Title>
-                        <ImgCont><Image src="/Images/Backgroundskib.png" height={426} width={406} /></ImgCont>
+                        <Title>Privacy First.</Title>
+                        <ImgCont><PrivacyFirstIllustration width={406} height={280} /></ImgCont>
                         <TextCont>
                             <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
-                                <Desc>NexaCore is designed with end-to-end</Desc>
-                                <Desc>security at its core.</Desc>
+                                <Desc>Your data stays private. We don&apos;t sell</Desc>
+                                <Desc>or mine your files.</Desc>
                             </Wrap>
                         </TextCont>
                     </Item>
                     <Item>
                         <Title>Cross-Device Freedom.</Title>
-                        <ImgCont><Image src="/Images/Background.png" height={426} width={406} /></ImgCont>
+                        <ImgCont><CrossDeviceIllustration width={406} height={280} /></ImgCont>
                         <TextCont>
                             <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
                                 <Desc>Pick up where you left off</Desc>
@@ -33,7 +36,7 @@ const CoreValues: React.FC = () => {
                     </Item>
                     <Item>
                         <Title>Reliability.</Title>
-                        <ImgCont><Image src="/Images/Background-1.png" height={426} width={406} /></ImgCont>
+                        <ImgCont><ReliabilityIllustration width={406} height={280} /></ImgCont>
                         <TextCont>
                             <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
                                 <Desc>Your files are always accessible,</Desc>

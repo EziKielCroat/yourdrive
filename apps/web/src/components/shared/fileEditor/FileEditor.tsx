@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
-import { useAuthStore } from "../../../store/authStore";
+import api from "../../../lib/axios";
+import { eventBus } from "../../../events/eventBus";
+import { FILES_REFRESH_EVENT } from "../../../events/fileEvents";
 
 type FileMeta = {
   fileName: string;
@@ -23,7 +25,6 @@ const isTextMime = (mime?: string | null) => {
 export const FileEditor: React.FC = () => {
   const { fileId } = useParams({ strict: false }) as { fileId: string };
   const router = useRouter();
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   const [meta, setMeta] = useState<FileMeta | null>(null);
   const [content, setContent] = useState("");
@@ -39,17 +40,8 @@ export const FileEditor: React.FC = () => {
         setError(null);
 
         // 1) Get metadata to confirm text-based
-        const metaRes = await fetch(`/api/files/content/${fileId}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!metaRes.ok) {
-          throw new Error(`Failed to load file meta: ${metaRes.status}`);
-        }
-
-        const metaJson = await metaRes.json();
+        const metaRes = await api.get(`/files/content/${fileId}`);
+        const metaJson = metaRes.data;
         const mimeType = metaJson.mimeType as string | undefined;
         const fileName = (metaJson.fileName as string) || "Untitled";
 
@@ -63,17 +55,11 @@ export const FileEditor: React.FC = () => {
         setMeta({ fileName, mimeType });
 
         // 2) Load raw file bytes via blob endpoint and decode as UTF-8
-        const blobRes = await fetch(`/api/files/blob/${fileId}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+        const blobRes = await api.get(`/files/blob/${fileId}`, {
+          responseType: "arraybuffer",
         });
 
-        if (!blobRes.ok) {
-          throw new Error(`Failed to load file content: ${blobRes.status}`);
-        }
-
-        const buf = await blobRes.arrayBuffer();
+        const buf = blobRes.data;
         const decoded = new TextDecoder("utf-8").decode(buf);
         setContent(decoded);
         setOriginalContent(decoded);
@@ -86,10 +72,10 @@ export const FileEditor: React.FC = () => {
       }
     };
 
-    if (fileId && accessToken) {
+    if (fileId) {
       load();
     }
-  }, [accessToken, fileId]);
+  }, [fileId]);
 
   const handleSave = async () => {
     if (!meta || !isTextMime(meta.mimeType)) return;
@@ -97,22 +83,15 @@ export const FileEditor: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      const res = await fetch(`/api/files/edit/${fileId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ content }),
-      });
+      const res = await api.post(`/files/edit/${fileId}`, { content });
+      const json = res.data;
 
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.error || `Failed to save file (HTTP ${res.status})`);
+      if (!json?.success) {
+        throw new Error(json?.error || "Failed to save file");
       }
 
       setOriginalContent(content);
+      eventBus.emit(FILES_REFRESH_EVENT);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save file");
     } finally {
@@ -354,4 +333,3 @@ const Spinner = styled.div`
 `;
 
 export default FileEditor;
-

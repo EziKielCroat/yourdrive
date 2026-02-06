@@ -5,6 +5,7 @@ import { Lock, Mail, X, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import TwoFactorModal from "../auth/TwoFactorModal";
 import ForgotPasswordModal from "../auth/ForgotPasswordModal";
+import api from "../../lib/axios";
 
 const Page = styled.div`
   min-height: 100vh;
@@ -40,7 +41,7 @@ const Logo = styled.h1`
   font-weight: 800;
   letter-spacing: 1px;
   margin: 0;
-  color: #1F9AFE;
+  color: #1f9afe;
 `;
 
 const CloseButton = styled.button`
@@ -251,7 +252,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  
+
   // 2FA state
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [tempToken, setTempToken] = useState("");
@@ -261,62 +262,85 @@ export default function LoginPage() {
   // Forgot password modal state
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setError("");
-    
+
     try {
       const result = await login(email, password);
-      
-      // Check if 2FA is required
+
       if (result.requires2FA) {
         setTempToken(result.tempToken || "");
         setShow2FAModal(true);
       } else {
-        // Normal login successful, navigate to dashboard
         navigate({ to: "/dashboard" });
       }
-    } catch (err: any) {
-      setError(err.message || "Login failed. Please check your credentials.");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : ((
+              err as {
+                response?: { data?: { error?: string; message?: string } };
+              }
+            )?.response?.data?.error ??
+            (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message ??
+            "Login failed. Please check your credentials.");
+      setError(msg);
     }
   };
 
-  const handle2FAVerification = async (code: string, isRecoveryCode: boolean = false) => {
+  const handle2FAVerification = async (
+    code: string,
+    isRecoveryCode: boolean = false,
+  ) => {
     setIs2FALoading(true);
     setTwoFactorError("");
 
     try {
       // NexaCore uses a single endpoint that accepts both TOTP and recovery codes
-      const response = await fetch("/api/auth/totp/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tempToken,
-          ...(isRecoveryCode ? { recoveryCode: code } : { token: code })
-        }),
+      const response = await api.post("/auth/totp/verify", {
+        tempToken,
+        ...(isRecoveryCode ? { recoveryCode: code } : { token: code }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Invalid verification code");
+      const data = response.data;
+
+      if (!data || !data.accessToken) {
+        throw new Error(data?.error || "Invalid verification code");
       }
 
-      const data = await response.json();
-      
       // NexaCore returns refreshToken in cookie, just store accessToken
       localStorage.setItem("accessToken", data.accessToken);
-      
+
       // Update auth store
-      useAuthStore.getState().setUser(data.user);
-      useAuthStore.getState().setAuthenticated(true);
-      
+      const authStore = useAuthStore.getState();
+      authStore.setUser(data.user);
+      authStore.setAuthenticated(true);
+      if (data.currentDevice) {
+        useAuthStore.setState({ currentDevice: data.currentDevice });
+      }
+      // Fetch devices to ensure everything is synced
+      await authStore.fetchDevices();
+
       // Close modal and navigate
       setShow2FAModal(false);
       navigate({ to: "/dashboard" });
-    } catch (err: any) {
-      setTwoFactorError(err.message || "Verification failed");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : ((
+              err as {
+                response?: { data?: { error?: string; message?: string } };
+              }
+            )?.response?.data?.error ??
+            (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message ??
+            "Verification failed");
+      setTwoFactorError(msg);
     } finally {
       setIs2FALoading(false);
     }
@@ -347,7 +371,7 @@ export default function LoginPage() {
 
               {error && <ErrorMessage>{error}</ErrorMessage>}
 
-              <Form onSubmit={handleSubmit}>
+              <Form onSubmit={handleSubmit} noValidate>
                 <InputWrapper>
                   <Icon>
                     <Mail size={20} />
@@ -358,6 +382,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
                   />
                 </InputWrapper>
 
@@ -371,6 +396,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                   />
                   <ToggleIcon
                     type="button"
@@ -381,7 +407,7 @@ export default function LoginPage() {
                 </InputWrapper>
 
                 <ForgotPassword>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
                   >
@@ -395,8 +421,11 @@ export default function LoginPage() {
               </Form>
 
               <LinkRow>
-                Don't have an account?{" "}
-                <button onClick={() => navigate({ to: "/register" })}>
+                Don&apos;t have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/register" })}
+                >
                   Sign Up
                 </button>
               </LinkRow>
@@ -430,7 +459,9 @@ export default function LoginPage() {
           setShowForgotPassword(false);
           // Focus email field when returning to login
           setTimeout(() => {
-            const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+            const emailInput = document.querySelector(
+              'input[type="email"]',
+            ) as HTMLInputElement;
             if (emailInput) emailInput.focus();
           }, 100);
         }}

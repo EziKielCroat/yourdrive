@@ -1,9 +1,6 @@
-import { useAuthStore } from "../../../store/authStore";
-import axios from "axios";
+import api from "../../../lib/axios";
 
 export const useFileTracking = () => {
-  const token = useAuthStore((s) => s.accessToken);
-
   const trackActivity = async (
     fileId: string | number,
     activityType:
@@ -18,11 +15,7 @@ export const useFileTracking = () => {
     metadata?: object,
   ) => {
     try {
-      await axios.post(
-        `/api/files/activity/${fileId}`,
-        { activityType, metadata },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/files/activity/${fileId}`, { activityType, metadata });
     } catch (err) {
       console.error("Failed to track activity:", err);
     }

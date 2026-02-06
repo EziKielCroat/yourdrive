@@ -17,8 +17,8 @@ interface StorageState {
   refreshStorage: () => Promise<void>;
 }
 
-// 15 GB in bytes
-const DEFAULT_TOTAL_BYTES = 15 * 1024 * 1024 * 1024;
+// 50 GB in bytes
+const DEFAULT_TOTAL_BYTES = 50 * 1024 * 1024 * 1024;
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -58,8 +58,16 @@ export const useStorageStore = create<StorageState>((set, get) => ({
 
   refreshStorage: async () => {
     try {
-      const usageRes = await api.get("/files/usage");
-      const totalUsed = usageRes.data?.usage?.totalSize ?? 0;
+      // Use unified storage info so sidebar matches Settings -> Storage
+      const infoRes = await api.get("/storage/info");
+      const { success, limit, used } = infoRes.data ?? {};
+
+      if (!success) {
+        throw new Error("Failed to load storage info");
+      }
+
+      const totalBytes = Number(BigInt(limit));
+      const usedBytes = Number(BigInt(used));
 
       const foldersRes = await api.get("/files/folders");
       const hasUploadedFolder =
@@ -67,20 +75,33 @@ export const useStorageStore = create<StorageState>((set, get) => ({
         foldersRes.data.folders.length > 0;
 
       set({
-        usedBytes: totalUsed,
+        usedBytes,
+        totalBytes: Number.isFinite(totalBytes) ? totalBytes : DEFAULT_TOTAL_BYTES,
         hasUserUploadedFolder: hasUploadedFolder,
       });
 
       if (import.meta.env.DEV) {
         console.log(
-          `📦 Storage refreshed: ${formatBytes(totalUsed)} / ${formatBytes(
+          `📦 Storage refreshed: ${formatBytes(usedBytes)} / ${formatBytes(
             get().totalBytes,
           )}, folders: ${hasUploadedFolder}`,
         );
       }
-    } catch (error) {
-      console.error("❌ Failed to refresh storage:", error);
-      throw error;
+    } catch (error: any) {
+      // Enhanced error logging
+      if (import.meta.env.DEV) {
+        console.error("❌ Failed to refresh storage:", {
+          message: error?.message,
+          code: error?.code,
+          url: error?.config?.url,
+          baseURL: error?.config?.baseURL,
+          fullURL: error?.config?.baseURL ? `${error.config.baseURL}${error.config.url}` : error?.config?.url,
+        });
+      } else {
+        console.error("❌ Failed to refresh storage:", error?.message || error);
+      }
+      // Don't throw - allow app to continue with default values
+      // throw error;
     }
   },
 }));

@@ -513,7 +513,7 @@ export default function PasskeySetupModal({
               <SuccessMessage>
                 <Check />
                 <h3>Passkey Created!</h3>
-                <p>You can now sign in to YourDrive using your {deviceName}.</p>
+                <p>You can now sign in to NexaCore using your {deviceName}.</p>
               </SuccessMessage>
 
               <InfoBox>

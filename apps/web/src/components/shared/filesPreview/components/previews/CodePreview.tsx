@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { Download, Search, Copy, Code, Hash, Type } from "lucide-react";
 import Prism from "prismjs";
+import api from "../../../../../lib/axios";
 import "prismjs/themes/prism.css";
 // Required by several Prism languages (php, etc.) to avoid tokenizePlaceholders crash
 import "prismjs/components/prism-markup-templating";
@@ -114,12 +115,26 @@ const CodePreview: React.FC<CodePreviewProps> = ({
     try {
       setLoading(true);
 
-      const response = await fetch(url, { headers });
-      if (!response.ok) {
-        throw new Error(`Failed to load file: ${response.status}`);
+      // Check if URL is absolute (external) or relative (needs baseURL)
+      const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+      
+      let arrayBuffer: ArrayBuffer;
+      
+      if (isAbsoluteUrl) {
+        // For absolute URLs (signed S3 URLs), use fetch directly
+        const fetchResponse = await fetch(url, { headers });
+        if (!fetchResponse.ok) {
+          throw new Error(`Failed to load file: ${fetchResponse.status}`);
+        }
+        arrayBuffer = await fetchResponse.arrayBuffer();
+      } else {
+        // For relative URLs, use axios API instance to ensure authentication headers
+        const response = await api.get(url, {
+          responseType: 'arraybuffer',
+          headers: headers,
+        });
+        arrayBuffer = response.data;
       }
-
-      const arrayBuffer = await response.arrayBuffer();
       const decoder = new TextDecoder("utf-8");
       const text = decoder.decode(arrayBuffer);
 
@@ -574,9 +589,8 @@ const SearchBox = styled.div<{ $theme: "light" | "dark" }>`
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  background: ${({ $theme }) => ($theme === "dark" ? "#3e3e42" : "white")};
-  border: 1px solid
-    ${({ $theme }) => ($theme === "dark" ? "#4a4a4f" : "#dadce0")};
+  background: transparent;
+  border: 1px solid #dadce0;
   border-radius: 4px;
   flex: 1;
   max-width: 400px;

@@ -1,13 +1,11 @@
-import styled from 'styled-components';
+import styled from "styled-components";
 
 export const PageContainer = styled.div`
   width: 100%;
   max-width: 100vw;
-  background: #ffffff;
-  margin-top: 120px;
+  background-color: white;
   overflow-x: hidden;
   padding: 0 20px;
-
   @media (max-width: 968px) {
     margin-top: 100px;
     padding: 0 15px;
@@ -25,6 +23,31 @@ export const HeroSection = styled.section`
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
+  padding-top: 40px;
+  padding-bottom: 40px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100vw;
+    height: 100%;
+    background: linear-gradient(
+      0deg,
+      rgba(221, 226, 238, 1) 0%,
+      rgba(221, 226, 238, 0.96) 15%,
+      rgba(221, 226, 238, 0.82) 30%,
+      rgba(221, 226, 238, 0.58) 50%,
+      rgba(221, 226, 238, 0.25) 70%,
+      rgba(221, 226, 238, 0.1) 85%,
+      rgba(221, 226, 238, 0) 100%
+    );
+    z-index: -1;
+    pointer-events: none;
+  }
 
   @media (max-width: 968px) {
     margin-bottom: 60px;
@@ -52,7 +75,7 @@ export const HeroContent = styled.div`
 export const HeroTitle = styled.h1`
   font-size: 56px;
   font-weight: 600;
-  color: #2E3038;
+  color: #2e3038;
   line-height: 1.1;
   margin: 0;
   letter-spacing: -0.02em;
@@ -121,7 +144,9 @@ export const FeatureCard = styled.div`
   flex-direction: column;
   align-items: center;
   text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 
   &:hover {
     transform: translateY(-4px);
@@ -142,7 +167,7 @@ export const FeatureIcon = styled.div`
 export const FeatureTitle = styled.h3`
   font-size: 20px;
   font-weight: 600;
-  color: #2E3038;
+  color: #2e3038;
   margin: 0 0 12px 0;
 
   @media (max-width: 640px) {
@@ -177,7 +202,7 @@ export const ContentSection = styled.section`
 export const SectionTitle = styled.h2`
   font-size: 36px;
   font-weight: 600;
-  color: #2E3038;
+  color: #2e3038;
   text-align: center;
   margin: 0 0 16px 0;
   letter-spacing: -0.01em;
@@ -247,13 +272,15 @@ export const TwoColumnGrid = styled.div`
 
 export const InfoCard = styled.div`
   background: #ffffff;
-  border: 1px solid #DDE2EE;
+  border: 1px solid #dde2ee;
   border-radius: 16px;
   padding: 32px;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
 
   &:hover {
-    border-color: #1F9AFE;
+    border-color: #1f9afe;
     box-shadow: 0 4px 12px rgba(31, 154, 254, 0.1);
   }
 
@@ -266,7 +293,7 @@ export const InfoCard = styled.div`
 export const CardTitle = styled.h4`
   font-size: 18px;
   font-weight: 600;
-  color: #2E3038;
+  color: #2e3038;
   margin: 0 0 12px 0;
 
   @media (max-width: 640px) {
@@ -289,7 +316,7 @@ export const CardDescription = styled.p`
 export const ImagePlaceholder = styled.div`
   width: 100%;
   height: 200px;
-  background: linear-gradient(135deg, #DDE2EE 0%, #f0f4f8 100%);
+  background: linear-gradient(135deg, #dde2ee 0%, #f0f4f8 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;

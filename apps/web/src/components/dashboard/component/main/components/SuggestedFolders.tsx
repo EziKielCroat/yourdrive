@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useAuthStore } from "../../../../../store/authStore";
 import {
   Container,
   Header,
@@ -18,6 +17,7 @@ import {
 } from "../styles/suggestedFolders.styles";
 import FilesIcon from "../../../../shared/icons/files";
 import FolderPreviewModal from "./FolderPreviewModal";
+import api from "../../../../../lib/axios";
 
 interface Folder {
   name: string;
@@ -27,7 +27,6 @@ interface Folder {
 }
 
 const SuggestedFolders: React.FC = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,13 +36,8 @@ const SuggestedFolders: React.FC = () => {
     const fetchFolders = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/files/folders", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch folders");
-
-        const data = await response.json();
+        const response = await api.get("/files/folders");
+        const data = response.data;
         if (data.success) setFolders(data.folders);
       } catch (err) {
         console.error("Error fetching folders:", err);
@@ -53,8 +47,8 @@ const SuggestedFolders: React.FC = () => {
       }
     };
 
-    if (accessToken) fetchFolders();
-  }, [accessToken]);
+    fetchFolders();
+  }, []);
 
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return "0 B";

@@ -21,11 +21,6 @@ const Application = ({ children }: ApplicationProps) => {
     // Expose toast globally for debugging
     window.toast = toast;
 
-    // Add a small delay then test the toast system
-    setTimeout(() => {
-      toast.success("Application loaded successfully!");
-    }, 500);
-
     return () => {
       delete window.toast;
     };
@@ -42,7 +37,6 @@ const Application = ({ children }: ApplicationProps) => {
 const ApplicationContainer = styled.div`
   flex: 1;
   position: relative;
-  background: #f8f9fa;
 
   overflow-y: hidden;
   overflow-x: hidden;

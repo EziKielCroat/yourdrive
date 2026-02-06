@@ -359,7 +359,8 @@ export default function TwoFactorSettings() {
   };
 
   const handleVerifyAndEnable = async () => {
-    if (verificationCode.length !== 6) {
+    const code = String(verificationCode).trim().replace(/\s/g, "");
+    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
       setError("Please enter a valid 6-digit code");
       return;
     }
@@ -369,15 +370,20 @@ export default function TwoFactorSettings() {
 
     try {
       const response = await api.post("/auth/totp/verify-and-enable", {
-        token: verificationCode,
+        token: code,
       });
 
-      setRecoveryCodes(response.data.recoveryCodes);
+      setRecoveryCodes(response.data.recoveryCodes ?? []);
       setIsEnabled(true);
       setSetupData(null);
       setVerificationCode("");
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Failed to verify code");
+      const msg =
+        err.response?.data?.error ??
+        err.response?.data?.message ??
+        err.message ??
+        "Failed to verify code";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

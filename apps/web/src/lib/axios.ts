@@ -1,7 +1,19 @@
 import axios from "axios";
 
+// Use relative /api so cookies (refreshToken) are sent same-origin. Avoid full URLs that cause cross-origin and cookie issues.
+export const getApiBaseURL = (): string => {
+  const envApiUrl = import.meta.env.VITE_API_URL;
+  if (envApiUrl && typeof envApiUrl === "string" && envApiUrl.trim() !== "") {
+    if (envApiUrl.startsWith("http")) {
+      return envApiUrl;
+    }
+    return envApiUrl;
+  }
+  return "/api";
+};
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: getApiBaseURL(),
   withCredentials: true, // CRITICAL - ensures cookies are sent
   headers: {
     "Content-Type": "application/json",
@@ -15,16 +27,26 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // If FormData is being sent, remove Content-Type so browser sets it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// Response interceptor dependencies and helpers for token refresh
+// Response interceptor: refresh on 401 only (not 403 - Forbidden is "valid token, no permission")
 let isRefreshing = false;
-let failedQueue: any[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+interface QueuedRequest {
+  resolve: (token: string | null) => void;
+  reject: (error: unknown) => void;
+}
+
+let failedQueue: QueuedRequest[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -32,20 +54,24 @@ const processQueue = (error: any, token: string | null = null) => {
       prom.resolve(token);
     }
   });
-
   failedQueue = [];
 };
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
 
     const noRetryEndpoints = [
       "/auth/refresh",
       "/auth/me",
       "/auth/login",
       "/auth/register",
+      "/auth/logout",
+      "/auth/device/current", // 404 when no device cookie; don't trigger refresh
     ];
+
     if (
       noRetryEndpoints.some((endpoint) =>
         originalRequest.url?.includes(endpoint),
@@ -53,49 +79,62 @@ api.interceptors.response.use(
     ) {
       return Promise.reject(error);
     }
-    // If 401 and we haven't retried yet, try to refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    // Only retry on 401 (Unauthorized). 403 = Forbidden, don't refresh.
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
+        return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              return api(originalRequest);
+            }
+            return Promise.reject(new Error("Token refresh failed"));
           })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
       isRefreshing = true;
 
       try {
-        try {
-          const refreshResponse = await api.post("/auth/refresh");
-          const newAccessToken = refreshResponse.data.accessToken;
+        const refreshResponse = await api.post("/auth/refresh");
+        const newAccessToken = refreshResponse.data.accessToken;
 
-          // Update access token in localStorage
-          localStorage.setItem("accessToken", newAccessToken);
-
-          // Process any queued failed requests with new token
-          processQueue(null, newAccessToken);
-
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-          return api(originalRequest);
-        } catch (refreshError) {
-          // Process failed queue
-          processQueue(refreshError, null);
-
-          // Remove token and redirect to login
-          localStorage.removeItem("accessToken");
-          window.location.href = "/login";
-          return Promise.reject(refreshError);
+        if (!newAccessToken) {
+          throw new Error("No access token received");
         }
+
+        localStorage.setItem("accessToken", newAccessToken);
+
+        try {
+          const { useAuthStore } = await import("../store/authStore");
+          useAuthStore.setState({
+            accessToken: newAccessToken,
+            isAuthenticated: true,
+          });
+        } catch {
+          // Store not available
+        }
+
+        processQueue(null, newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError: unknown) {
+        processQueue(refreshError, null);
+        localStorage.removeItem("accessToken");
+        try {
+          const { useAuthStore } = await import("../store/authStore");
+          await useAuthStore.getState().logout();
+        } catch {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+        }
+        return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }

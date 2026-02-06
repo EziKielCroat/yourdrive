@@ -6,8 +6,8 @@ import { InfoSidebar } from "./components/InfoSidebar";
 import SharePopup from "../popups/share/SharePopup";
 import { useFilePreview } from "./hooks/useFilePreview.ts";
 import { usePopupStore } from "../popups/popup.store";
-import { useAuthStore } from "../../../store/authStore";
 import { useRouter } from "@tanstack/react-router";
+import api from "../../../lib/axios";
 
 // Import the new FilePreview system
 import FilePreview from "./components/Preview";
@@ -65,7 +65,6 @@ const FilesPreview: React.FC<FilePreviewProps> = ({
   const [showInfo, setShowInfo] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const accessToken = useAuthStore((s) => s.accessToken);
   const router = useRouter();
 
   const toggleSharingPopup = usePopupStore((state) => state.toggleSharingPopup);
@@ -108,10 +107,8 @@ const FilesPreview: React.FC<FilePreviewProps> = ({
     // (Some preview URLs are authenticated endpoints that won't download via <a>.)
     if (fileId) {
       try {
-        const response = await fetch(`/api/files/download/${fileId}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const data = await response.json().catch(() => null);
+        const response = await api.get(`/files/download/${fileId}`);
+        const data = response.data;
         const downloadUrl =
           data?.file?.downloadUrl || data?.downloadUrl || data?.signedUrl;
 
@@ -177,12 +174,8 @@ const FilesPreview: React.FC<FilePreviewProps> = ({
     if (!fileId) return;
 
     try {
-      const response = await fetch(`/api/files/favorites/${fileId}/favorite`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      const data = await response.json();
+      const response = await api.post(`/files/favorites/${fileId}/favorite`);
+      const data = response.data;
       if (data.success) {
         setIsFavorited(data.favorited);
       }
@@ -297,22 +290,18 @@ const FilesPreview: React.FC<FilePreviewProps> = ({
       if (!fileId) return;
 
       try {
-        const response = await fetch(`/api/files/favorites/check-favorites`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        const data = await response.json();
+        const response = await api.get(`/files/favorites/check-favorites`);
+        const data = response.data;
         if (data.success) setIsFavorited(data.favorites.includes(fileId));
       } catch (err) {
         console.error("Error checking favorite:", err);
       }
     };
 
-    if (fileId && accessToken) {
+    if (fileId) {
       checkIfFavorited();
     }
-  }, [fileId, accessToken]);
+  }, [fileId]);
 
   if (isLoading || error) {
     return (
@@ -383,9 +372,6 @@ const FilesPreview: React.FC<FilePreviewProps> = ({
             onDownload={handleDownload}
             onClose={onClose}
             maxSize={options.maxSize}
-            headers={{
-              Authorization: `Bearer ${accessToken}`,
-            }}
           />
 
           <InfoSidebar

@@ -2,36 +2,19 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
-import { useAuthStore } from "../../../../store/authStore";
-import axios from "axios";
 import { Clock } from "lucide-react";
 import SidebarToggle from "../sidebar/SidebarToggle";
 import PageTransition from "../../../shared/PageTransition";
+import api from "../../../../lib/axios";
+import { useEvent } from "../../../../events/useEvent";
+import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 
 const RecentlyEdited: React.FC = () => {
-  const token = useAuthStore((s) => s.accessToken);
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [timeFilter, setTimeFilter] = useState<7 | 30 | 90>(30);
-
-  const transformedFiles = files.map((f) => ({
-    id: f.id,
-    name: f.original_name,
-    size: f.size,
-    mimeType: f.mime_type,
-    location: f.folder_path || "Root",
-    modifiedTime: formatRelativeTime(f.last_edited_at),
-    editCount: f.edit_count,
-  }));
-
-  const navigableFiles =
-    selectedFiles.size > 0
-      ? transformedFiles.filter((f) => selectedFiles.has(f.id))
-      : transformedFiles;
-
-  const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -52,26 +35,58 @@ const RecentlyEdited: React.FC = () => {
     return date.toLocaleDateString();
   };
 
+  const transformedFiles = files.map((f) => ({
+    id: f.id,
+    name: f.original_name,
+    size: f.size,
+    mimeType: f.mime_type,
+    location: f.folder_path || "Root",
+    modifiedTime: formatRelativeTime(f.last_edited_at),
+    editCount: f.edit_count,
+    createdAt: f.created_at,
+    updatedAt: f.updated_at ?? f.last_edited_at,
+  }));
+
+  const navigableFiles =
+    selectedFiles.size > 0
+      ? transformedFiles.filter((f) => selectedFiles.has(f.id))
+      : transformedFiles;
+
+  const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
+
   const fetchRecentFiles = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `/api/files/recent?days=${timeFilter}&limit=100`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      setFiles(res.data.files || []);
+      const res = await api.get(`/files/recent?days=${timeFilter}&limit=100`);
+      const data = res.data;
+      if (data.success && data.files) {
+        setFiles(data.files);
+      } else {
+        setFiles([]);
+      }
     } catch (err) {
       console.error("Failed to fetch recent files:", err);
+      setFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token) fetchRecentFiles();
-  }, [token, timeFilter]);
+    fetchRecentFiles();
+  }, [timeFilter]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchRecentFiles();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [timeFilter]);
+
+  useEvent(FILES_REFRESH_EVENT, () => {
+    fetchRecentFiles();
+  });
 
   const handlePreview = (file: any) => {
     const index = navigableFiles.findIndex((f) => f.id === file.id);

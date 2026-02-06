@@ -12,9 +12,6 @@ interface OfficePreviewProps {
 }
 
 const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
-  const [viewerType, setViewerType] = useState<"google" | "microsoft">(
-    "google"
-  );
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -25,20 +22,13 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
   const isSpreadsheet = ["xls", "xlsx", "ods"].includes(extension || "");
   const isDocument = ["doc", "docx", "odt"].includes(extension || "");
 
-  const getGoogleViewerUrl = () => {
-    return `https://docs.google.com/gview?url=${encodeURIComponent(
-      url
-    )}&embedded=true`;
-  };
-
   const getMicrosoftViewerUrl = () => {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-      url
+      url,
     )}`;
   };
 
-  const viewerUrl =
-    viewerType === "google" ? getGoogleViewerUrl() : getMicrosoftViewerUrl();
+  const viewerUrl = getMicrosoftViewerUrl();
 
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 10, 200));
@@ -60,7 +50,7 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
   const handleIframeError = () => {
     setLoading(false);
     setError(
-      "Failed to load document. Try switching viewers or downloading the file."
+      "Failed to load document. Try opening it in a new tab or downloading the file.",
     );
   };
 
@@ -70,7 +60,7 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [url, viewerType]);
+  }, [url]);
 
   return (
     <Container>
@@ -81,8 +71,8 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
               isPresentation
                 ? "presentation"
                 : isSpreadsheet
-                ? "spreadsheet"
-                : "document"
+                  ? "spreadsheet"
+                  : "document"
             }
           >
             {isPresentation ? (
@@ -109,21 +99,6 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
             )}
             <span>{extension?.toUpperCase()}</span>
           </FileTypeIndicator>
-
-          <ViewerSwitcher>
-            <ViewerButton
-              onClick={() => setViewerType("google")}
-              $active={viewerType === "google"}
-            >
-              Google
-            </ViewerButton>
-            <ViewerButton
-              onClick={() => setViewerType("microsoft")}
-              $active={viewerType === "microsoft"}
-            >
-              Microsoft
-            </ViewerButton>
-          </ViewerSwitcher>
         </LeftGroup>
 
         <ToolbarGroup>
@@ -246,12 +221,7 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
           {isSpreadsheet && "Spreadsheet View"}
           {isDocument && "Document View"}
         </InfoText>
-        <InfoText>
-          Powered by{" "}
-          {viewerType === "google"
-            ? "Google Docs Viewer"
-            : "Microsoft Office Online"}
-        </InfoText>
+        <InfoText>Powered by Microsoft Office Online</InfoText>
       </InfoBar>
     </Container>
   );
@@ -301,31 +271,6 @@ const FileTypeIndicator = styled.div<{
   svg {
     width: 16px;
     height: 16px;
-  }
-`;
-
-const ViewerSwitcher = styled.div`
-  display: flex;
-  background: #f1f3f4;
-  border-radius: 20px;
-  padding: 4px;
-`;
-
-const ViewerButton = styled.button<{ $active: boolean }>`
-  background: ${(props) => (props.$active ? "white" : "transparent")};
-  border: none;
-  color: ${(props) => (props.$active ? "#1a73e8" : "#5f6368")};
-  padding: 6px 16px;
-  border-radius: 16px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  box-shadow: ${(props) =>
-    props.$active ? "0 1px 3px rgba(0,0,0,0.1)" : "none"};
-
-  &:hover {
-    background: ${(props) => (props.$active ? "white" : "rgba(0,0,0,0.05)")};
   }
 `;
 

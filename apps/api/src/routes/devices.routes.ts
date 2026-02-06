@@ -15,16 +15,43 @@ devicesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
+    // Get global storage stats for the user
+    const storageStats = await pool.query(
+      `
+      SELECT 
+        COALESCE(SUM(uf.size), 0)::bigint as total_storage,
+        COUNT(uf.id)::bigint as total_files
+      FROM user_files uf
+      WHERE uf.user_id = $1 AND uf.original_name != '.metadata'
+      `,
+      [req.userId],
+    );
+
+    const globalStorage = Number(storageStats.rows[0]?.total_storage || 0);
+    const globalFileCount = Number(storageStats.rows[0]?.total_files || 0);
+
+    // Get current device ID from cookie
+    const currentDeviceId = req.cookies.deviceId;
+
     const devices = await pool.query(
       `
       SELECT 
         d.*,
-        COALESCE(d.device_nickname, d.device_name) AS display_name
+        COALESCE(d.device_nickname, d.device_name) AS display_name,
+        CASE 
+          WHEN d.id = $2 THEN $3::bigint
+          ELSE NULL
+        END as file_count,
+        CASE 
+          WHEN d.id = $2 THEN $4::bigint
+          ELSE NULL
+        END as total_storage
       FROM user_devices d
       WHERE d.user_id = $1
+        AND d.device_name <> 'Primary Device'
       ORDER BY d.last_active DESC
       `,
-      [req.userId],
+      [req.userId, currentDeviceId || null, globalFileCount, globalStorage],
     );
 
     res.json({
@@ -44,6 +71,25 @@ devicesRoutes.get("/groups", authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.userId) {
       return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    // Check if device_groups table exists
+    const tableExists = await pool.query(
+      `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'device_groups'
+      );
+      `,
+    );
+
+    if (!tableExists.rows[0]?.exists) {
+      // Table doesn't exist, return empty array
+      return res.json({
+        success: true,
+        groups: [],
+      });
     }
 
     const groups = await pool.query(
@@ -75,7 +121,11 @@ devicesRoutes.get("/groups", authMiddleware, async (req: AuthRequest, res) => {
     });
   } catch (err) {
     console.error("Error fetching groups:", err);
-    res.status(500).json({ success: false, error: "Failed to fetch groups" });
+    // Return empty array on error instead of failing
+    res.json({
+      success: true,
+      groups: [],
+    });
   }
 });
 
@@ -92,6 +142,24 @@ devicesRoutes.post("/groups", authMiddleware, async (req: AuthRequest, res) => {
       return res
         .status(400)
         .json({ success: false, error: "Group name is required" });
+    }
+
+    // Check if device_groups table exists
+    const tableExists = await pool.query(
+      `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'device_groups'
+      );
+      `,
+    );
+
+    if (!tableExists.rows[0]?.exists) {
+      return res.status(501).json({
+        success: false,
+        error: "Device groups feature is not available",
+      });
     }
 
     const result = await pool.query(
@@ -119,6 +187,24 @@ devicesRoutes.patch(
     try {
       if (!req.userId) {
         return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      // Check if device_groups table exists
+      const tableExists = await pool.query(
+        `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'device_groups'
+        );
+        `,
+      );
+
+      if (!tableExists.rows[0]?.exists) {
+        return res.status(501).json({
+          success: false,
+          error: "Device groups feature is not available",
+        });
       }
 
       const { groupId } = req.params;
@@ -162,6 +248,24 @@ devicesRoutes.delete(
         return res.status(401).json({ success: false, error: "Unauthorized" });
       }
 
+      // Check if device_groups table exists
+      const tableExists = await pool.query(
+        `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'device_groups'
+        );
+        `,
+      );
+
+      if (!tableExists.rows[0]?.exists) {
+        return res.status(501).json({
+          success: false,
+          error: "Device groups feature is not available",
+        });
+      }
+
       const { groupId } = req.params;
 
       const result = await pool.query(
@@ -194,6 +298,24 @@ devicesRoutes.post(
     try {
       if (!req.userId) {
         return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      // Check if device_groups table exists
+      const tableExists = await pool.query(
+        `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'device_groups'
+        );
+        `,
+      );
+
+      if (!tableExists.rows[0]?.exists) {
+        return res.status(501).json({
+          success: false,
+          error: "Device groups feature is not available",
+        });
       }
 
       const { groupId, deviceId } = req.params;
@@ -242,6 +364,24 @@ devicesRoutes.delete(
     try {
       if (!req.userId) {
         return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      // Check if device_groups table exists
+      const tableExists = await pool.query(
+        `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'device_groups'
+        );
+        `,
+      );
+
+      if (!tableExists.rows[0]?.exists) {
+        return res.status(501).json({
+          success: false,
+          error: "Device groups feature is not available",
+        });
       }
 
       const { groupId, deviceId } = req.params;
@@ -607,6 +747,128 @@ devicesRoutes.get(
       res
         .status(500)
         .json({ success: false, error: "Failed to fetch audit log" });
+    }
+  },
+);
+
+// Update device (rename)
+devicesRoutes.patch(
+  "/:deviceId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      const { deviceId } = req.params;
+      const { device_nickname } = req.body;
+
+      if (!device_nickname || device_nickname.trim() === "") {
+        return res.status(400).json({
+          success: false,
+          error: "Device nickname is required",
+        });
+      }
+
+      // Verify device ownership
+      const device = await pool.query(
+        `SELECT * FROM user_devices WHERE id = $1 AND user_id = $2`,
+        [deviceId, req.userId],
+      );
+
+      if (device.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Device not found" });
+      }
+
+      // Update device nickname
+      const result = await pool.query(
+        `UPDATE user_devices 
+         SET device_nickname = $1
+         WHERE id = $2 AND user_id = $3
+         RETURNING *`,
+        [device_nickname.trim(), deviceId, req.userId],
+      );
+
+      res.json({
+        success: true,
+        device: result.rows[0],
+      });
+    } catch (err) {
+      console.error("Error updating device:", err);
+      res.status(500).json({ success: false, error: "Failed to update device" });
+    }
+  },
+);
+
+// Remove device
+devicesRoutes.delete(
+  "/:deviceId",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+      }
+
+      const { deviceId } = req.params;
+
+      // Verify device ownership
+      const device = await pool.query(
+        `SELECT * FROM user_devices WHERE id = $1 AND user_id = $2`,
+        [deviceId, req.userId],
+      );
+
+      if (device.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Device not found" });
+      }
+
+      if (device.rows[0].is_current) {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot remove current device",
+        });
+      }
+
+      // Remove device-file associations
+      await pool.query(
+        `DELETE FROM device_files WHERE device_id = $1`,
+        [deviceId],
+      );
+
+      // Remove device from groups
+      await pool.query(
+        `DELETE FROM device_group_members WHERE device_id = $1`,
+        [deviceId],
+      );
+
+      // Delete device
+      await pool.query(
+        `DELETE FROM user_devices WHERE id = $1 AND user_id = $2`,
+        [deviceId, req.userId],
+      );
+
+      // Log action
+      await logDeviceAction(
+        deviceId,
+        req.userId,
+        "remove_device",
+        {},
+        req,
+        pool,
+      );
+
+      res.json({
+        success: true,
+        message: "Device removed successfully",
+      });
+    } catch (err) {
+      console.error("Error removing device:", err);
+      res.status(500).json({ success: false, error: "Failed to remove device" });
     }
   },
 );

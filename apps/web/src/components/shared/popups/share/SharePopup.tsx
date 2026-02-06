@@ -18,7 +18,8 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
-import { useAuthStore } from "../../../../store/authStore";
+import { useSettings } from "../../hooks/useSettings";
+import api from "../../../../lib/axios";
 
 interface SharePopupProps {
   fileId: string;
@@ -55,7 +56,7 @@ const SharePopup: React.FC<SharePopupProps> = ({
   fileName,
   onClose,
 }) => {
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const { settings } = useSettings();
 
   const [activeTab, setActiveTab] = useState<"share" | "manage">("share");
   const [shareType, setShareType] = useState<ShareType>("link");
@@ -71,16 +72,37 @@ const SharePopup: React.FC<SharePopupProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Load default settings when popup opens
+  useEffect(() => {
+    if (settings?.sharing) {
+      if (settings.sharing.defaultPassword && !password) {
+        setPassword(settings.sharing.defaultPassword);
+      }
+      if (settings.sharing.defaultExpirationDays && !expiresIn) {
+        // Convert days to hours for expiresIn
+        setExpiresIn(settings.sharing.defaultExpirationDays * 24);
+      }
+      if (settings.sharing.defaultDownloadLimit && !maxDownloads) {
+        setMaxDownloads(settings.sharing.defaultDownloadLimit);
+      }
+      if (
+        settings.sharing.requirePasswordForLinks &&
+        !password &&
+        settings.sharing.defaultPassword
+      ) {
+        setPassword(settings.sharing.defaultPassword);
+      }
+    }
+  }, [settings]);
+
   useEffect(() => {
     fetchExistingShares();
-  }, [fileId, accessToken]);
+  }, [fileId]);
 
   const fetchExistingShares = async () => {
     try {
-      const response = await fetch(`/api/sharing/file/${fileId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
+      const response = await api.get(`/sharing/file/${fileId}`);
+      const data = response.data;
       if (data.success) {
         setExistingShares(data.shares);
       }
@@ -105,24 +127,17 @@ const SharePopup: React.FC<SharePopupProps> = ({
           permission,
         }));
 
-      const response = await fetch("/api/sharing/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          fileId: parseInt(fileId),
-          shareType,
-          permission,
-          password: password || undefined,
-          expiresIn,
-          maxDownloads,
-          recipients: recipientsList.length > 0 ? recipientsList : undefined,
-        }),
+      const response = await api.post("/sharing/create", {
+        fileId: parseInt(fileId),
+        shareType,
+        permission,
+        password: password || undefined,
+        expiresIn,
+        maxDownloads,
+        recipients: recipientsList.length > 0 ? recipientsList : undefined,
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         setSuccess(
@@ -169,10 +184,7 @@ const SharePopup: React.FC<SharePopupProps> = ({
 
   const handleRevokeShare = async (shareId: string) => {
     try {
-      await fetch(`/api/sharing/${shareId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      await api.delete(`/sharing/${shareId}`);
       fetchExistingShares();
     } catch (err) {
       console.error("Error revoking share:", err);

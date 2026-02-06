@@ -34,8 +34,11 @@ import PersonalStorage from "../components/personalstorage/PersonalStorage";
 import FileSharingEditing from "../components/filesharingediting/FileSharingEditing";
 import SecureStorage from "../components/securestorage/SecureStorage";
 import TeamCollaboration from "../components/teamcollaboration/TeamCollaboration";
+import Guide from "../components/guide/Guide";
+import ApiDocs from "../components/apidocs/ApiDocs";
 import { VerifyEmail } from "../components/auth/VerifyEmail";
 import FileEditor from "../components/shared/fileEditor/FileEditor";
+import NotFound from "../components/notfound/NotFound";
 import { GlobalReset } from "../components/landing/styles/landing";
 
 export const ROUTES = {
@@ -52,6 +55,8 @@ export const ROUTES = {
   PRIVACY: "/privacy",
   PERSONAL_STORAGE: "/personal",
   FILE_SHARING_EDITING: "/file-editing",
+  GUIDE: "/guide",
+  API_DOCS: "/api-docs",
   VERIFY_EMAIL: "/verify-email",
   SECURE_STORAGE: "/secure",
   TEAM_COLLABORATION: "/team",
@@ -82,16 +87,13 @@ function redirectIfAuthenticated(): void {
   }
 }
 
-async function requireAuthentication(): Promise<void> {
-  const { isAuthenticated, checkAuth } = useAuthStore.getState();
+function requireAuthentication(): void {
+  const { isAuthenticated } = useAuthStore.getState();
   if (!isAuthenticated) {
     throw redirect({ to: ROUTES.LOGIN });
   }
-  try {
-    await checkAuth();
-  } catch {
-    throw redirect({ to: ROUTES.LOGIN });
-  }
+  // No checkAuth here: auth is trusted from persisted state (login/register).
+  // Axios interceptor handles 401 + failed refresh by calling logout and redirecting.
 }
 
 const rootRoute = createRootRoute({
@@ -179,6 +181,18 @@ const termsRoute = createRoute({
   component: TermsOfService,
 });
 
+const guideRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide",
+  component: Guide,
+});
+
+const apiDocsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-docs",
+  component: ApiDocs,
+});
+
 const featuresRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/features",
@@ -259,6 +273,18 @@ const editFileRoute = createRoute({
   beforeLoad: requireAuthentication,
 });
 
+const notFoundRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/404",
+  component: NotFound,
+});
+
+const catchAllRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "$",
+  component: NotFound,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -268,6 +294,8 @@ const routeTree = rootRoute.addChildren([
   pricingRoute,
   privacyPolicyRoute,
   termsRoute,
+  guideRoute,
+  apiDocsRoute,
   personalStorageRoute,
   fileSharingEditingRoute,
   secureStorageRoute,
@@ -277,6 +305,8 @@ const routeTree = rootRoute.addChildren([
   helpCenterRoute,
   sharedFileRoute,
   editFileRoute,
+  notFoundRoute,
+  catchAllRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
     yourFilesRoute,

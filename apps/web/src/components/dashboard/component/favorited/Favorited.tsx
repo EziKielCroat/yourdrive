@@ -7,6 +7,7 @@ import FilePreview from "../../../shared/filesPreview/FilesPreview";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import SidebarToggle from "../sidebar/SidebarToggle";
 import PageTransition from "../../../shared/PageTransition";
+import api from "../../../../lib/axios";
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -30,7 +31,6 @@ const formatDate = (dateString: string): string => {
 };
 
 const Favorited: React.FC = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,34 +45,32 @@ const Favorited: React.FC = () => {
   const fetchFavorites = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/files/favorites", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await api.get("/files/favorites/");
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (data.success && data.files) {
         const transformedFiles: FileItem[] = data.files.map((file: any) => ({
-          id: file.id,
+          id: String(file.id),
           name: file.original_name,
           type: "file" as const,
           mimeType: file.mime_type,
-          lastInteraction: formatDate(file.favorited_at),
+          lastInteraction: formatDate(file.favorited_at || file.created_at),
           lastInteractionType: "favorited" as const,
           location: file.folder_path || "Your Files",
           owner: {
-            name: user?.name || user?.email || "You",
+            name: user?.firstName || user?.email || "You",
             isYou: true,
           },
-          size: file.size,
-          url: file.s3_key,
+          size: file.size || 0,
+          url: file.s3_key || "",
         }));
         setFiles(transformedFiles);
+      } else {
+        setFiles([]);
       }
     } catch (err) {
       console.error("Error fetching favorites:", err);
+      setFiles([]);
     } finally {
       setLoading(false);
     }
@@ -106,10 +104,8 @@ const Favorited: React.FC = () => {
   };
 
   useEffect(() => {
-    if (accessToken) {
-      fetchFavorites();
-    }
-  }, [accessToken]);
+    fetchFavorites();
+  }, []);
 
   const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 

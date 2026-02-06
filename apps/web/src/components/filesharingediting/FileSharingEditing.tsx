@@ -3,8 +3,10 @@ import { motion } from "framer-motion";
 import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import { HeroContGrad } from "../landing/components/hero/styles/hero";
+import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
 import LandingButton from "../shared/landingbutton/LandingButton";
+import { LinkIcon, EditIcon, EyeIcon } from "../shared/icons/IconSaxIcons";
+import { ShareLinkIllustration, CodeEditorIllustration } from "../shared/illustrations/UseCaseIllustrations";
 import {
   PageContainer,
   HeroSection,
@@ -31,6 +33,7 @@ const FileSharingEditing: React.FC = () => {
   return (
     <>
       <Navbar_main />
+      <HeroContGradTop />
 
       <PageContainer>
         <HeroSection
@@ -69,9 +72,7 @@ const FileSharingEditing: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Link Icon]
-              </ImagePlaceholder>
+              <LinkIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Instant Share Links</FeatureTitle>
             <FeatureDescription>
@@ -88,9 +89,7 @@ const FileSharingEditing: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Edit Icon]
-              </ImagePlaceholder>
+              <EditIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Built-In Editors</FeatureTitle>
             <FeatureDescription>
@@ -107,9 +106,7 @@ const FileSharingEditing: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Eye Icon]
-              </ImagePlaceholder>
+              <EyeIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Live Preview</FeatureTitle>
             <FeatureDescription>
@@ -132,9 +129,9 @@ const FileSharingEditing: React.FC = () => {
             accessed your files and revoke access anytime.
           </SectionDescription>
 
-          <ImagePlaceholder style={{ height: '400px', margin: '0 auto 60px', maxWidth: '900px' }}>
-            [Screenshot: Share link creation dialog with all options]
-          </ImagePlaceholder>
+          <div style={{ margin: '0 auto 60px', maxWidth: '900px' }}>
+            <ShareLinkIllustration width={900} height={400} />
+          </div>
 
           <CardsContainer>
             <InfoCard
@@ -236,9 +233,9 @@ const FileSharingEditing: React.FC = () => {
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6 }}
         >
-          <ImagePlaceholder style={{ height: '350px', margin: '0 auto 60px', maxWidth: '900px' }}>
-            [Screenshot: Code editor with syntax highlighting in action]
-          </ImagePlaceholder>
+          <div style={{ margin: '0 auto 60px', maxWidth: '900px' }}>
+            <CodeEditorIllustration width={900} height={350} />
+          </div>
 
           <SectionTitle>Never lose work with version comparison</SectionTitle>
           <SectionDescription>

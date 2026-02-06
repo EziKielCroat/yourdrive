@@ -135,12 +135,12 @@ export const ImageWrapper = styled.div`
   max-width: 100vw;
   display: flex;
   justify-content: center;
-  overflow: hidden;
 
   img {
     max-width: 100%;
     height: auto;
     display: block;
+    border-radius: 16px;
   }
 
   @media (max-width: 968px) {

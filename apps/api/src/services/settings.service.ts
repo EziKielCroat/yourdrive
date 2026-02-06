@@ -30,27 +30,25 @@ const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || "12");
 
 export class SettingsService {
   static async initializeSettings(userId: string, email: string) {
-  const result = await pool.query(
-    `INSERT INTO user_settings (user_id, profile, updated_at)
+    const result = await pool.query(
+      `INSERT INTO user_settings (user_id, profile, updated_at)
      VALUES ($1, $2, CURRENT_TIMESTAMP)
      ON CONFLICT (user_id) DO NOTHING
      RETURNING *`,
-    [
-      userId,
-      JSON.stringify({ email, firstName: "", lastName: "", avatarUrl: null }),
-    ]
-  );
-  return result.rows[0];
-}
+      [
+        userId,
+        JSON.stringify({ email, firstName: "", lastName: "", avatarUrl: null }),
+      ],
+    );
+    return result.rows[0];
+  }
 
   static async getSettings(userId: string) {
     await this.ensureSettingsExist(userId);
 
-    
-
     const result = await pool.query(
       `SELECT * FROM user_settings WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     if (result.rows.length === 0) {
@@ -68,7 +66,7 @@ export class SettingsService {
       `SELECT COALESCE(SUM(size), 0) as used_storage
        FROM user_files
        WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     const profile = settings.profile || {};
@@ -130,7 +128,7 @@ export class SettingsService {
        SET profile = profile || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -142,7 +140,7 @@ export class SettingsService {
        SET security = security || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -154,7 +152,7 @@ export class SettingsService {
        SET appearance = appearance || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -166,7 +164,7 @@ export class SettingsService {
        SET language = language || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -178,7 +176,7 @@ export class SettingsService {
        SET storage = storage || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -190,7 +188,7 @@ export class SettingsService {
        SET sharing = sharing || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -202,7 +200,7 @@ export class SettingsService {
        SET preferences = preferences || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
@@ -214,14 +212,14 @@ export class SettingsService {
        SET privacy = privacy || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId]
+      [JSON.stringify(data), userId],
     );
   }
 
   static async updatePassword(
     userId: string,
     currentPassword: string,
-    newPassword: string
+    newPassword: string,
   ) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -248,13 +246,13 @@ export class SettingsService {
        SET security = security || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify({ passwordLastChanged: new Date() }), userId]
+      [JSON.stringify({ passwordLastChanged: new Date() }), userId],
     );
   }
 
   static async uploadAvatar(
     userId: string,
-    file: Express.Multer.File
+    file: Express.Multer.File,
   ): Promise<string> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -289,7 +287,7 @@ export class SettingsService {
        SET profile = profile || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify({ avatarUrl }), userId]
+      [JSON.stringify({ avatarUrl }), userId],
     );
 
     return avatarUrl;
@@ -298,7 +296,7 @@ export class SettingsService {
   static async deleteAvatar(userId: string) {
     const result = await pool.query(
       `SELECT profile FROM user_settings WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     if (result.rows.length === 0) {
@@ -316,7 +314,7 @@ export class SettingsService {
           new DeleteObjectCommand({
             Bucket: BUCKET_NAME,
             Key: s3Key,
-          })
+          }),
         );
       } catch (err) {
         console.error("Error deleting avatar from S3:", err);
@@ -328,7 +326,7 @@ export class SettingsService {
        SET profile = profile || $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify({ avatarUrl: null }), userId]
+      [JSON.stringify({ avatarUrl: null }), userId],
     );
   }
 
@@ -378,7 +376,7 @@ export class SettingsService {
        FROM linked_accounts
        WHERE user_id = $1
        ORDER BY linked_at DESC`,
-      [userId]
+      [userId],
     );
 
     return result.rows.map((row) => ({
@@ -394,7 +392,7 @@ export class SettingsService {
     await pool.query(
       `DELETE FROM linked_accounts
        WHERE id = $1 AND user_id = $2`,
-      [accountId, userId]
+      [accountId, userId],
     );
   }
 
@@ -403,10 +401,64 @@ export class SettingsService {
     console.log(`Clearing cache for user ${userId}`);
   }
 
+  static async deleteAccount(userId: string) {
+    // Delete all user files from S3
+    const files = await prisma.userFile.findMany({
+      where: { userId },
+      select: { s3Key: true },
+    });
+
+    for (const file of files) {
+      try {
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: file.s3Key,
+          }),
+        );
+      } catch (err) {
+        console.error(`Error deleting file ${file.s3Key} from S3:`, err);
+      }
+    }
+
+    // Delete user settings
+    await pool.query(`DELETE FROM user_settings WHERE user_id = $1`, [userId]);
+
+    // Delete social accounts (using Prisma since table exists there)
+    await prisma.socialAccount.deleteMany({
+      where: { userId },
+    });
+
+    // Delete all user files (cascade will handle related records)
+    await prisma.userFile.deleteMany({
+      where: { userId },
+    });
+
+    // Delete all file shares
+    await prisma.fileShare.deleteMany({
+      where: { ownerId: userId },
+    });
+
+    // Delete all sessions
+    await prisma.session.deleteMany({
+      where: { userId },
+    });
+
+    // Delete TOTP if exists
+    await prisma.tOTP.deleteMany({
+      where: { userId },
+    });
+
+    // Finally delete the user
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+
   private static async ensureSettingsExist(userId: string) {
     const result = await pool.query(
       `SELECT id FROM user_settings WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     if (result.rows.length === 0) {

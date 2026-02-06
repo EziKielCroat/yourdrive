@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import {
-  Download,
-  File,
-  AlertCircle,
-  ExternalLink,
-  Archive,
-  Package,
-} from "lucide-react";
+import { Download, File, AlertCircle, ExternalLink, Archive } from "lucide-react";
 import { type FileTypeInfo } from "../../utils/FileTypeDetector";
+import api from "../../../../../lib/axios";
 
 interface DefaultPreviewProps {
   url: string;
@@ -29,21 +23,105 @@ const DefaultPreview: React.FC<DefaultPreviewProps> = ({
   headers,
 }) => {
   const [fileSize, setFileSize] = useState<number | null>(null);
-  const [loadingSize, setLoadingSize] = useState(true);
+  const [viewMode, setViewMode] = useState<"info" | "text">("info");
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+  const [textContent, setTextContent] = useState<string>("");
 
   useEffect(() => {
-    fetchFileSize();
-  }, [url]);
+    const fetchFileSize = async () => {
+      try {
+        // Check if URL is absolute (external) or relative (needs baseURL)
+        const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+        
+        if (isAbsoluteUrl) {
+          // For absolute URLs, use fetch HEAD request
+          const response = await fetch(url, { method: "HEAD", headers });
+          const size = response.headers.get("content-length");
+          setFileSize(size ? parseInt(size) : null);
+        } else {
+          // For relative URLs, use axios API instance
+          const response = await api.head(url, { headers });
+          const size = response.headers['content-length'];
+          setFileSize(size ? parseInt(size) : null);
+        }
+      } catch {
+        // Ignore size fetch errors
+      }
+    };
 
-  const fetchFileSize = async () => {
+    fetchFileSize();
+  }, [url, headers]);
+
+  const canTryTextView = (): boolean => {
+    // Only allow text fallback for reasonably small files (< 512KB)
+    if (fileSize && fileSize > 512 * 1024) return false;
+
+    const mime = (fileTypeInfo.mimeType || "").toLowerCase();
+    if (
+      mime.startsWith("text/") ||
+      mime === "application/json" ||
+      mime === "application/xml" ||
+      mime === "application/javascript"
+    ) {
+      return true;
+    }
+
+    // If mime is missing or generic but extension looks text-like, allow
+    const ext = fileTypeInfo.extension.toLowerCase();
+    const textLikeExt = [
+      "txt",
+      "md",
+      "json",
+      "xml",
+      "csv",
+      "log",
+      "ini",
+      "conf",
+      "env",
+      "yml",
+      "yaml",
+    ];
+    return textLikeExt.includes(ext);
+  };
+
+  const loadAsText = async () => {
     try {
-      const response = await fetch(url, { method: "HEAD", headers });
-      const size = response.headers.get("content-length");
-      setFileSize(size ? parseInt(size) : null);
-    } catch (err) {
-      // Ignore size fetch errors
+      setTextLoading(true);
+      setTextError(null);
+
+      // Check if URL is absolute (external) or relative (needs baseURL)
+      const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+      
+      let buf: ArrayBuffer;
+      
+      if (isAbsoluteUrl) {
+        // For absolute URLs (signed S3 URLs), use fetch directly
+        const fetchResponse = await fetch(url, { headers });
+        if (!fetchResponse.ok) {
+          throw new Error(`HTTP ${fetchResponse.status}`);
+        }
+        buf = await fetchResponse.arrayBuffer();
+      } else {
+        // For relative URLs, use axios API instance to ensure authentication headers
+        const res = await api.get(url, {
+          responseType: 'arraybuffer',
+          headers: headers,
+        });
+        buf = res.data;
+      }
+      const decoded = new TextDecoder("utf-8").decode(buf);
+      setTextContent(decoded);
+      setViewMode("text");
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Failed to load file as text.";
+      setTextError(msg);
+      onError?.(msg);
     } finally {
-      setLoadingSize(false);
+      setTextLoading(false);
     }
   };
 
@@ -59,7 +137,6 @@ const DefaultPreview: React.FC<DefaultPreviewProps> = ({
     const descriptions: Record<string, string> = {
       archive: "Compressed Archive",
       unsupported: "Unsupported File",
-      executable: "Executable Program",
       font: "Font File",
       "3d": "3D Model",
       database: "Database File",
@@ -108,8 +185,6 @@ const DefaultPreview: React.FC<DefaultPreviewProps> = ({
     switch (fileTypeInfo.type) {
       case "archive":
         return <Archive size={64} />;
-      case "executable":
-        return <Package size={64} />;
       default:
         return <File size={64} />;
     }
@@ -118,74 +193,128 @@ const DefaultPreview: React.FC<DefaultPreviewProps> = ({
   return (
     <Container>
       <Content>
-        <FileIcon>{getFileIcon()}</FileIcon>
+        {viewMode === "info" && (
+          <>
+            <FileIcon>{getFileIcon()}</FileIcon>
 
-        <FileName>{fileName}</FileName>
+            <FileName>{fileName}</FileName>
 
-        <FileDetails>
-          <DetailItem>
-            <strong>Type:</strong> {getFileTypeDescription(fileTypeInfo.type)}
-          </DetailItem>
-          <DetailItem>
-            <strong>Extension:</strong> .{fileTypeInfo.extension.toUpperCase()}
-          </DetailItem>
-          {fileSize && (
-            <DetailItem>
-              <strong>Size:</strong> {formatFileSize(fileSize)}
-            </DetailItem>
-          )}
-        </FileDetails>
+            <FileDetails>
+              <DetailItem>
+                <strong>Type:</strong> {getFileTypeDescription(fileTypeInfo.type)}
+              </DetailItem>
+              <DetailItem>
+                <strong>Extension:</strong> .
+                {fileTypeInfo.extension.toUpperCase()}
+              </DetailItem>
+              {fileSize && (
+                <DetailItem>
+                  <strong>Size:</strong> {formatFileSize(fileSize)}
+                </DetailItem>
+              )}
+            </FileDetails>
 
-        <WarningMessage>
-          <AlertCircle size={20} />
-          <span>This file type cannot be previewed in the browser</span>
-        </WarningMessage>
+            <WarningMessage>
+              <AlertCircle size={20} />
+              <span>This file type cannot be previewed directly in the browser.</span>
+            </WarningMessage>
 
-        <Recommendations>
-          <RecommendationTitle>Recommended Software:</RecommendationTitle>
-          <SoftwareList>
-            {getRecommendedSoftware(
-              fileTypeInfo.extension,
-              fileTypeInfo.type,
-            ).map((software, index) => (
-              <SoftwareItem key={index}>{software}</SoftwareItem>
-            ))}
-          </SoftwareList>
-        </Recommendations>
+            <Recommendations>
+              <RecommendationTitle>Recommended Software:</RecommendationTitle>
+              <SoftwareList>
+                {getRecommendedSoftware(
+                  fileTypeInfo.extension,
+                  fileTypeInfo.type,
+                ).map((software, index) => (
+                  <SoftwareItem key={index}>{software}</SoftwareItem>
+                ))}
+              </SoftwareList>
+            </Recommendations>
 
-        <ActionButtons>
-          <ActionButton onClick={handleOpenInNewTab}>
-            <ExternalLink size={16} />
-            Open in New Tab
-          </ActionButton>
+            <ActionButtons>
+              <ActionButton onClick={handleOpenInNewTab}>
+                <ExternalLink size={16} />
+                Open in New Tab
+              </ActionButton>
 
-          {onDownload && (
-            <ActionButton $primary onClick={onDownload}>
-              <Download size={16} />
-              Download File
-            </ActionButton>
-          )}
-        </ActionButtons>
+              {onDownload && (
+                <ActionButton $primary onClick={onDownload}>
+                  <Download size={16} />
+                  Download File
+                </ActionButton>
+              )}
+            </ActionButtons>
 
-        <AdditionalInfo>
-          <p>
-            To view this file, you'll need to download it and open it with
-            appropriate software. Some file types may require specific
-            applications or operating systems.
-          </p>
-          {fileTypeInfo.type === "archive" && (
-            <p>
-              <strong>Note:</strong> This is a compressed archive. Extract its
-              contents using archiving software.
-            </p>
-          )}
-          {fileTypeInfo.type === "executable" && (
-            <p>
-              <strong>Warning:</strong> Only run executable files from trusted
-              sources.
-            </p>
-          )}
-        </AdditionalInfo>
+            {canTryTextView() && (
+              <AdditionalInfo>
+                <p
+                  style={{
+                    marginBottom: "0.5rem",
+                    fontSize: "0.875rem",
+                    color: "#4b5563",
+                  }}
+                >
+                  This file might be readable as plain text.
+                </p>
+                <ActionButton
+                  onClick={loadAsText}
+                  disabled={textLoading}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  {textLoading ? "Loading as text…" : "View as text"}
+                </ActionButton>
+                {textError && (
+                  <p
+                    style={{
+                      marginTop: "0.5rem",
+                      fontSize: "0.75rem",
+                      color: "#b91c1c",
+                    }}
+                  >
+                    {textError}
+                  </p>
+                )}
+              </AdditionalInfo>
+            )}
+
+            {!canTryTextView() && (
+              <AdditionalInfo>
+                <p>
+                  To view this file, download it and open it with the appropriate
+                  software. Some file types may require specific applications or
+                  operating systems.
+                </p>
+                {fileTypeInfo.type === "archive" && (
+                  <p>
+                    <strong>Note:</strong> This is a compressed archive. Extract
+                    its contents using archiving software.
+                  </p>
+                )}
+          {/* Additional notes can be added here for other types if needed */}
+              </AdditionalInfo>
+            )}
+          </>
+        )}
+
+        {viewMode === "text" && (
+          <TextViewContainer>
+            <TextViewHeader>
+              <span>{fileName}</span>
+              <TextViewActions>
+                <TextViewButton onClick={() => setViewMode("info")}>
+                  Back to info
+                </TextViewButton>
+                {onDownload && (
+                  <TextViewButton $primary onClick={onDownload}>
+                    <Download size={14} />
+                    Download
+                  </TextViewButton>
+                )}
+              </TextViewActions>
+            </TextViewHeader>
+            <TextArea readOnly value={textContent} />
+          </TextViewContainer>
+        )}
       </Content>
     </Container>
   );
@@ -198,22 +327,22 @@ const Container = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px;
+  background: #f3f4f6;
+  padding: 32px;
 `;
 
 const Content = styled.div`
   background: white;
-  border-radius: 16px;
-  padding: 40px;
-  max-width: 500px;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 520px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
 `;
 
 const FileIcon = styled.div`
-  color: #764ba2;
+  color: #1f9afe;
   margin-bottom: 20px;
 `;
 
@@ -351,6 +480,66 @@ const AdditionalInfo = styled.div`
 
   strong {
     color: #202124;
+  }
+`;
+
+const TextViewContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+`;
+
+const TextViewHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #374151;
+`;
+
+const TextViewActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const TextViewButton = styled.button<{ $primary?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid ${({ $primary }) => ($primary ? "#1f9afe" : "#d1d5db")};
+  background: ${({ $primary }) => ($primary ? "#1f9afe" : "white")};
+  color: ${({ $primary }) => ($primary ? "white" : "#111827")};
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ $primary }) => ($primary ? "#0d8af2" : "#f3f4f6")};
+  }
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 260px;
+  max-height: 480px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-family: "JetBrains Mono", "Consolas", "Menlo", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  color: #111827;
+  background: #f9fafb;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+
+  &::selection {
+    background: #bfdbfe;
   }
 `;
 

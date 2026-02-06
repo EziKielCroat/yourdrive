@@ -25,21 +25,22 @@ model User {
   passwordResetExpires     DateTime? @map("password_reset_expires")
   passwordResetCodeHash    String?   @map("password_reset_code_hash")
 
-  sessions                 Session[]
-  userDevices              UserDevice[]
-  userFiles                UserFile[]
-  userSettings             UserSettings?
-  shareActivities          ShareActivity[]
-  fileShares               FileShare[]
-  favoritedFiles           FavoritedFile[]
-  recycleBinItems          RecycleBin[]
-  webauthnCredentials      WebAuthnCredential[]
-  socialAccounts           SocialAccount[]
-  recoveryCodes            TotpRecoveryCode[]
+  sessions            Session[]
+  userDevices         UserDevice[]
+  userFiles           UserFile[]
+  userSettings        UserSettings?
+  shareActivities     ShareActivity[]
+  fileShares          FileShare[]
+  favoritedFiles      FavoritedFile[]
+  recycleBinItems     RecycleBin[]
+  webauthnCredentials WebAuthnCredential[]
+  socialAccounts      SocialAccount[]
+  recoveryCodes       TotpRecoveryCode[]
 
   @@index([emailVerificationToken])
   @@map("User")
 }
+
 model Session {
   id           String   @id @default(uuid())
   userId       String   @map("userId")
@@ -85,25 +86,25 @@ model UserDevice {
 }
 
 model UserFile {
-id                Int             @id @default(autoincrement())
-userId            String          @map("user_id")
-userEmail         String          @map("user_email")
-originalName      String          @map("original_name")
-s3Key             String          @map("s3_key")
-folderPath        String          @default("") @map("folder_path")
-size              BigInt
-fileHash          String?         @map("file_hash")
-mimeType          String          @map("mime_type")
-isFolder          Boolean         @default(false) @map("is_folder")
-isLocked          Boolean         @default(false) @map("is_locked")
-createdAt         DateTime        @default(now()) @map("created_at")
-updatedAt         DateTime        @updatedAt @map("updated_at")
-deletedAt         DateTime?       @map("deleted_at")
-recycleBinEntries RecycleBin[]
+  id                Int          @id @default(autoincrement())
+  userId            String       @map("user_id")
+  userEmail         String       @map("user_email")
+  originalName      String       @map("original_name")
+  s3Key             String       @map("s3_key")
+  folderPath        String       @default("") @map("folder_path")
+  size              BigInt
+  fileHash          String?      @map("file_hash")
+  mimeType          String       @map("mime_type")
+  isFolder          Boolean      @default(false) @map("is_folder")
+  isLocked          Boolean      @default(false) @map("is_locked")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  deletedAt         DateTime?    @map("deleted_at")
+  recycleBinEntries RecycleBin[]
 
-user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-shares            FileShare[]
-favorites         FavoritedFile[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shares    FileShare[]
+  favorites FavoritedFile[]
 
   @@unique([userId, folderPath, originalName])
   @@index([userId])

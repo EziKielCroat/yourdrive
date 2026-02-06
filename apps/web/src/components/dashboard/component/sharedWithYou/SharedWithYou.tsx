@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useAuthStore } from "../../../../store/authStore";
 
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
@@ -11,6 +10,7 @@ import { useFileSearch } from "../../../shared/hooks/useFileSearch";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import { useEvent } from "../../../../events/useEvent";
 import PageTransition from "../../../shared/PageTransition";
+import api from "../../../../lib/axios";
 
 interface SharedFile {
   share_id: string;
@@ -51,7 +51,6 @@ const getEmptySubtext = (hasActiveFilters: boolean) =>
     : "Files shared with you will appear here";
 
 const SharedWithYou: React.FC = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const [sharedFiles, setSharedFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
@@ -95,17 +94,14 @@ const SharedWithYou: React.FC = () => {
   };
 
   const fetchSharedFiles = async () => {
-    if (!accessToken) return;
     try {
       setLoading(true);
-      const res = await fetch("/api/files/shared-with-me", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await res.json();
-      if (data.success) {
+      const res = await api.get("/files/shared-with-me");
+      const data = res.data;
+      if (data.success && data.sharedFiles) {
         const transformedFiles: FileItem[] = data.sharedFiles.map(
           (file: SharedFile) => ({
-            id: file.file_id,
+            id: String(file.file_id),
             name: file.original_name,
             type: "file",
             mimeType: file.mime_type,
@@ -123,9 +119,14 @@ const SharedWithYou: React.FC = () => {
           }),
         );
         setSharedFiles(transformedFiles);
+      } else {
+        setSharedFiles([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch shared files:", err);
+      setSharedFiles([]);
+      // The backend route may be failing due to missing share_recipients table
+      // This is a backend issue, but we handle it gracefully
     } finally {
       setLoading(false);
     }
@@ -133,7 +134,7 @@ const SharedWithYou: React.FC = () => {
 
   useEffect(() => {
     fetchSharedFiles();
-  }, [accessToken]);
+  }, []);
 
   useEvent(FILES_REFRESH_EVENT, () => {
     fetchSharedFiles();

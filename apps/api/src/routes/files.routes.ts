@@ -27,6 +27,7 @@ import path from "path";
 import { promisify } from "util";
 import { FileActionsHandlers } from "./fileActionsHandlers";
 import { Readable } from "stream";
+import crypto from "crypto";
 
 const filesRoutes = express.Router();
 
@@ -143,6 +144,156 @@ const chunkUpload = multer({
 
 filesRoutes.use("/favorites", favoritesRoutes);
 
+// Anonymous upload endpoint (for Tryout feature)
+filesRoutes.post(
+  "/anonymous-upload",
+  directUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: "No file provided",
+        });
+      }
+
+      // Limit to 50MB for anonymous uploads
+      if (file.size > 50 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          error: "File size exceeds 50MB limit",
+        });
+      }
+
+      if (!BUCKET_NAME) {
+        console.error("BUCKET_NAME is not configured");
+        return res.status(500).json({
+          success: false,
+          error: "Server configuration error",
+        });
+      }
+
+      // Generate anonymous user ID and unique file name (avoid duplicate key for same user/folder/name)
+      const anonymousId = `anonymous_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const ext = path.extname(file.originalname);
+      const baseName = path.basename(file.originalname, ext) || "file";
+      const uniqueOriginalName = `${baseName}-${Date.now()}${ext}`;
+      const s3Key = `anonymous/${anonymousId}/${file.originalname}`;
+
+      // Upload to S3
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: BUCKET_NAME,
+          Key: s3Key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        },
+      });
+
+      await upload.done();
+
+      // Create a temporary file record in database
+      // First, find or create an anonymous user
+      let anonymousUser = await pool.query(
+        `SELECT id FROM "User" WHERE email = $1 LIMIT 1`,
+        ["anonymous@yourdrive.local"]
+      );
+
+      let userId: string;
+      if (anonymousUser.rows.length === 0) {
+        // Create anonymous user if it doesn't exist
+        // Use actual database column names (snake_case for mapped fields)
+        const newUser = await pool.query(
+          `INSERT INTO "User" (id, email, password, first_name, "emailVerified", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+           RETURNING id`,
+          [
+            crypto.randomUUID(),
+            "anonymous@yourdrive.local",
+            crypto.randomBytes(32).toString("hex"),
+            "Anonymous",
+            false,
+          ]
+        );
+        userId = newUser.rows[0].id;
+      } else {
+        userId = anonymousUser.rows[0].id;
+      }
+
+      // Create file record (use unique original_name so Tryout uploads never hit duplicate constraint)
+      const fileRecord = await pool.query(
+        `INSERT INTO user_files 
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW(), NOW())
+         RETURNING id`,
+        [
+          userId,
+          "anonymous@yourdrive.local",
+          uniqueOriginalName,
+          s3Key,
+          "",
+          file.size,
+          file.mimetype,
+        ]
+      );
+
+      const fileId = fileRecord.rows[0].id;
+
+      // Create share link (expires in 7 days)
+      const shareToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      const shareId = crypto.randomUUID();
+
+      const shareRecord = await pool.query(
+        `INSERT INTO file_shares 
+         (id, file_id, owner_id, share_token, share_type, permission, expires_at, max_downloads, download_count, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+         RETURNING share_token`,
+        [
+          shareId,
+          fileId,
+          userId,
+          shareToken,
+          "link",
+          "view",
+          expiresAt,
+          null,
+          0,
+          true,
+        ]
+      );
+
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const shareUrl = `${frontendUrl}/shared/${shareToken}`;
+
+      res.json({
+        success: true,
+        shareToken,
+        shareUrl,
+        fileName: file.originalname,
+        fileSize: file.size,
+        expiresAt: expiresAt.toISOString(),
+        message: "File uploaded successfully. Share link created.",
+      });
+    } catch (err: any) {
+      console.error("Anonymous upload error:", err);
+      if (err?.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "A file with this name was already uploaded. Please use a different name or try again.",
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: err?.message || "Upload failed",
+      });
+    }
+  },
+);
+
 // Upload files
 filesRoutes.post(
   "/upload",
@@ -189,22 +340,31 @@ filesRoutes.post(
         });
 
         await upload.done();
-        const result = await pool.query(
-          `INSERT INTO user_files 
-           (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder, created_at, updated_at)
-           VALUES ($1, (SELECT email FROM "User" WHERE id = $1), $2, $3, $4, $5, $6, false, NOW(), NOW())
-           RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at, updated_at`,
-          [
-            userId,
-            file.originalname,
-            s3Key,
-            folderPath,
-            file.size,
-            file.mimetype,
-          ],
-        );
-
-        uploadedFiles.push(result.rows[0]);
+        try {
+          const result = await pool.query(
+            `INSERT INTO user_files 
+             (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder, created_at, updated_at)
+             VALUES ($1, (SELECT email FROM "User" WHERE id = $1), $2, $3, $4, $5, $6, false, NOW(), NOW())
+             RETURNING id, original_name, s3_key, folder_path, size, mime_type, created_at, updated_at`,
+            [
+              userId,
+              file.originalname,
+              s3Key,
+              folderPath,
+              file.size,
+              file.mimetype,
+            ],
+          );
+          uploadedFiles.push(result.rows[0]);
+        } catch (insertErr: any) {
+          if (insertErr?.code === "23505") {
+            return res.status(409).json({
+              success: false,
+              error: `A file named "${file.originalname}" already exists in this folder. Rename or remove the existing file first.`,
+            });
+          }
+          throw insertErr;
+        }
       }
 
       res.json({
@@ -212,8 +372,14 @@ filesRoutes.post(
         files: uploadedFiles,
         count: uploadedFiles.length,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
+      if (err?.code === "23505") {
+        return res.status(409).json({
+          success: false,
+          error: "A file with this name already exists in this folder.",
+        });
+      }
       res.status(500).json({
         success: false,
         error: "Upload failed",
@@ -232,8 +398,8 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    const filesResult = await pool.query(
-      `SELECT 
+      const filesResult = await pool.query(
+        `SELECT 
         uf.id, 
         uf.original_name, 
         uf.s3_key, 
@@ -247,10 +413,10 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
         CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
        FROM user_files uf
        LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
-       WHERE uf.user_id = $1
+       WHERE uf.user_id = $1 AND uf.original_name != '.metadata'
        ORDER BY uf.is_folder DESC, uf.created_at DESC`,
-      [req.userId],
-    );
+        [req.userId],
+      );
 
     const transformedFiles = filesResult.rows.map((row) => ({
       id: row.id,
@@ -276,6 +442,44 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
       success: false,
       error: "Failed to fetch files",
     });
+  }
+});
+
+// Get unique people from user's files (for filtering)
+// NOTE: Currently we only have reliable data for the signed-in user,
+// so the people list is limited to "Me". This avoids relying on
+// non-existent tables like `share_recipients`.
+filesRoutes.get("/people", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+
+    const result = await pool.query(
+      `SELECT id, COALESCE(first_name, email) AS name, email
+       FROM "User"
+       WHERE id = $1`,
+      [userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, people: [] });
+    }
+
+    const row = result.rows[0];
+    const people = [
+      {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        isYou: true,
+      },
+    ];
+
+    return res.json({ success: true, people });
+  } catch (err) {
+    console.error("Error fetching people:", err);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch people" });
   }
 });
 
@@ -378,8 +582,8 @@ filesRoutes.post(
 
       const result = await pool.query(
         `INSERT INTO user_files 
-         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder)
-         VALUES ($1, (SELECT email FROM "User" WHERE id = $1), '.metadata', $2, $3, $4, 'application/json', true)
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, is_folder, created_at, updated_at)
+         VALUES ($1, (SELECT email FROM "User" WHERE id = $1), '.metadata', $2, $3, $4, 'application/json', true, NOW(), NOW())
          RETURNING id, folder_path, created_at`,
         [userId, s3Key, folderPath, metadataContent.length],
       );
@@ -501,6 +705,44 @@ filesRoutes.post(
 );
 
 filesRoutes.post(
+  "/upload-chunk",
+  authMiddleware,
+  chunkUpload.single("chunk"),
+  async (req: AuthRequest, res) => {
+    try {
+      const { uploadId, s3Key, partNumber } = req.body;
+      const chunk = req.file;
+
+      if (!uploadId || !s3Key || !partNumber || !chunk)
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+        });
+
+      const command = new UploadPartCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        UploadId: uploadId,
+        PartNumber: parseInt(partNumber),
+        Body: chunk.buffer,
+      });
+
+      const response = await s3Client.send(command);
+
+      return res.json({
+        success: true,
+        ETag: response.ETag,
+      });
+    } catch (err) {
+      console.error("Error uploading chunk:", err);
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to upload chunk" });
+    }
+  },
+);
+
+filesRoutes.post(
   "/complete-multipart-upload",
   authMiddleware,
   async (req: AuthRequest, res) => {
@@ -547,8 +789,8 @@ filesRoutes.post(
 
       await pool.query(
         `INSERT INTO user_files 
-         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, file_hash, is_folder)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false)`,
+         (user_id, user_email, original_name, s3_key, folder_path, size, mime_type, file_hash, is_folder, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, NOW(), NOW())`,
         [
           user.id,
           user.email,
@@ -947,9 +1189,9 @@ filesRoutes.get(
 
       const { fileId } = req.params;
 
-      // Fetch file metadata from DB
+      // Fetch file metadata from DB (include created_at, updated_at for preview sidebar)
       const fileResult = await pool.query(
-        `SELECT id, original_name, s3_key, mime_type
+        `SELECT id, original_name, s3_key, mime_type, created_at, updated_at
          FROM user_files
          WHERE id = $1 AND user_id = $2`,
         [fileId, req.userId],
@@ -988,6 +1230,8 @@ filesRoutes.get(
         mimeType: file.mime_type,
         fileName: file.original_name,
         fileId: file.id,
+        created_at: file.created_at,
+        updated_at: file.updated_at,
       });
     } catch (err) {
       console.error("Error loading file content:", err);
@@ -1124,7 +1368,7 @@ filesRoutes.get(
       const filesResult = await pool.query(
         `SELECT id, original_name, s3_key, folder_path, size, mime_type, created_at
        FROM user_files
-       WHERE user_id = $1 AND folder_path LIKE $2
+       WHERE user_id = $1 AND folder_path LIKE $2 AND original_name != '.metadata'
        ORDER BY original_name ASC`,
         [req.userId, `${path}%`],
       );
@@ -1190,6 +1434,23 @@ filesRoutes.get(
       if (!userId)
         return res.status(401).json({ success: false, error: "Unauthorized" });
 
+      // Check if share_recipients table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'share_recipients'
+        );
+      `);
+
+      const tableExists = tableCheck.rows[0]?.exists;
+
+      if (!tableExists) {
+        // Table doesn't exist, return empty array gracefully
+        console.warn("share_recipients table does not exist, returning empty shared files");
+        return res.json({ success: true, sharedFiles: [] });
+      }
+
       const sharedResult = await pool.query(
         `
       SELECT
@@ -1238,9 +1499,8 @@ filesRoutes.get(
       return res.json({ success: true, sharedFiles });
     } catch (err) {
       console.error("Error fetching shared-with-me files:", err);
-      return res
-        .status(500)
-        .json({ success: false, error: "Failed to fetch shared files" });
+      // Return empty array instead of 500 error to prevent frontend crashes
+      return res.json({ success: true, sharedFiles: [] });
     }
   },
 );
@@ -1328,74 +1588,186 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    const { days = 30, limit = 50 } = req.query;
+    // Parse and validate query parameters
+    const daysParam = req.query.days;
+    const limitParam = req.query.limit;
+    
+    const days = daysParam ? parseInt(String(daysParam), 10) : 30;
+    const limit = limitParam ? parseInt(String(limitParam), 10) : 50;
 
-    const result = await pool.query(
-      `
-      SELECT 
-        uf.id,
-        uf.original_name,
-        uf.s3_key,
-        uf.folder_path,
-        uf.size,
-        uf.mime_type,
-        uf.created_at,
-        uf.updated_at,
-        uf.is_locked,
-        COALESCE(
-          (SELECT created_at 
-           FROM file_activity 
-           WHERE file_id = uf.id 
-             AND user_id = $1 
-             AND activity_type = 'edited'
-           ORDER BY created_at DESC 
-           LIMIT 1),
-          uf.updated_at
-        ) as last_edited_at,
-        (
-          SELECT COUNT(*)
-          FROM file_activity
-          WHERE file_id = uf.id
-            AND user_id = $1
-            AND activity_type = 'edited'
-            AND created_at >= NOW() - INTERVAL '${days} days'
-        ) as edit_count,
-        CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
-      FROM user_files uf
-      LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
-      WHERE uf.user_id = $1
-        AND (
-          uf.updated_at >= NOW() - INTERVAL '${days} days'
-          OR EXISTS (
-            SELECT 1 FROM file_activity fa
-            WHERE fa.file_id = uf.id
-              AND fa.user_id = $1
-              AND fa.activity_type = 'edited'
-              AND fa.created_at >= NOW() - INTERVAL '${days} days'
+    // Validate parsed values
+    if (isNaN(days) || days < 1 || days > 365) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid days parameter. Must be between 1 and 365",
+      });
+    }
+
+    if (isNaN(limit) || limit < 1 || limit > 1000) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid limit parameter. Must be between 1 and 1000",
+      });
+    }
+
+    let result;
+    
+    // Try the full query with file_activity table first
+    // If the table doesn't exist, fall back to a simpler query
+    try {
+      result = await pool.query(
+        `
+        SELECT 
+          uf.id,
+          uf.original_name,
+          uf.s3_key,
+          uf.folder_path,
+          uf.size,
+          uf.mime_type,
+          uf.created_at,
+          uf.updated_at,
+          uf.is_locked,
+          COALESCE(
+            (SELECT created_at 
+             FROM file_activity 
+             WHERE file_id = uf.id 
+               AND user_id = $1 
+               AND activity_type = 'edited'
+             ORDER BY created_at DESC 
+             LIMIT 1),
+            uf.updated_at
+          ) as last_edited_at,
+          (
+            SELECT COUNT(*)
+            FROM file_activity
+            WHERE file_id = uf.id
+              AND user_id = $1
+              AND activity_type = 'edited'
+              AND created_at >= NOW() - INTERVAL '${days} days'
+          ) as edit_count,
+          CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
+        FROM user_files uf
+        LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
+        WHERE uf.user_id = $1
+          AND uf.original_name != '.metadata'
+          AND (
+            uf.updated_at >= NOW() - INTERVAL '${days} days'
+            OR uf.created_at >= NOW() - INTERVAL '${days} days'
+            OR EXISTS (
+              SELECT 1 FROM file_activity fa
+              WHERE fa.file_id = uf.id
+                AND fa.user_id = $1
+                AND fa.activity_type = 'edited'
+                AND fa.created_at >= NOW() - INTERVAL '${days} days'
+            )
           )
-        )
-      ORDER BY last_edited_at DESC
-      LIMIT $2
-      `,
-      [req.userId, limit],
-    );
+        ORDER BY last_edited_at DESC
+        LIMIT $2
+        `,
+        [req.userId, limit],
+      );
+    } catch (queryError: any) {
+      // If file_activity table doesn't exist, use a simpler query
+      if (queryError?.code === '42P01' || queryError?.message?.includes('does not exist') || queryError?.message?.includes('relation "file_activity"')) {
+        console.warn("file_activity table not found, using simplified query");
+        result = await pool.query(
+          `
+          SELECT 
+            uf.id,
+            uf.original_name,
+            uf.s3_key,
+            uf.folder_path,
+            uf.size,
+            uf.mime_type,
+            uf.created_at,
+            uf.updated_at,
+            GREATEST(uf.created_at, uf.updated_at) as last_edited_at,
+            0 as edit_count,
+            CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited,
+            uf.is_locked
+          FROM user_files uf
+          LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
+          WHERE uf.user_id = $1
+            AND uf.original_name != '.metadata'
+            AND (
+              uf.updated_at >= NOW() - INTERVAL '${days} days'
+              OR uf.created_at >= NOW() - INTERVAL '${days} days'
+            )
+          ORDER BY GREATEST(uf.created_at, uf.updated_at) DESC
+          LIMIT $2
+          `,
+          [req.userId, limit],
+        );
+      } else {
+        // Re-throw if it's a different error
+        throw queryError;
+      }
+    }
 
-    const files = result.rows.map((row) => ({
+    // If no files found with time filter, show most recent files regardless of date
+    if (result && result.rows.length === 0) {
+      try {
+        const fallbackResult = await pool.query(
+          `
+          SELECT 
+            uf.id,
+            uf.original_name,
+            uf.s3_key,
+            uf.folder_path,
+            uf.size,
+            uf.mime_type,
+            uf.created_at,
+            uf.updated_at,
+            GREATEST(uf.created_at, uf.updated_at) as last_edited_at,
+            0 as edit_count,
+            CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited,
+            uf.is_locked
+          FROM user_files uf
+          LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
+          WHERE uf.user_id = $1
+            AND uf.original_name != '.metadata'
+          ORDER BY GREATEST(uf.created_at, uf.updated_at) DESC
+          LIMIT $2
+          `,
+          [req.userId, limit],
+        );
+        if (fallbackResult && fallbackResult.rows.length > 0) {
+          result = fallbackResult;
+        }
+      } catch (fallbackError: any) {
+        // If fallback also fails, just continue with empty result
+        console.warn("Fallback query also failed:", fallbackError);
+      }
+    }
+
+    const files = (result?.rows || []).map((row) => ({
       ...row,
       is_locked: row.is_locked || false,
       is_favorited: row.is_favorited || false,
+      // Ensure last_edited_at is always set
+      last_edited_at: row.last_edited_at || row.updated_at || row.created_at,
+      // Ensure edit_count is always a number
+      edit_count: row.edit_count || 0,
     }));
+
+    console.log(`Found ${files.length} recent files for user ${req.userId} (days: ${days}, limit: ${limit})`);
 
     res.json({
       success: true,
       files,
       count: files.length,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error fetching recent files:", err);
+    console.error("Error details:", {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack,
+    });
     res.status(500).json({
       success: false,
       error: "Failed to fetch recent files",
+      details: process.env.NODE_ENV === 'development' ? err?.message : undefined,
     });
   }
 });

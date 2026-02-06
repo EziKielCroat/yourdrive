@@ -500,7 +500,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
                 </DetailIcon>
                 <DetailContent>
                   <DetailLabel>Created</DetailLabel>
-                  <DetailValue>{formatDate(file.createdAt)}</DetailValue>
+                  <DetailValue>{formatDate(file.createdAt ?? (file as { created_at?: string }).created_at)}</DetailValue>
                 </DetailContent>
               </DetailItem>
 
@@ -510,7 +510,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
                 </DetailIcon>
                 <DetailContent>
                   <DetailLabel>Modified</DetailLabel>
-                  <DetailValue>{formatDate(file.updatedAt)}</DetailValue>
+                  <DetailValue>{formatDate(file.updatedAt ?? (file as { updated_at?: string }).updated_at)}</DetailValue>
                 </DetailContent>
               </DetailItem>
 

@@ -3,7 +3,10 @@ import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { uploadToS3, generateSignedUrl } from "../lib/helper";
+import { emailService } from "../lib/email.service";
+import { s3Client } from "./files.routes";
 
 const sharingRoutes = express.Router();
 const prisma = new PrismaClient();
@@ -20,7 +23,13 @@ const createShareSchema = z.object({
   permission: z.enum(["view", "comment", "edit", "download"]),
   password: z.string().optional(),
   expiresAt: z.string().optional(),
+  expiresIn: z.number().nullable().optional(), // hours
   maxDownloads: z.number().nullable().optional(),
+  recipients: z.array(z.object({
+    type: z.enum(["user", "email"]),
+    value: z.string(),
+    permission: z.enum(["view", "comment", "edit", "download"]).optional(),
+  })).optional(),
 });
 
 const updateShareSchema = z.object({
@@ -140,6 +149,10 @@ sharingRoutes.post("/create", async (req, res) => {
           error: "Expiration date must be in the future",
         });
       }
+    } else if (validated.expiresIn) {
+      // expiresIn is in hours
+      expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + validated.expiresIn);
     }
 
     const share = await prisma.fileShare.create({
@@ -178,6 +191,41 @@ sharingRoutes.post("/create", async (req, res) => {
         },
       },
     });
+
+    // Send emails to recipients if shareType is email
+    if (validated.shareType === "email" && validated.recipients && validated.recipients.length > 0) {
+      const fileInfo = await prisma.userFile.findUnique({
+        where: { id: validated.fileId },
+        select: { originalName: true },
+      });
+
+      const owner = await prisma.user.findUnique({
+        where: { id: file.userId },
+        select: { firstName: true, email: true },
+      });
+
+      const shareUrl = `${frontendUrl}/shared/${share.shareToken}`;
+      const emailRecipients = validated.recipients.filter(r => r.type === "email");
+
+      // Send email to each recipient
+      for (const recipient of emailRecipients) {
+        try {
+          await emailService.sendShareEmail(
+            recipient.value,
+            owner?.firstName || owner?.email || "Someone",
+            fileInfo?.originalName || "a file",
+            shareUrl,
+            validated.permission,
+            hashedPassword ? "Yes" : "No",
+            expiresAt?.toLocaleDateString() || "Never",
+            validated.maxDownloads?.toString() || "Unlimited"
+          );
+        } catch (emailError) {
+          console.error(`Failed to send email to ${recipient.value}:`, emailError);
+          // Continue with other recipients even if one fails
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -409,6 +457,7 @@ sharingRoutes.get("/public/:token", async (req, res) => {
         expiresAt: share.expiresAt?.toISOString() || null,
         maxDownloads: share.maxDownloads,
         downloadCount: share.downloadCount,
+        is_locked: file.isLocked,
       },
     });
   } catch (err) {
@@ -532,6 +581,200 @@ sharingRoutes.post("/access/:token", async (req, res) => {
       error: "Failed to access file",
       details: err instanceof Error ? err.message : "Unknown error",
     });
+  }
+});
+
+// Get shared file content (proxy for text files - avoids CORS when loading from signed URL)
+sharingRoutes.get("/content/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const share = await prisma.fileShare.findUnique({
+      where: { shareToken: token },
+    });
+
+    if (!share) {
+      return res.status(404).json({
+        success: false,
+        error: "Share not found",
+      });
+    }
+
+    if (!share.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: "This share is no longer active",
+      });
+    }
+
+    if (share.expiresAt && share.expiresAt < new Date()) {
+      return res.status(403).json({
+        success: false,
+        error: "This share has expired",
+      });
+    }
+
+    const file = await prisma.userFile.findUnique({
+      where: { id: share.fileId },
+    });
+
+    if (!file || file.deletedAt) {
+      return res.status(404).json({
+        success: false,
+        error: "File not found",
+      });
+    }
+
+    const mimeType = file.mimeType.toLowerCase();
+    const isTextFile =
+      mimeType.startsWith("text/") ||
+      mimeType === "application/json" ||
+      mimeType === "application/xml" ||
+      mimeType === "application/javascript" ||
+      mimeType === "application/typescript" ||
+      mimeType === "application/x-yaml" ||
+      mimeType === "application/sql" ||
+      mimeType === "application/x-sh" ||
+      mimeType === "application/x-bat" ||
+      mimeType === "application/x-powershell" ||
+      mimeType === "application/x-httpd-php" ||
+      mimeType === "application/x-ruby" ||
+      ["txt", "md", "json", "xml", "csv", "tsv", "log", "js", "jsx", "ts", "tsx", "py", "java", "c", "cpp", "h", "css", "scss", "html", "sql", "yaml", "yml", "sh", "bat", "ps1", "php", "rb", "go", "rs", "cs", "ini", "conf", "env", "lock"].some(
+        (ext) => file.originalName?.toLowerCase().endsWith(`.${ext}`)
+      );
+
+    if (!isTextFile) {
+      return res.status(400).json({
+        success: false,
+        error: "Content endpoint is for text files only",
+      });
+    }
+
+    const bucketName = process.env.B2_BUCKET_NAME;
+    if (!bucketName) {
+      return res.status(500).json({
+        success: false,
+        error: "Server configuration error",
+      });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: file.s3Key,
+    });
+    const response = await s3Client.send(command);
+    const body = response.Body;
+    if (!body) {
+      return res.status(404).json({
+        success: false,
+        error: "File content not found",
+      });
+    }
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    const content = buffer.toString("utf-8");
+
+    res.json({
+      success: true,
+      content,
+    });
+  } catch (err) {
+    console.error("Error fetching shared file content:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to load file content",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
+// Stream shared file for preview (images, video, audio, PDF) - avoids CORS with signed URLs
+sharingRoutes.get("/stream/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const share = await prisma.fileShare.findUnique({
+      where: { shareToken: token },
+    });
+
+    if (!share) {
+      return res.status(404).json({
+        success: false,
+        error: "Share not found",
+      });
+    }
+
+    if (!share.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: "This share is no longer active",
+      });
+    }
+
+    if (share.expiresAt && share.expiresAt < new Date()) {
+      return res.status(403).json({
+        success: false,
+        error: "This share has expired",
+      });
+    }
+
+    const file = await prisma.userFile.findUnique({
+      where: { id: share.fileId },
+    });
+
+    if (!file || file.deletedAt) {
+      return res.status(404).json({
+        success: false,
+        error: "File not found",
+      });
+    }
+
+    const bucketName = process.env.B2_BUCKET_NAME;
+    if (!bucketName) {
+      return res.status(500).json({
+        success: false,
+        error: "Server configuration error",
+      });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: file.s3Key,
+    });
+    const response = await s3Client.send(command);
+    const body = response.Body;
+    if (!body) {
+      return res.status(404).json({
+        success: false,
+        error: "File content not found",
+      });
+    }
+
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    // Allow cross-origin use so img/video/audio/iframe can load when frontend is on different origin
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    // Allow embedding in iframe from frontend (different origin)
+    res.removeHeader("X-Frame-Options");
+    res.setHeader("Content-Security-Policy", "frame-ancestors *");
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    res.send(Buffer.concat(chunks));
+  } catch (err) {
+    console.error("Error streaming shared file:", err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: "Failed to stream file",
+        details: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
   }
 });
 

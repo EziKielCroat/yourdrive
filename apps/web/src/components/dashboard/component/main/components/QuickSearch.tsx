@@ -128,12 +128,21 @@ const SearchRow = styled.div`
   display: flex;
   align-items: center;
   width: 100%;
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
 `;
 
 const LeftSection = styled.div`
   display: flex;
   align-items: center;
   flex: 0 0 auto;
+
+  @media (max-width: 768px) {
+    order: 1;
+  }
 `;
 
 const CenterSection = styled.div`
@@ -141,9 +150,19 @@ const CenterSection = styled.div`
   align-items: center;
   justify-content: center;
   flex: 1;
+
+  @media (max-width: 768px) {
+    order: 2;
+    width: 100%;
+  }
 `;
 
 const RightSection = styled.div`
   flex: 0 0 auto;
   width: 66px;
+
+  @media (max-width: 768px) {
+    order: 3;
+    width: auto;
+  }
 `;

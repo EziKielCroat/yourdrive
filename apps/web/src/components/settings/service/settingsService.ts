@@ -90,7 +90,7 @@ export const settingsService = {
 
   async linkAccount(
     provider: string,
-    credentials: any
+    credentials: any,
   ): Promise<LinkedAccount> {
     const response = await api.post("/settings/linked-accounts", {
       provider,
@@ -168,43 +168,48 @@ export const settingsService = {
     // Get real storage info first
     const storageInfoResponse = await api.get("/storage/info");
     const storageInfo: StorageInfo = storageInfoResponse.data;
-    
+
     // Get detailed stats
     const statsResponse = await api.get("/storage/stats");
     const stats: StorageStats = statsResponse.data;
-    
+
     // Calculate breakdown by type
     const breakdown = {
       documents: 0,
       images: 0,
       videos: 0,
-      other: 0
+      other: 0,
     };
-    
-    stats.byType.forEach(item => {
+
+    stats.byType.forEach((item) => {
       const size = Number(item.size);
       const mimeType = item.mimeType.toLowerCase();
-      
-      if (mimeType.startsWith('text/') || 
-          mimeType.includes('pdf') || 
-          mimeType.includes('document') ||
-          mimeType.includes('word') ||
-          mimeType.includes('excel') ||
-          mimeType.includes('powerpoint')) {
+
+      if (
+        mimeType.startsWith("text/") ||
+        mimeType.includes("pdf") ||
+        mimeType.includes("document") ||
+        mimeType.includes("word") ||
+        mimeType.includes("excel") ||
+        mimeType.includes("powerpoint")
+      ) {
         breakdown.documents += size;
-      } else if (mimeType.startsWith('image/')) {
+      } else if (mimeType.startsWith("image/")) {
         breakdown.images += size;
-      } else if (mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+      } else if (
+        mimeType.startsWith("video/") ||
+        mimeType.startsWith("audio/")
+      ) {
         breakdown.videos += size;
       } else {
         breakdown.other += size;
       }
     });
-    
+
     return {
       total: Number(storageInfo.limit),
       used: Number(storageInfo.used),
-      breakdown
+      breakdown,
     };
   },
 
@@ -286,7 +291,7 @@ export const settingsService = {
   // Helper function to format bytes
   formatBytes(bytes: string | number | bigint): string {
     let bytesNum: number;
-    
+
     if (typeof bytes === "bigint") {
       bytesNum = Number(bytes);
     } else if (typeof bytes === "string") {
@@ -294,21 +299,21 @@ export const settingsService = {
     } else {
       bytesNum = bytes;
     }
-    
+
     if (bytesNum === 0) return "0 B";
     if (isNaN(bytesNum)) return "0 B";
-    
+
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytesNum) / Math.log(k));
-    
+
     return `${(bytesNum / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   },
 
   // Get storage tier name
   getStorageTier(limitBytes: string | bigint | number): string {
     let bytes: number;
-    
+
     if (typeof limitBytes === "string") {
       bytes = Number(limitBytes);
     } else if (typeof limitBytes === "bigint") {
@@ -316,9 +321,9 @@ export const settingsService = {
     } else {
       bytes = limitBytes;
     }
-    
+
     const inGB = bytes / (1024 * 1024 * 1024);
-    
+
     if (inGB >= 150) return "150GB (Educational Plan)";
     if (inGB >= 100) return "100GB (Pro Plan)";
     if (inGB >= 50) return "50GB (Free Plan)";
@@ -342,8 +347,8 @@ export const mockSettingsService = {
           profile: {
             email: "user@example.com",
             firstName: "John",
-            lastName: "Doe",
-            avatarInitials: "JD",
+            lastName: "",
+            avatarInitials: "J",
           },
           security: {
             twoFactorEnabled: false,
@@ -450,8 +455,8 @@ export const mockSettingsService = {
     return new Promise((resolve) =>
       setTimeout(
         () => resolve({ avatarUrl: "https://via.placeholder.com/150" }),
-        500
-      )
+        500,
+      ),
     );
   },
 

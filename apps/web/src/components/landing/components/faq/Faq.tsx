@@ -31,7 +31,7 @@ const Faq: React.FC = () => {
     },
     {
       q: "How secure is my data?",
-      a: "NexaCore uses end-to-end encryption and multiple layers of protection to make sure your files stay private and safe."
+      a: "NexaCore uses encryption in transit and at rest, access controls, and multiple layers of protection so your files stay private and safe."
     },
     {
       q: "Can I share files with non-NexaCore users?",

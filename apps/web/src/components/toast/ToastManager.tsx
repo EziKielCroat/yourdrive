@@ -7,12 +7,25 @@ interface ToastItem extends ToastOptions {
   id: string;
 }
 
+// Fallback UUID generator for environments where crypto.randomUUID is not available
+const generateUUID = (): string => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback: simple UUID v4 generator
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 const ToastManager = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [isRegistered, setIsRegistered] = useState(false);
 
   const toastCallback = useCallback((options: ToastOptions) => {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     console.log("ToastManager: Showing toast", options);
     setToasts((prev) => [...prev, { ...options, id }]);
   }, []);

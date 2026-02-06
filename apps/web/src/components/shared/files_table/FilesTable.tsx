@@ -761,9 +761,18 @@ const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+
+  @media (max-width: 768px) {
+    table-layout: auto;
+    font-size: 12px;
+  }
 `;
 
-const TableHead = styled.thead``;
+const TableHead = styled.thead`
+  @media (max-width: 768px) {
+    display: table-header-group;
+  }
+`;
 const TableBody = styled.tbody``;
 
 const TableRow = styled.tr<{ $selected?: boolean; $level?: number }>`
@@ -783,6 +792,11 @@ const TableRow = styled.tr<{ $selected?: boolean; $level?: number }>`
 
   &:last-child {
     border-bottom: none;
+  }
+
+  @media (max-width: 768px) {
+    display: table-row;
+    padding: 0;
   }
 `;
 
@@ -811,6 +825,12 @@ const TableCell = styled.td`
   font-size: 14px;
   color: #202124;
   vertical-align: middle;
+
+  @media (max-width: 768px) {
+    display: table-cell;
+    padding: 8px 6px;
+    font-size: 12px;
+  }
 `;
 
 const NameCell = styled.div`

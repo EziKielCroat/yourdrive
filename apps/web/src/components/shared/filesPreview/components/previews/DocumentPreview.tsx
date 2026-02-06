@@ -11,6 +11,7 @@ import {
   Copy,
 } from "lucide-react";
 import mammoth from "mammoth";
+import api from "../../../../../lib/axios";
 
 interface DocumentPreviewProps {
   url: string;
@@ -45,12 +46,26 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     try {
       setLoading(true);
 
-      const response = await fetch(url, { headers });
-      if (!response.ok) {
-        throw new Error(`Failed to load file: ${response.status}`);
+      // Check if URL is absolute (external) or relative (needs baseURL)
+      const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+      
+      let arrayBuffer: ArrayBuffer;
+      
+      if (isAbsoluteUrl) {
+        // For absolute URLs (signed S3 URLs), use fetch directly
+        const fetchResponse = await fetch(url, { headers });
+        if (!fetchResponse.ok) {
+          throw new Error(`Failed to load file: ${fetchResponse.status}`);
+        }
+        arrayBuffer = await fetchResponse.arrayBuffer();
+      } else {
+        // For relative URLs, use axios API instance to ensure authentication headers
+        const response = await api.get(url, {
+          responseType: 'arraybuffer',
+          headers: headers,
+        });
+        arrayBuffer = response.data;
       }
-
-      const arrayBuffer = await response.arrayBuffer();
       const extension = fileName.toLowerCase().split(".").pop();
 
       let text = "";
@@ -367,7 +382,7 @@ const SearchBox = styled.div`
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: white;
+  background: transparent;
   border: 1px solid #dadce0;
   border-radius: 4px;
   flex: 1;
@@ -379,6 +394,8 @@ const SearchInput = styled.input`
   outline: none;
   flex: 1;
   font-size: 14px;
+  background: transparent;
+  color: #202124;
 
   &::placeholder {
     color: #9aa0a6;

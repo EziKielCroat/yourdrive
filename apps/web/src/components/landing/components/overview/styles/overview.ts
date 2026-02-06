@@ -134,12 +134,12 @@ export const ImgCont = styled.div`
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
-    overflow: hidden;
 
     img {
         max-width: 100%;
         height: auto;
         display: block;
+        border-radius: 16px;
     }
 
     @media (max-width: 1200px) {

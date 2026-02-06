@@ -60,6 +60,9 @@ const updateSharingSchema = z.object({
   linkExpirationDays: z.number().int().nullable().optional(),
   notifyOnShare: z.boolean().optional(),
   allowDownload: z.boolean().optional(),
+  defaultPassword: z.string().optional(),
+  defaultExpirationDays: z.number().int().nullable().optional(),
+  defaultDownloadLimit: z.number().int().nullable().optional(),
 });
 
 const updatePreferencesSchema = z.object({
@@ -698,6 +701,36 @@ settingsRoutes.delete(
       res.status(500).json({
         success: false,
         error: "Failed to clear cache",
+        details: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  },
+);
+
+// Delete account
+settingsRoutes.delete(
+  "/account",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Authentication required",
+        });
+      }
+
+      await SettingsService.deleteAccount(req.userId);
+
+      res.json({
+        success: true,
+        message: "Account deleted successfully",
+      });
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete account",
         details: err instanceof Error ? err.message : "Unknown error",
       });
     }

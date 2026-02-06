@@ -36,9 +36,16 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Safety net: if the browser never fires onLoad/onError on the iframe,
+  // stop showing the spinner after a few seconds so the user can at least
+  // interact with the built-in PDF viewer or use the open/download buttons.
   useEffect(() => {
-    setLoading(false);
-  }, [url]);
+    if (!loading) return;
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 8000);
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 0.25, 3));
@@ -95,15 +102,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
     setLoading(false);
   };
 
-  if (loading) {
-    return (
-      <LoadingContainer>
-        <Spinner />
-        <p>Loading PDF...</p>
-      </LoadingContainer>
-    );
-  }
-
   if (error) {
     return (
       <ErrorContainer>
@@ -128,6 +126,12 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   return (
     <Container>
       <PDFContainer>
+        {loading && (
+          <LoadingOverlay>
+            <Spinner />
+            <p>Loading PDF...</p>
+          </LoadingOverlay>
+        )}
         <PDFIframe
           ref={iframeRef}
           src={url}
@@ -224,13 +228,16 @@ const Container = styled.div`
   background: #f5f5f5;
 `;
 
-const LoadingContainer = styled.div`
+const LoadingOverlay = styled.div`
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
   gap: 16px;
+  background: rgba(245, 245, 245, 0.9);
+  z-index: 1;
 `;
 
 const Spinner = styled.div`
@@ -309,6 +316,7 @@ const Button = styled.button<{ $primary?: boolean }>`
 
 const PDFContainer = styled.div`
   flex: 1;
+  position: relative;
   overflow: auto;
   display: flex;
   align-items: center;

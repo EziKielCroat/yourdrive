@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
+import api from "../../../../lib/axios";
 
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
@@ -71,12 +72,12 @@ const getEmptySubtext = (hasActiveFilters: boolean): string => {
 };
 
 const YourFiles: React.FC = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const addUsage = useStorageStore((s) => s.addUsage);
   const refreshStorage = useStorageStore((s) => s.refreshStorage);
 
   const [files, setFiles] = useState<FileItem[]>([]);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -167,17 +168,8 @@ const YourFiles: React.FC = () => {
     }
 
     try {
-      const response = await fetch("/api/files/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      const response = await api.post("/files/upload", formData);
+      const result = response.data;
 
       addUsage(totalSize);
 
@@ -195,15 +187,8 @@ const YourFiles: React.FC = () => {
     try {
       setLoading(true);
 
-      const response = await fetch("/api/files", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch files");
-      }
-
-      const filesData = await response.json();
+      const response = await api.get("/files");
+      const filesData = response.data;
 
       if (!filesData.success || !Array.isArray(filesData.files)) {
         console.warn("Unexpected response shape:", filesData);
@@ -222,9 +207,11 @@ const YourFiles: React.FC = () => {
 
         mimeType: file.mimeType || file.mime_type || "application/octet-stream",
 
-        lastInteraction: file.createdAt
-          ? formatDate(file.createdAt)
-          : "Unknown",
+        lastInteraction: file.updatedAt
+          ? formatDate(file.updatedAt)
+          : file.createdAt
+            ? formatDate(file.createdAt)
+            : "Unknown",
 
         lastInteractionType: "uploaded",
 
@@ -241,6 +228,9 @@ const YourFiles: React.FC = () => {
         size: Number(file.size) || 0,
 
         url: file.s3Key,
+
+        createdAt: file.createdAt ?? file.created_at,
+        updatedAt: file.updatedAt ?? file.updated_at,
       }));
 
       console.log("Transformed files:", transformedFiles);
@@ -257,7 +247,7 @@ const YourFiles: React.FC = () => {
     if (accessToken) {
       fetchFiles();
     }
-  }, [accessToken, user]);
+  }, [user]);
 
   useEvent(FILES_REFRESH_EVENT, () => {
     fetchFiles();

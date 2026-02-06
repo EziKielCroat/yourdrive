@@ -831,22 +831,34 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
     userId: string,
     token: string,
   ): Promise<TotpEnableResponse> {
+    const code = typeof token === "string" ? token.trim() : "";
+    if (!code || code.length !== 6) {
+      throw new Error("A valid 6-digit code is required");
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { totpSecret: true },
     });
 
     if (!user?.totpSecret) {
-      throw new Error("TOTP not set up");
+      throw new Error(
+        "TOTP setup not found. Please start the setup again (scan the QR code first).",
+      );
     }
 
-    const isValid = authenticator.verify({
-      token,
-      secret: user.totpSecret,
-    });
+    let isValid: boolean;
+    try {
+      isValid = authenticator.verify({
+        token: code,
+        secret: user.totpSecret,
+      });
+    } catch (err) {
+      throw new Error("Invalid or expired code. Please try again.");
+    }
 
     if (!isValid) {
-      throw new Error("Invalid TOTP code");
+      throw new Error("Invalid TOTP code. Please check the code and try again.");
     }
 
     // Generate recovery codes

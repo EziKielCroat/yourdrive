@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
 import {
   PageContainer,
   HeroSection,
@@ -27,7 +26,10 @@ import {
   SecurityBadge,
   BadgesContainer
 } from "./styles/secureStorage.ts";
+import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
 import LandingButton from "../shared/landingbutton/LandingButton.tsx";
+import { LayersIcon, LockIcon, LightningIcon, ShieldIcon } from "../shared/icons/IconSaxIcons";
+import { SelfHostIllustration, ShareLinkIllustration } from "../shared/illustrations/UseCaseIllustrations";
 
 // Animation variants
 const fadeInUp = {
@@ -49,6 +51,7 @@ const SecureStorage: React.FC = () => {
   return (
     <>
       <Navbar_main />
+      <HeroContGradTop />
 
       <PageContainer>
         {/* Hero Section */}
@@ -66,8 +69,8 @@ const SecureStorage: React.FC = () => {
                 that you actually control.
               </HeroTitle>
               <HeroSubtitle>
-                Simple, fast, and truly private. Self-host your files with end-to-end encryption, 
-                or let us handle the infrastructure. Either way, your data stays yours.
+                Simple, fast, and truly private. Self-host your files or use our infrastructure. 
+                Either way, your data stays yours with access controls and secure storage.
               </HeroSubtitle>
               <LandingButton variant="primary" size="lg" purp="register">Start storing securely</LandingButton>
             </HeroContent>
@@ -85,11 +88,7 @@ const SecureStorage: React.FC = () => {
             <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
               <FeatureCard>
                 <FeatureIcon>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <LayersIcon size={48} color="#1F9AFE" />
                 </FeatureIcon>
                 <FeatureTitle>Self-Hosting Freedom</FeatureTitle>
                 <FeatureDescription>
@@ -101,15 +100,11 @@ const SecureStorage: React.FC = () => {
             <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
               <FeatureCard>
                 <FeatureIcon>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17 11H7C4.79086 11 3 12.7909 3 15V19C3 21.2091 4.79086 23 7 23H17C19.2091 23 21 21.2091 21 19V15C21 12.7909 19.2091 11 17 11Z" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M7 11V7C7 4.23858 9.23858 2 12 2C14.7614 2 17 4.23858 17 7V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="16" r="1" fill="currentColor"/>
-                  </svg>
+                  <LockIcon size={48} color="#1F9AFE" />
                 </FeatureIcon>
-                <FeatureTitle>End-to-End Encryption</FeatureTitle>
+                <FeatureTitle>Secure Storage</FeatureTitle>
                 <FeatureDescription>
-                  Optional client-side encryption means not even the server can see your files. You control the keys.
+                  Your files are stored with access controls and secure infrastructure. You decide who can access what.
                 </FeatureDescription>
               </FeatureCard>
             </motion.div>
@@ -117,9 +112,7 @@ const SecureStorage: React.FC = () => {
             <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
               <FeatureCard>
                 <FeatureIcon>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <LightningIcon size={48} color="#1F9AFE" />
                 </FeatureIcon>
                 <FeatureTitle>Lightning Fast</FeatureTitle>
                 <FeatureDescription>
@@ -179,10 +172,10 @@ const SecureStorage: React.FC = () => {
                         <path d="M13.3945 10.7H13.4035" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </FeatureIcon>
-                    <CardTitle>Zero-Knowledge Architecture</CardTitle>
+                    <CardTitle>You Own Your Data</CardTitle>
                     <CardDescription>
-                      When encryption is enabled, your keys never leave your device. Server-side 
-                      encryption at rest is standard for all files. You own your data completely.
+                      We don&apos;t sell or mine your files. Access controls, audit logs, and 
+                      secure storage mean you decide who sees what. Your data stays yours.
                     </CardDescription>
                   </InfoCard>
                 </motion.div>
@@ -222,9 +215,9 @@ const SecureStorage: React.FC = () => {
               and download limits. Revoke access anytime.
             </SectionDescription>
 
-            <ImagePlaceholder style={{ height: '300px', margin: '0 auto 60px' }}>
-              [Image: Share link generation interface showing options for password, expiration, and download limits with a clean toggle UI]
-            </ImagePlaceholder>
+            <div style={{ margin: '0 auto 60px', maxWidth: '900px' }}>
+              <ShareLinkIllustration width={900} height={300} />
+            </div>
 
             <motion.div
               initial="hidden"
@@ -388,9 +381,9 @@ const SecureStorage: React.FC = () => {
               Either way, you get the same privacy-first experience.
             </SectionDescription>
 
-            <ImagePlaceholder style={{ height: '300px', margin: '0 auto 60px' }}>
-              [Image: Side-by-side comparison showing self-hosted setup (terminal/server icons) vs managed hosting (cloud icons) with equal feature sets]
-            </ImagePlaceholder>
+            <div style={{ margin: '0 auto 60px', maxWidth: '900px' }}>
+              <SelfHostIllustration width={900} height={300} />
+            </div>
 
             <motion.div
               initial="hidden"
@@ -611,83 +604,6 @@ const SecureStorage: React.FC = () => {
           </ContentSection>
         </motion.div>
 
-        {/* Developer Section */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeInUp}
-          transition={{ duration: 0.6 }}
-        >
-          <ContentSection>
-            <SectionTitle>Developer-friendly from day one</SectionTitle>
-            <SectionDescription>
-              Clean REST API, headless operation, and extensive documentation. Build custom 
-              integrations or use our web interface.
-            </SectionDescription>
-
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-50px" }}
-              variants={staggerContainer}
-            >
-              <CardsContainer>
-                <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
-                  <InfoCard>
-                    <FeatureIcon>
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M7.5 16L10.5 13L7.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M13.5 16H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </FeatureIcon>
-                    <CardTitle>Full REST API</CardTitle>
-                    <CardDescription>
-                      Complete programmatic access to all features. Run the platform headless and 
-                      build your own frontend. Comprehensive API documentation included.
-                    </CardDescription>
-                  </InfoCard>
-                </motion.div>
-
-                <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
-                  <InfoCard>
-                    <FeatureIcon>
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M16.44 8.8999C20.04 9.2099 21.51 11.0599 21.51 15.1099V15.2399C21.51 19.7099 19.72 21.4999 15.25 21.4999H8.73998C4.26998 21.4999 2.47998 19.7099 2.47998 15.2399V15.1099C2.47998 11.0899 3.92998 9.2399 7.46998 8.9099" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M12 15V3.62" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M15.35 5.85L12 2.5L8.65002 5.85" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </FeatureIcon>
-                    <CardTitle>Modern Tech Stack</CardTitle>
-                    <CardDescription>
-                      Built with React and Node.js for performance and maintainability. Clean codebase 
-                      that's easy to understand, modify, and extend.
-                    </CardDescription>
-                  </InfoCard>
-                </motion.div>
-
-                <motion.div variants={fadeInUp} transition={{ duration: 0.5 }}>
-                  <InfoCard>
-                    <FeatureIcon>
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 9.14999V7.03999C2 5.17999 3.49 3.69 5.35 3.69H7.47C9.32 3.69 10.82 5.17999 10.82 7.03999V9.14999C10.82 11.01 9.33 12.5 7.47 12.5H5.35C3.49 12.5 2 11.01 2 9.14999Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M13.18 16.97V14.86C13.18 13 14.67 11.51 16.53 11.51H18.65C20.5 11.51 22 13 22 14.86V16.97C22 18.83 20.51 20.32 18.65 20.32H16.53C14.67 20.31 13.18 18.82 13.18 16.97Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M20.77 6.33H17.26C15.86 6.33 15.02 5.02 15.72 3.81L17.47 0.79C18.07 -0.26 19.69 -0.26 20.3 0.79L22.05 3.81C22.75 5.02 21.91 6.33 20.77 6.33Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M6.73998 23.2101C8.50998 23.2101 9.94998 21.7701 9.94998 20.0001C9.94998 18.2301 8.50998 16.7901 6.73998 16.7901C4.96998 16.7901 3.52998 18.2301 3.52998 20.0001C3.52998 21.7701 4.96998 23.2101 6.73998 23.2101Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </FeatureIcon>
-                    <CardTitle>S3-Compatible Storage</CardTitle>
-                    <CardDescription>
-                      Use local disk, MinIO, Backblaze, or any S3-compatible service. Flexible storage 
-                      backend options adapt to your infrastructure.
-                    </CardDescription>
-                  </InfoCard>
-                </motion.div>
-              </CardsContainer>
-            </motion.div>
-          </ContentSection>
-        </motion.div>
       </PageContainer>
 
       <HeroContGrad style={{ transform: "rotate(180deg)" }} />

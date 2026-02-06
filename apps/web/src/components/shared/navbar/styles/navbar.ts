@@ -5,14 +5,25 @@ export const NavbarContainer = styled.nav`
   height: 90px;
 `;
 
-export const LeftSection = styled.div`
+const BaseLeftSection = styled.div`
   display: flex;
   float: left;
   height: 100%;
   padding-left: 8px;
   justify-content: center;
   align-items: center;
+  margin-left: 20px;
   gap: 86px;
+
+  @media (max-width: 768px) {
+    gap: 16px;
+  }
+`;
+
+export const LeftSection = BaseLeftSection;
+
+export const LeftSectionWithMobile = styled(BaseLeftSection)`
+  /* Styles are handled by NavButton component itself */
 `;
 
 export const RightSection = styled.div`
@@ -23,4 +34,9 @@ export const RightSection = styled.div`
   justify-content: center;
   align-items: center;
   gap: 16px;
+
+  @media (max-width: 768px) {
+    gap: 8px;
+    padding-right: 8px;
+  }
 `;

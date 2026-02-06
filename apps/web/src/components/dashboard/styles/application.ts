@@ -6,6 +6,10 @@ export const Root = styled.div`
   padding: 0 28px;
   box-sizing: border-box;
   overflow: hidden; /* Prevent scrolling */
+
+  @media (max-width: 768px) {
+    padding: 0 12px;
+  }
 `;
 
 export const Layout = styled.div`
@@ -13,4 +17,19 @@ export const Layout = styled.div`
   width: 100%;
   height: 100%;
   overflow: hidden; /* Prevent scrolling */
+`;
+
+export const SidebarBackdrop = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    position: fixed;
+    top: 80px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 10;
+  }
 `;

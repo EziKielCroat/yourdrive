@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import JSZip from "jszip";
 import { Download, Search, Folder, File as FileIcon } from "lucide-react";
+import api from "../../../../../lib/axios";
 
 interface ArchivePreviewProps {
   url: string;
@@ -53,12 +54,26 @@ const ArchivePreview: React.FC<ArchivePreviewProps> = ({
         setLoading(true);
         setError(null);
 
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-          throw new Error(`Failed to load archive: ${res.status}`);
+        // Check if URL is absolute (external) or relative (needs baseURL)
+        const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+        
+        let buf: ArrayBuffer;
+        
+        if (isAbsoluteUrl) {
+          // For absolute URLs (signed S3 URLs), use fetch directly
+          const fetchResponse = await fetch(url, { headers });
+          if (!fetchResponse.ok) {
+            throw new Error(`Failed to load archive: ${fetchResponse.status}`);
+          }
+          buf = await fetchResponse.arrayBuffer();
+        } else {
+          // For relative URLs, use axios API instance to ensure authentication headers
+          const res = await api.get(url, {
+            responseType: 'arraybuffer',
+            headers: headers,
+          });
+          buf = res.data;
         }
-
-        const buf = await res.arrayBuffer();
 
         const zip = await JSZip.loadAsync(buf);
         const list: Entry[] = [];
@@ -83,7 +98,12 @@ const ArchivePreview: React.FC<ArchivePreviewProps> = ({
         setEntries(list);
         setLoading(false);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Failed to preview archive";
+        let msg = e instanceof Error ? e.message : "Failed to preview archive";
+        const lower = msg.toLowerCase();
+        if (lower.includes("end of central directory")) {
+          msg =
+            "This ZIP file appears to be corrupted or incomplete. Try downloading it and opening it with an archive tool.";
+        }
         setError(msg);
         onError?.(msg);
         setLoading(false);

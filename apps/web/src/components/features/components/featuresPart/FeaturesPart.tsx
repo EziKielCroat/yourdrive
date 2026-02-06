@@ -81,7 +81,7 @@ const FeaturesPart: React.FC = () => {
     },
     {
       title: 'Privacy First',
-      description: 'End-to-end encryption for sensitive files, encrypted filenames, and zero telemetry. Your data stays yours with audit logs showing every access.',
+      description: 'Secure storage, access controls, and zero telemetry. Your data stays yours with audit logs showing every access.',
       badge: 'SECURE',
       icon: (
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -123,8 +123,8 @@ const FeaturesPart: React.FC = () => {
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
       ),
-      title: 'Zero-Knowledge Architecture',
-      description: 'End-to-end encryption means we can\'t access your files even if we wanted to. Your encryption keys never leave your device.'
+      title: 'Secure by design',
+      description: 'Access controls and secure infrastructure. You decide who can access your files; we don\'t sell or mine your data.'
     },
     {
       icon: (

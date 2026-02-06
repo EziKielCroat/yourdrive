@@ -1,11 +1,11 @@
-import { useRef, type RefObject, useState } from "react";
+import { useRef, type RefObject, useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { usePopupStore } from "../popup.store";
 import { useClickOutside } from "../../hooks/useOutsideClick";
 import { usePopupPosition } from "../../hooks/usePopupPosition";
-import { useAuthStore } from "../../../../store/authStore";
 import { eventBus } from "../../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
+import api from "../../../../lib/axios";
 
 import { PopupIcon, PopupText } from "../styles/general";
 import {
@@ -20,13 +20,16 @@ import UploadFolderIcon from "../../icons/uploadFolder";
 import UppyUploadPopup from "./UppyUploadPopup";
 
 interface UploadPopupProps {
-  anchorRef: React.RefObject<HTMLButtonElement | null> | null;
+  anchorRefDesktop: React.RefObject<HTMLButtonElement | null> | null;
+  anchorRefMobile: React.RefObject<HTMLButtonElement | null> | null;
 }
 
-const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
+const UploadPopup: React.FC<UploadPopupProps> = ({
+  anchorRefDesktop,
+  anchorRefMobile,
+}) => {
   const isOpen = usePopupStore((s) => s.isUploadPopupOpen);
   const closeUploadPopup = usePopupStore((s) => s.closeUploadPopup);
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   const popupRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,12 +40,56 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   const [folderName, setFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedFilesArray, setSelectedFilesArray] = useState<File[]>([]);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeAnchorRef, setActiveAnchorRef] =
+    useState<React.RefObject<HTMLButtonElement | null> | null>(
+      anchorRefDesktop,
+    );
+
+  // Determine which ref to use based on screen size and visibility
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+
+      if (mobile) {
+        // Check if mobile button is visible
+        if (anchorRefMobile?.current) {
+          const rect = anchorRefMobile.current.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setActiveAnchorRef(anchorRefMobile);
+            return;
+          }
+        }
+        // Fallback to desktop if mobile not visible
+        setActiveAnchorRef(anchorRefDesktop);
+      } else {
+        // Check if desktop button is visible
+        if (anchorRefDesktop?.current) {
+          const rect = anchorRefDesktop.current.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setActiveAnchorRef(anchorRefDesktop);
+            return;
+          }
+        }
+        // Fallback to mobile if desktop not visible
+        setActiveAnchorRef(anchorRefMobile);
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, [anchorRefDesktop, anchorRefMobile]);
 
   const position = usePopupPosition({
     isOpen,
-    anchorRef,
+    anchorRef: activeAnchorRef,
     popupRef,
-    placement: "bottom-left",
+    placement: isMobile ? "bottom-right" : "bottom-left",
     offset: 8,
   });
 
@@ -54,20 +101,13 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
   };
 
   const handleCreateFolder = async () => {
-    if (!folderName.trim() || !accessToken) return;
+    if (!folderName.trim()) return;
 
     setIsCreatingFolder(true);
     try {
-      const response = await fetch("/api/files/folders/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ folderPath: folderName.trim() }),
+      await api.post("/files/folders/create", {
+        folderPath: folderName.trim(),
       });
-
-      if (!response.ok) throw new Error("Failed to create folder");
 
       eventBus.emit(FILES_REFRESH_EVENT);
       setShowNewFolderModal(false);
@@ -95,7 +135,11 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
     mode: "file" | "folder",
   ) => {
     if (!files || files.length === 0) return;
+    // Convert FileList to Array immediately to prevent it from becoming invalid on mobile
+    const filesArray = Array.from(files);
     setUploadMode(mode);
+    setSelectedFiles(files);
+    setSelectedFilesArray(filesArray);
     setShowUploadModal(true);
   };
 
@@ -115,6 +159,15 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
 
   const handleCloseUploadModal = () => {
     setShowUploadModal(false);
+    setSelectedFiles(null);
+    setSelectedFilesArray([]);
+    // Reset file inputs to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    if (folderInputRef.current) {
+      folderInputRef.current.value = "";
+    }
   };
 
   if (!isOpen)
@@ -140,11 +193,8 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
         <UppyUploadPopup
           isOpen={showUploadModal}
           onClose={handleCloseUploadModal}
-          preSelectedFiles={
-            uploadMode === "file"
-              ? fileInputRef.current?.files
-              : folderInputRef.current?.files
-          }
+          preSelectedFiles={selectedFiles}
+          preSelectedFilesArray={selectedFilesArray}
         />
         {showNewFolderModal && (
           <ModalOverlay
@@ -228,11 +278,8 @@ const UploadPopup: React.FC<UploadPopupProps> = ({ anchorRef }) => {
       <UppyUploadPopup
         isOpen={showUploadModal}
         onClose={handleCloseUploadModal}
-        preSelectedFiles={
-          uploadMode === "file"
-            ? fileInputRef.current?.files
-            : folderInputRef.current?.files
-        }
+        preSelectedFiles={selectedFiles}
+        preSelectedFilesArray={selectedFilesArray}
       />
 
       {showNewFolderModal && (

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { User, Shield, Palette, Globe, HardDrive, Share2 } from "lucide-react";
 import { useSettings } from "../shared/hooks/useSettings";
+import SidebarToggle from "../dashboard/component/sidebar/SidebarToggle";
 
 import { AccountSection } from "./components/AccountSection";
 import { SecuritySection } from "./components/SecuritySection";
 import { StorageSection } from "./components/StorageSection";
+import { SharingSection } from "./components/SharingSection";
 
 import {
   PageWrapper,
@@ -30,6 +32,7 @@ const Settings = () => {
     updateLanguage,
     updateStorage,
     updateSharing,
+    deleteAccount,
   } = useSettings();
 
   const tabs = [
@@ -109,9 +112,7 @@ const Settings = () => {
 
       case "sharing":
         return (
-          <div style={{ padding: "1rem", color: "#536471" }}>
-            Sharing settings coming soon...
-          </div>
+          <SharingSection settings={settings} updateSharing={updateSharing} />
         );
 
       default:
@@ -123,7 +124,10 @@ const Settings = () => {
     <PageWrapper>
       <Container>
         <Header>
-          <Title>Settings</Title>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <SidebarToggle />
+            <Title>Settings</Title>
+          </div>
           <Subtitle>Manage your account settings and preferences</Subtitle>
         </Header>
 

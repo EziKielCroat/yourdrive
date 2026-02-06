@@ -219,7 +219,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
       await executeAction(actionId, filesAsFileItems);
     },
-    [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup, router],
+    [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup],
   );
 
   const handleRename = useCallback(

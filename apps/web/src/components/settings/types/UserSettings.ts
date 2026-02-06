@@ -51,6 +51,9 @@ export interface UserSettings {
     linkExpirationDays: number | null;
     notifyOnShare: boolean;
     allowDownload: boolean;
+    defaultPassword?: string;
+    defaultExpirationDays?: number | null;
+    defaultDownloadLimit?: number | null;
   };
 
   // Linked Accounts

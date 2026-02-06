@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import { HeroContGrad } from "../landing/components/hero/styles/hero";
+import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
 import {
   PageContainer,
   HeroSection,
@@ -25,11 +25,14 @@ import {
   ImagePlaceholder
 } from "./styles/personalStorage";
 import LandingButton from "../shared/landingbutton/LandingButton";
+import { LockIcon, FolderIcon, DeviceIcon, ShieldIcon } from "../shared/icons/IconSaxIcons";
+import { DragDropIllustration, ShieldLockIllustration } from "../shared/illustrations/UseCaseIllustrations";
 
 const PersonalStorage: React.FC = () => {
   return (
     <>
       <Navbar_main />
+      <HeroContGradTop />
 
       <PageContainer>
         <HeroSection
@@ -68,9 +71,7 @@ const PersonalStorage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Lock Icon]
-              </ImagePlaceholder>
+              <LockIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Privacy-First Storage</FeatureTitle>
             <FeatureDescription>
@@ -87,9 +88,7 @@ const PersonalStorage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Folder Icon]
-              </ImagePlaceholder>
+              <FolderIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Smart Organization</FeatureTitle>
             <FeatureDescription>
@@ -106,14 +105,12 @@ const PersonalStorage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <FeatureIcon>
-              <ImagePlaceholder style={{ height: '80px', marginBottom: '0', fontSize: '14px' }}>
-                [Device Icon]
-              </ImagePlaceholder>
+              <DeviceIcon size={80} color="#1F9AFE" />
             </FeatureIcon>
             <FeatureTitle>Access Anywhere</FeatureTitle>
             <FeatureDescription>
-              PWA support and offline mode mean your files are accessible on any 
-              device, even without internet.
+              Access your files from any device with a web browser. Your files
+              are always available when you need them.
             </FeatureDescription>
           </FeatureCard>
         </FeaturesGrid>
@@ -131,9 +128,9 @@ const PersonalStorage: React.FC = () => {
             progress in real-time. File management has never been this smooth.
           </SectionDescription>
 
-          <ImagePlaceholder style={{ height: '400px', margin: '0 auto 60px', maxWidth: '900px' }}>
-            [Screenshot: Drag-and-drop upload interface with progress indicators]
-          </ImagePlaceholder>
+          <div style={{ margin: '0 auto 60px', maxWidth: '900px' }}>
+            <DragDropIllustration width={900} height={400} />
+          </div>
 
           <CardsContainer>
             <InfoCard
@@ -229,13 +226,13 @@ const PersonalStorage: React.FC = () => {
         >
           <SectionTitle>Your data stays yours, always</SectionTitle>
           <SectionDescription>
-            Optional end-to-end encryption for sensitive files. Encrypted filenames and 
-            metadata when enabled. Zero telemetry or analytics tracking.
+            Secure storage with access controls and audit logs. 
+            Zero telemetry or analytics tracking.
           </SectionDescription>
 
-          <ImagePlaceholder style={{ height: '300px', margin: '0 auto 60px', maxWidth: '800px' }}>
-            [Illustration: Shield with lock showing end-to-end encryption]
-          </ImagePlaceholder>
+          <div style={{ margin: '0 auto 60px', maxWidth: '800px' }}>
+            <ShieldLockIllustration width={800} height={300} />
+          </div>
 
           <CardsContainer>
             <InfoCard>

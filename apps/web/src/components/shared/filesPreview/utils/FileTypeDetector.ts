@@ -371,6 +371,31 @@ export const FILE_TYPE_MAP = {
     mimeType: "image/heif",
     previewCategory: "default" as const,
   },
+  ini: {
+    type: "text",
+    mimeType: "text/plain",
+    previewCategory: "text" as const,
+  },
+  conf: {
+    type: "text",
+    mimeType: "text/plain",
+    previewCategory: "text" as const,
+  },
+  env: {
+    type: "text",
+    mimeType: "text/plain",
+    previewCategory: "text" as const,
+  },
+  log: {
+    type: "text",
+    mimeType: "text/plain",
+    previewCategory: "text" as const,
+  },
+  lock: {
+    type: "text",
+    mimeType: "text/plain",
+    previewCategory: "text" as const,
+  },
 } as const;
 
 const PREVIEWABLE_TYPES = [

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { getFileTypeInfo, type FileTypeInfo } from "../utils/FileTypeDetector";
+import api from "../../../../lib/axios";
 
 const ImagePreview = React.lazy(() => import("./previews/ImagePreview"));
 const VideoPreview = React.lazy(() => import("./previews/VideoPreview"));
@@ -78,11 +79,25 @@ const FilePreview: React.FC<FilePreviewProps> = ({
 
   const checkFileSize = useCallback(async () => {
     try {
-      const response = await fetch(url, {
-        method: "HEAD",
-        headers: effectiveHeaders,
-      });
-      const size = parseInt(response.headers.get("content-length") || "0");
+      // Check if URL is absolute (external) or relative (needs baseURL)
+      const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
+      
+      let size: number;
+      
+      if (isAbsoluteUrl) {
+        // For absolute URLs, use fetch HEAD request
+        const response = await fetch(url, {
+          method: "HEAD",
+          headers: effectiveHeaders,
+        });
+        size = parseInt(response.headers.get("content-length") || "0");
+      } else {
+        // For relative URLs, use axios API instance
+        const response = await api.head(url, {
+          headers: effectiveHeaders,
+        });
+        size = parseInt(response.headers['content-length'] || "0");
+      }
 
       if (size > maxSize) {
         setError(

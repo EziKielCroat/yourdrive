@@ -4,13 +4,14 @@ import { BigIntHelper } from "../lib/bigint-helper";
 
 export class StorageService {
   static async getStorageInfo(userId: string) {
-  // Get current device storage limit
+  // Get current device storage limit (include id so we can update if needed)
   const currentDevice = await prisma.userDevice.findFirst({
     where: {
       userId,
       isCurrent: true,
     },
     select: {
+      id: true,
       storageLimit: true,
       deviceName: true,
     },
@@ -33,15 +34,26 @@ export class StorageService {
     },
   });
 
-  // FIX: Use BigIntHelper for safe conversions
-  const limit = BigIntHelper.toBigInt(currentDevice?.storageLimit || BigIntHelper.gbToBytes(50));
+  const isSkoleUser = user?.email?.toLowerCase().endsWith("@skole.hr") ?? false;
+  const hasEducationalBonus = isSkoleUser && (user?.emailVerified === true);
+  const educationalLimitBytes = BigIntHelper.gbToBytes(100); // 50GB base + 50GB bonus
+
+  let limit = BigIntHelper.toBigInt(currentDevice?.storageLimit ?? null) || BigIntHelper.gbToBytes(50);
+
+  // If user has educational plan (verified @skole.hr) but current device shows base 50GB or no limit, use 100GB and persist
+  if (hasEducationalBonus && limit < educationalLimitBytes) {
+    limit = educationalLimitBytes;
+    if (currentDevice?.id) {
+      await prisma.userDevice.update({
+        where: { id: currentDevice.id },
+        data: { storageLimit: limit },
+      }).catch(() => { /* ignore update errors */ });
+    }
+  }
+
   const used = BigIntHelper.toBigInt(usedStorage._sum.size);
   const available = BigIntHelper.subtract(limit, used);
   const usagePercentage = BigIntHelper.calculatePercentage(used, limit);
-
-  // Get tier name with skole.hr detection
-  const isSkoleUser = user?.email.toLowerCase().endsWith("@skole.hr") || false;
-  const hasEducationalBonus = isSkoleUser && (user?.emailVerified || false);
   const tier = this.getStorageTier(limit, hasEducationalBonus);
 
   return {

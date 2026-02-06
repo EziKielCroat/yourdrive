@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
-import styled from "styled-components";
+import React, { useEffect, useState, useRef } from "react";
+import styled, { keyframes } from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
-import axios from "axios";
-import toast from "react-hot-toast";
+import { useStorageStore } from "../../../../store/storageStore";
+import api from "../../../../lib/axios";
+import { toast } from "../../../../services/toast.service";
 import {
   Monitor,
   Smartphone,
@@ -19,6 +20,7 @@ import {
   X,
   Plus,
   Folder,
+  Check,
 } from "lucide-react";
 import SidebarToggle from "../sidebar/SidebarToggle";
 import PageTransition from "../../../shared/PageTransition";
@@ -39,8 +41,8 @@ interface Device {
   notifications_enabled: boolean;
   last_active: string;
   created_at: string;
-  file_count: string | number;
-  total_storage: string | number;
+  file_count: string | number | null;
+  total_storage: string | number | null;
   pinned_count: string | number;
   offline_count: string | number;
   wiped_at?: string;
@@ -62,24 +64,28 @@ interface DeviceGroup {
 }
 
 const Devices: React.FC = () => {
-  const token = useAuthStore((s) => s.accessToken);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const currentDevice = useAuthStore((s) => s.currentDevice);
+  const { usedBytes, getUsedFormatted } = useStorageStore();
   const [devices, setDevices] = useState<Device[]>([]);
   const [groups, setGroups] = useState<DeviceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingDevice, setEditingDevice] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [deviceActionsModal, setDeviceActionsModal] = useState<Device | null>(null);
   const [remoteActionsModal, setRemoteActionsModal] = useState<Device | null>(
     null,
   );
-  const [wipeConfirmModal, setWipeConfirmModal] = useState<Device | null>(null);
+  const [wipeConfirmModal, setWipeConfirmModal] = useState<Device | null>(
+    null,
+  );
   const [lockModal, setLockModal] = useState<Device | null>(null);
   const [createGroupModal, setCreateGroupModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
   const [showGroups, setShowGroups] = useState(false);
   const [addToGroupModal, setAddToGroupModal] = useState<Device | null>(null);
   const [selectedIcon, setSelectedIcon] = useState("📱");
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+  const [removingDevice, setRemovingDevice] = useState<string | null>(null);
 
   const iconOptions = [
     "📱",
@@ -100,10 +106,26 @@ const Devices: React.FC = () => {
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/devices`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await api.get("/devices");
+      const fetchedDevices = res.data.devices || [];
+      
+      // Mark current device based on cookie/currentDevice and ensure file_count/storage are set
+      const updatedDevices = fetchedDevices.map((d: Device) => {
+        const isCurrent = d.id === currentDevice?.id || d.is_current;
+        return {
+          ...d,
+          is_current: isCurrent,
+          // For current device, use global stats if available, otherwise use device stats
+          file_count: isCurrent 
+            ? (d.file_count !== null && d.file_count !== undefined ? d.file_count : 0)
+            : null,
+          total_storage: isCurrent
+            ? (d.total_storage !== null && d.total_storage !== undefined ? d.total_storage : 0)
+            : null,
+        };
       });
-      setDevices(res.data.devices || []);
+      
+      setDevices(updatedDevices);
     } catch (err) {
       console.error("Failed to fetch devices:", err);
       toast.error("Failed to load devices");
@@ -114,21 +136,21 @@ const Devices: React.FC = () => {
 
   const fetchGroups = async () => {
     try {
-      const res = await axios.get(`${API_URL}/devices/groups`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/devices/groups");
       setGroups(res.data.groups || []);
     } catch (err) {
       console.error("Failed to fetch groups:", err);
+      // Silently fail - groups feature may not be available
     }
   };
 
   useEffect(() => {
-    if (token) {
+    if (isAuthenticated) {
       fetchDevices();
       fetchGroups();
     }
-  }, [token]);
+  }, [isAuthenticated, currentDevice]);
+
 
   const getDeviceIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -143,40 +165,62 @@ const Devices: React.FC = () => {
     }
   };
 
-  const formatStorage = (bytes: number | string) => {
+  const formatStorage = (bytes: number | string | null) => {
+    if (bytes === null || bytes === undefined) return "0 B";
     const numBytes = typeof bytes === "string" ? parseInt(bytes, 10) : bytes;
     if (isNaN(numBytes) || numBytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(numBytes) / Math.log(k));
-    return Math.round((numBytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+    return (
+      Math.round((numBytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+    );
   };
 
-  const parseCount = (value: string | number): number => {
+  const parseCount = (value: string | number | null): number | string => {
+    if (value === null || value === undefined) return 0;
     if (typeof value === "number") return value;
     const parsed = parseInt(value, 10);
     return isNaN(parsed) ? 0 : parsed;
   };
 
   const formatLastActive = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Active now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return `${Math.floor(diffMins / 1440)}d ago`;
+    if (!dateString) return "Never";
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `${diffMins} min ago`;
+      if (diffHours < 1) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays === 1) return "Yesterday";
+      if (diffDays < 7) return `${diffDays} days ago`;
+      
+      // Format older dates
+      const month = date.toLocaleDateString("en-US", { month: "short" });
+      const day = date.getDate();
+      const year = date.getFullYear();
+      const currentYear = now.getFullYear();
+      
+      if (year === currentYear) {
+        return `${month} ${day}`;
+      }
+      return `${month} ${day}, ${year}`;
+    } catch (e) {
+      return "Unknown";
+    }
   };
 
   // Remote Actions
   const handleForceLogout = async (device: Device) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/${device.id}/actions/logout`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/devices/${device.id}/actions/logout`, {});
       toast.success("Device will be logged out on next activity");
       setRemoteActionsModal(null);
       fetchDevices();
@@ -187,11 +231,7 @@ const Devices: React.FC = () => {
 
   const handleLockDevice = async (device: Device, message: string) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/${device.id}/actions/lock`,
-        { message },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/devices/${device.id}/actions/lock`, { message });
       toast.success("Device locked successfully");
       setLockModal(null);
       setRemoteActionsModal(null);
@@ -203,11 +243,7 @@ const Devices: React.FC = () => {
 
   const handleUnlockDevice = async (device: Device) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/${device.id}/actions/unlock`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/devices/${device.id}/actions/unlock`, {});
       toast.success("Device unlocked successfully");
       setRemoteActionsModal(null);
       fetchDevices();
@@ -218,17 +254,57 @@ const Devices: React.FC = () => {
 
   const handleWipeDevice = async (device: Device) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/${device.id}/actions/wipe`,
-        { confirmation: "WIPE" },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/devices/${device.id}/actions/wipe`, {
+        confirmation: "WIPE",
+      });
       toast.success("Device wiped successfully");
       setWipeConfirmModal(null);
       setRemoteActionsModal(null);
       fetchDevices();
     } catch (err: any) {
       toast.error(err?.response?.data?.error || "Failed to wipe device");
+    }
+  };
+
+  const handleRemoveDevice = async (device: Device) => {
+    if (device.is_current) {
+      toast.error("Cannot remove current device");
+      return;
+    }
+
+    if (!confirm(`Remove "${device.device_nickname || device.device_name}"?`)) {
+      return;
+    }
+
+    try {
+      setRemovingDevice(device.id);
+      await api.delete(`/devices/${device.id}`);
+      toast.success("Device removed successfully");
+      setDeviceActionsModal(null);
+      fetchDevices();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to remove device");
+    } finally {
+      setRemovingDevice(null);
+    }
+  };
+
+  const handleRenameDevice = async (deviceId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast.error("Device name cannot be empty");
+      return;
+    }
+
+    try {
+      await api.patch(`/devices/${deviceId}`, {
+        device_nickname: newName.trim(),
+      });
+      toast.success("Device renamed successfully");
+      setEditingDevice(null);
+      setEditingName("");
+      fetchDevices();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to rename device");
     }
   };
 
@@ -239,11 +315,7 @@ const Devices: React.FC = () => {
     color: string,
   ) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/groups`,
-        { name, icon, color },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post("/devices/groups", { name, icon, color });
       toast.success("Group created successfully");
       setCreateGroupModal(false);
       fetchGroups();
@@ -255,9 +327,7 @@ const Devices: React.FC = () => {
   const handleDeleteGroup = async (groupId: number) => {
     if (!confirm("Delete this group? Devices won't be affected.")) return;
     try {
-      await axios.delete(`${API_URL}/devices/groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/devices/groups/${groupId}`);
       toast.success("Group deleted");
       fetchGroups();
     } catch (err: any) {
@@ -267,11 +337,7 @@ const Devices: React.FC = () => {
 
   const handleAddToGroup = async (deviceId: string, groupId: number) => {
     try {
-      await axios.post(
-        `${API_URL}/devices/groups/${groupId}/devices/${deviceId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await api.post(`/devices/groups/${groupId}/devices/${deviceId}`, {});
       toast.success("Device added to group");
       setAddToGroupModal(null);
       fetchGroups();
@@ -290,7 +356,10 @@ const Devices: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingState>Loading devices...</LoadingState>
+        <LoadingState>
+          <LoadingSpinner />
+          <LoadingText>Loading devices...</LoadingText>
+        </LoadingState>
       </Container>
     );
   }
@@ -301,7 +370,6 @@ const Devices: React.FC = () => {
         <Header>
           <TitleSection>
             <SidebarToggle />
-
             <Title>Devices</Title>
           </TitleSection>
           <HeaderActions>
@@ -397,23 +465,60 @@ const Devices: React.FC = () => {
                 {filteredDevices.map((device) => (
                   <TableRow
                     key={device.id}
-                    onMouseEnter={() => setSettingsOpen(device.id)}
-                    onMouseLeave={() => setSettingsOpen(null)}
+                    $isCurrent={device.is_current}
                   >
                     <TableCell>
                       <DeviceNameCell>
                         <DeviceIconWrapper
                           $color={device.device_color || "#1a73e8"}
+                          $isCurrent={device.is_current}
                         >
                           {getDeviceIcon(device.device_type)}
                         </DeviceIconWrapper>
                         <DeviceNameWrapper>
-                          <DeviceName>
-                            {device.device_nickname || device.device_name}
-                          </DeviceName>
-                          <DeviceInfo>
-                            {device.browser} • {device.os}
-                          </DeviceInfo>
+                          {editingDevice === device.id ? (
+                            <EditInputWrapper>
+                              <EditInput
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleRenameDevice(device.id, editingName);
+                                  } else if (e.key === "Escape") {
+                                    setEditingDevice(null);
+                                    setEditingName("");
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <EditActions>
+                                <EditButton
+                                  onClick={() =>
+                                    handleRenameDevice(device.id, editingName)
+                                  }
+                                >
+                                  <Check size={14} />
+                                </EditButton>
+                                <EditButton
+                                  onClick={() => {
+                                    setEditingDevice(null);
+                                    setEditingName("");
+                                  }}
+                                >
+                                  <X size={14} />
+                                </EditButton>
+                              </EditActions>
+                            </EditInputWrapper>
+                          ) : (
+                            <>
+                              <DeviceName>
+                                {device.device_nickname || device.device_name}
+                              </DeviceName>
+                              <DeviceInfo>
+                                {device.browser} • {device.os}
+                              </DeviceInfo>
+                            </>
+                          )}
                         </DeviceNameWrapper>
                       </DeviceNameCell>
                     </TableCell>
@@ -438,63 +543,31 @@ const Devices: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <StatValue>
-                        {parseCount(device.file_count || 0)}
+                        {device.is_current
+                          ? parseCount(device.file_count)
+                          : 0}
                       </StatValue>
                     </TableCell>
                     <TableCell>
                       <StatValue>
-                        {formatStorage(device.total_storage || 0)}
+                        {device.is_current
+                          ? formatStorage(device.total_storage)
+                          : "0 B"}
                       </StatValue>
                     </TableCell>
                     <TableCell>
-                      <LastActive>
-                        {formatLastActive(device.last_active)}
-                      </LastActive>
+                      <LastActive>{formatLastActive(device.last_active)}</LastActive>
                     </TableCell>
                     <TableCell>
                       <ActionButtonWrapper>
-                        {settingsOpen === device.id && (
-                          <ActionButton
-                            onClick={() => {
-                              // Keep menu open
-                            }}
-                          >
-                            <MoreVertical size={18} />
-                          </ActionButton>
-                        )}
-                        {settingsOpen === device.id && (
-                          <ActionsMenu onClick={(e) => e.stopPropagation()}>
-                            <MenuItem
-                              onClick={() => setRemoteActionsModal(device)}
-                            >
-                              <Shield size={16} />
-                              Remote Actions
-                            </MenuItem>
-                            <MenuItem
-                              onClick={() => setAddToGroupModal(device)}
-                            >
-                              <Folder size={16} />
-                              Add to Group
-                            </MenuItem>
-                            <MenuItem
-                              onClick={() => setEditingDevice(device.id)}
-                            >
-                              <Edit3 size={16} />
-                              Rename
-                            </MenuItem>
-                            <MenuDivider />
-                            <MenuItem
-                              $danger
-                              onClick={() => {
-                                /* handleRemoveDevice */
-                              }}
-                              disabled={device.is_current}
-                            >
-                              <Trash2 size={16} />
-                              Remove Device
-                            </MenuItem>
-                          </ActionsMenu>
-                        )}
+                        <ActionButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeviceActionsModal(device);
+                          }}
+                        >
+                          <MoreVertical size={18} />
+                        </ActionButton>
                       </ActionButtonWrapper>
                     </TableCell>
                   </TableRow>
@@ -504,10 +577,92 @@ const Devices: React.FC = () => {
           </TableContainer>
         )}
 
+        {/* Device Actions Modal */}
+        {deviceActionsModal && (
+          <Modal onClick={() => setDeviceActionsModal(null)}>
+            <ModalContent $small onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <ModalTitle>
+                  {deviceActionsModal.device_nickname ||
+                    deviceActionsModal.device_name}
+                </ModalTitle>
+                <CloseButton onClick={() => setDeviceActionsModal(null)}>
+                  <X size={20} />
+                </CloseButton>
+              </ModalHeader>
+              <ActionsList>
+                <ActionItem
+                  onClick={() => {
+                    setRemoteActionsModal(deviceActionsModal);
+                    setDeviceActionsModal(null);
+                  }}
+                >
+                  <Shield size={20} />
+                  <ActionInfo>
+                    <ActionTitle>Remote Actions</ActionTitle>
+                    <ActionDesc>Lock, unlock, logout, or wipe device</ActionDesc>
+                  </ActionInfo>
+                </ActionItem>
+                <ActionItem
+                  onClick={() => {
+                    setAddToGroupModal(deviceActionsModal);
+                    setDeviceActionsModal(null);
+                  }}
+                >
+                  <Folder size={20} />
+                  <ActionInfo>
+                    <ActionTitle>Add to Group</ActionTitle>
+                    <ActionDesc>Organize devices into groups</ActionDesc>
+                  </ActionInfo>
+                </ActionItem>
+                <ActionItem
+                  onClick={() => {
+                    setEditingDevice(deviceActionsModal.id);
+                    setEditingName(
+                      deviceActionsModal.device_nickname ||
+                        deviceActionsModal.device_name,
+                    );
+                    setDeviceActionsModal(null);
+                  }}
+                >
+                  <Edit3 size={20} />
+                  <ActionInfo>
+                    <ActionTitle>Rename Device</ActionTitle>
+                    <ActionDesc>Change device display name</ActionDesc>
+                  </ActionInfo>
+                </ActionItem>
+                {!deviceActionsModal.is_current && (
+                  <ActionItem
+                    $danger
+                    onClick={() => {
+                      handleRemoveDevice(deviceActionsModal);
+                      setDeviceActionsModal(null);
+                    }}
+                    disabled={removingDevice === deviceActionsModal.id}
+                  >
+                    <Trash2 size={20} />
+                    <ActionInfo>
+                      <ActionTitle>
+                        {removingDevice === deviceActionsModal.id
+                          ? "Removing..."
+                          : "Remove Device"}
+                      </ActionTitle>
+                      <ActionDesc>Permanently remove this device</ActionDesc>
+                    </ActionInfo>
+                  </ActionItem>
+                )}
+              </ActionsList>
+            </ModalContent>
+          </Modal>
+        )}
+
         {/* Add to Group Modal */}
         {addToGroupModal && (
           <Modal onClick={() => setAddToGroupModal(null)}>
-            <ModalContent $small onClick={(e) => e.stopPropagation()}>
+            <ModalContent
+              $small
+              onClick={(e) => e.stopPropagation()}
+            >
               <ModalHeader>
                 <ModalTitle>Add to Group</ModalTitle>
                 <CloseButton onClick={() => setAddToGroupModal(null)}>
@@ -669,7 +824,10 @@ const Devices: React.FC = () => {
                   />
                 </InputGroup>
                 <ModalActions>
-                  <ModalButton type="button" onClick={() => setLockModal(null)}>
+                  <ModalButton
+                    type="button"
+                    onClick={() => setLockModal(null)}
+                  >
                     Cancel
                   </ModalButton>
                   <ModalButton type="submit" $danger>
@@ -685,7 +843,10 @@ const Devices: React.FC = () => {
         {/* Create Group Modal */}
         {createGroupModal && (
           <Modal onClick={() => setCreateGroupModal(false)}>
-            <ModalContent $compact onClick={(e) => e.stopPropagation()}>
+            <ModalContent
+              $compact
+              onClick={(e) => e.stopPropagation()}
+            >
               <ModalHeader>
                 <ModalTitle>Create Device Group</ModalTitle>
                 <CloseButton onClick={() => setCreateGroupModal(false)}>
@@ -698,7 +859,11 @@ const Devices: React.FC = () => {
                   const formData = new FormData(e.currentTarget);
                   const name = formData.get("name") as string;
                   const color = formData.get("color") as string;
-                  handleCreateGroup(name, selectedIcon, color || "#1a73e8");
+                  handleCreateGroup(
+                    name,
+                    selectedIcon,
+                    color || "#1a73e8",
+                  );
                 }}
               >
                 <CompactInputRow>
@@ -768,6 +933,47 @@ const Devices: React.FC = () => {
 
 export default Devices;
 
+// Animations
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+`;
+
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -780,7 +986,9 @@ const Header = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
+  flex-wrap: wrap;
 `;
 
 const TitleSection = styled.div`
@@ -822,14 +1030,8 @@ const ToggleButton = styled.button<{ $active?: boolean }>`
   font-weight: ${(props) => (props.$active ? "500" : "400")};
   color: ${(props) => (props.$active ? "#1a73e8" : "#5f6368")};
   cursor: pointer;
-  transition: all 0.15s ease;
   box-shadow: ${(props) =>
     props.$active ? "0 1px 2px rgba(0,0,0,0.1)" : "none"};
-
-  &:hover {
-    background: ${(props) =>
-      props.$active ? "#fff" : "rgba(255,255,255,0.5)"};
-  }
 `;
 
 const CreateButton = styled.button`
@@ -844,11 +1046,6 @@ const CreateButton = styled.button`
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: #1557b0;
-  }
 `;
 
 const GroupBreadcrumb = styled.div`
@@ -863,6 +1060,8 @@ const GroupBreadcrumb = styled.div`
 const BreadcrumbLink = styled.span`
   color: #1a73e8;
   cursor: pointer;
+  transition: color 0.2s ease;
+
   &:hover {
     text-decoration: underline;
   }
@@ -877,26 +1076,18 @@ const TableContainer = styled.div`
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e8eaed;
-  overflow: visible;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  overflow: visible;
 `;
 
-const TableRow = styled.tr<{ $isHeader?: boolean }>`
+const TableRow = styled.tr<{ $isHeader?: boolean; $isCurrent?: boolean }>`
   border-bottom: 1px solid #e8eaed;
-  transition: background 0.15s ease;
-
-  ${(props) =>
-    !props.$isHeader &&
-    `
-    &:hover {
-      background: #f8f9fa;
-    }
-  `}
+  background: ${(props) => (props.$isCurrent ? "#f8f9fa" : "transparent")};
 
   &:last-child {
     border-bottom: none;
@@ -920,7 +1111,6 @@ const TableCell = styled.td`
   color: #202124;
   vertical-align: middle;
   position: relative;
-  overflow: visible;
 `;
 
 const DeviceNameCell = styled.div`
@@ -929,7 +1119,10 @@ const DeviceNameCell = styled.div`
   gap: 12px;
 `;
 
-const DeviceIconWrapper = styled.div<{ $color: string }>`
+const DeviceIconWrapper = styled.div<{
+  $color: string;
+  $isCurrent?: boolean;
+}>`
   width: 40px;
   height: 40px;
   border-radius: 10px;
@@ -939,12 +1132,15 @@ const DeviceIconWrapper = styled.div<{ $color: string }>`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: ${(props) =>
+    props.$isCurrent ? `2px solid ${props.$color}` : "none"};
 `;
 
 const DeviceNameWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
 `;
 
 const DeviceName = styled.div`
@@ -956,6 +1152,61 @@ const DeviceName = styled.div`
 const DeviceInfo = styled.div`
   font-size: 12px;
   color: #5f6368;
+`;
+
+const EditInputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+`;
+
+const EditInput = styled.input`
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #1a73e8;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #202124;
+  background: #fff;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+  }
+`;
+
+const EditActions = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const EditButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: #f1f3f4;
+  color: #5f6368;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e8eaed;
+  }
+
+  &:first-child {
+    background: #1a73e8;
+    color: #fff;
+
+    &:hover {
+      background: #1557b0;
+    }
+  }
 `;
 
 const StatusCell = styled.div`
@@ -974,6 +1225,7 @@ const StatusBadge = styled.div<{ $color: string }>`
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+  animation: ${slideIn} 0.2s ease;
 `;
 
 const CurrentBadge = styled.div`
@@ -983,6 +1235,7 @@ const CurrentBadge = styled.div`
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+  animation: ${slideIn} 0.2s ease;
 `;
 
 const LastActive = styled.span`
@@ -997,7 +1250,6 @@ const StatValue = styled.div`
 `;
 
 const ActionButtonWrapper = styled.div`
-  position: relative;
   display: flex;
   justify-content: flex-end;
 `;
@@ -1013,58 +1265,6 @@ const ActionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: #f1f3f4;
-  }
-`;
-
-const ActionsMenu = styled.div`
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 8px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
-  min-width: 200px;
-  z-index: 100;
-`;
-
-const MenuItem = styled.button<{ $danger?: boolean }>`
-  width: 100%;
-  padding: 10px 16px;
-  border: none;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  color: ${(props) => (props.$danger ? "#ea4335" : "#202124")};
-  cursor: pointer;
-  transition: background 0.15s ease;
-  text-align: left;
-
-  &:hover {
-    background: ${(props) => (props.$danger ? "#fce8e6" : "#f1f3f4")};
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  svg {
-    color: ${(props) => (props.$danger ? "#ea4335" : "#5f6368")};
-  }
-`;
-
-const MenuDivider = styled.div`
-  height: 1px;
-  background: #e8eaed;
-  margin: 8px 0;
 `;
 
 const GroupsView = styled.div`
@@ -1082,12 +1282,7 @@ const GroupCard = styled.div<{ $color: string }>`
   border-radius: 16px;
   padding: 24px;
   border: 2px solid ${(props) => props.$color}30;
-  transition: all 0.2s ease;
-
-  &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: ${(props) => props.$color};
-  }
+  animation: ${fadeIn} 0.3s ease;
 `;
 
 const GroupHeader = styled.div`
@@ -1133,15 +1328,14 @@ const SmallButton = styled.button<{ $danger?: boolean }>`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 
   &:hover {
     background: ${(props) => (props.$danger ? "#ea4335" : "#f8f9fa")};
     color: ${(props) => (props.$danger ? "#fff" : "#202124")};
   }
-
-  display: flex;
-  align-items: center;
-  gap: 4px;
 `;
 
 const GroupDescription = styled.p`
@@ -1152,9 +1346,23 @@ const GroupDescription = styled.p`
 
 const LoadingState = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 80px 24px;
+  gap: 16px;
+`;
+
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e8eaed;
+  border-top-color: #1a73e8;
+  border-radius: 50%;
+  animation: ${spin} 0.8s linear infinite;
+`;
+
+const LoadingText = styled.div`
   color: #5f6368;
   font-size: 16px;
 `;
@@ -1170,6 +1378,8 @@ const Modal = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: ${fadeIn} 0.2s ease;
+  backdrop-filter: blur(4px);
 `;
 
 const ModalContent = styled.div<{ $small?: boolean; $compact?: boolean }>`
@@ -1181,6 +1391,8 @@ const ModalContent = styled.div<{ $small?: boolean; $compact?: boolean }>`
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  animation: ${fadeIn} 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 `;
 
 const ModalHeader = styled.div`
@@ -1208,9 +1420,11 @@ const CloseButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
 
   &:hover {
     background: #f1f3f4;
+    transform: rotate(90deg);
   }
 `;
 
@@ -1235,14 +1449,10 @@ const ActionItem = styled.div<{ $danger?: boolean }>`
   background: ${(props) => (props.$danger ? "#fce8e6" : "#f8f9fa")};
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: ${(props) => (props.$danger ? "#fad2cf" : "#e8eaed")};
-  }
 
   svg {
     color: ${(props) => (props.$danger ? "#ea4335" : "#5f6368")};
+    flex-shrink: 0;
   }
 `;
 
@@ -1338,11 +1548,6 @@ const ModalButton = styled.button<{ $danger?: boolean }>`
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: ${(props) => (props.$danger ? "#d33828" : "#f8f9fa")};
-  }
 `;
 
 const GroupsList = styled.div`
@@ -1361,11 +1566,6 @@ const GroupOption = styled.div`
   background: #f8f9fa;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: #e8eaed;
-  }
 `;
 
 const CompactInputRow = styled.div`
@@ -1407,15 +1607,9 @@ const IconOption = styled.button<{ $selected?: boolean }>`
   border-radius: 8px;
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  &:hover {
-    border-color: #1a73e8;
-    background: #f8f9fa;
-  }
 `;
 
 const ColorInputWrapper = styled.div`

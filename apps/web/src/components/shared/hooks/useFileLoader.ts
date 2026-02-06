@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { detectFileType } from "../filesPreview/utils/FileTypeDetector";
-import { useAuthStore } from "../../../store/authStore";
+import api from "../../../lib/axios";
 
 interface UseFileLoaderProps {
   fileId?: string;
@@ -28,7 +28,6 @@ export const useFileLoader = ({
   const [detectedType, setDetectedType] = useState<string>("unsupported");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     const loadFile = async () => {
@@ -52,21 +51,9 @@ export const useFileLoader = ({
         if (fileId) {
           console.log("Fetching file with ID:", fileId);
 
-          const response = await fetch(`/api/files/content/${fileId}`, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
+          const response = await api.get(`/files/content/${fileId}`);
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("API response not OK:", response.status, errorText);
-            throw new Error(
-              `Failed to fetch file: ${response.status} ${response.statusText}`
-            );
-          }
-
-          const data = await response.json();
+          const data = response.data;
           console.log("API response data:", data);
 
           if (!data.signedUrl && !data.url) {

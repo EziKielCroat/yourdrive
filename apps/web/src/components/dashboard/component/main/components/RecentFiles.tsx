@@ -11,6 +11,7 @@ import FilePreview from "../../../../shared/filesPreview/FilesPreview";
 import { FILES_REFRESH_EVENT } from "../../../../../events/fileEvents";
 import { useEvent } from "../../../../../events/useEvent";
 import { eventBus } from "../../../../../events/eventBus";
+import api from "../../../../../lib/axios";
 
 interface ApiFile {
   id: string;
@@ -24,9 +25,6 @@ interface ApiFile {
   created_at?: string;
   createdAt?: string;
 }
-
-// Consistent API base URL
-const API_BASE_URL = "http://localhost:3000";
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -68,7 +66,6 @@ const formatDate = (dateString?: string): string => {
 };
 
 const RecentFiles: React.FC = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const addUsage = useStorageStore((s) => s.addUsage);
   const refreshStorage = useStorageStore((s) => s.refreshStorage);
@@ -143,12 +140,6 @@ const RecentFiles: React.FC = () => {
   const handleFilesUpload = async (fileList: FileList): Promise<void> => {
     if (!fileList.length) return;
 
-    // Check if we have a valid access token
-    if (!accessToken) {
-      alert("You must be logged in to upload files.");
-      return;
-    }
-
     const totalSize = Array.from(fileList).reduce(
       (sum, file) => sum + file.size,
       0,
@@ -183,20 +174,8 @@ const RecentFiles: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      const response = await api.post("/files/upload", formData);
+      const result = response.data;
 
       addUsage(totalSize);
 
@@ -223,34 +202,10 @@ const RecentFiles: React.FC = () => {
   };
 
   const fetchRecentFiles = async () => {
-    // Don't fetch if no access token
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/api/files?limit=10&sort=recent`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.error("Unauthorized: Access token may be expired");
-          // Don't show an alert for 401, just log it
-          setFiles([]);
-          return;
-        }
-        throw new Error("Failed to fetch files");
-      }
-
-      const data = await response.json();
+      const response = await api.get("/files?limit=10&sort=recent");
+      const data = response.data;
 
       if (data.success) {
         const transformedFiles: FileItem[] = data.files.map(
@@ -296,18 +251,11 @@ const RecentFiles: React.FC = () => {
   };
 
   useEffect(() => {
-    if (accessToken) {
-      fetchRecentFiles();
-    } else {
-      setLoading(false);
-      setFiles([]);
-    }
-  }, [accessToken, user]);
+    fetchRecentFiles();
+  }, [user]);
 
   useEvent(FILES_REFRESH_EVENT, () => {
-    if (accessToken) {
-      fetchRecentFiles();
-    }
+    fetchRecentFiles();
   });
 
   return (

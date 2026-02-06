@@ -10,8 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { useParams } from "@tanstack/react-router";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import api, { getApiBaseURL } from "../../../lib/axios";
 
 interface SharedFile {
   id: string;
@@ -42,7 +41,9 @@ interface User {
 
 const SharedViewer: React.FC = () => {
   const params = useParams({ strict: false });
-  const token = params.token as string;
+  const tokenFromParams = (params as { token?: string })?.token;
+  const tokenFromPath = typeof window !== "undefined" ? window.location.pathname.match(/\/shared\/([^/]+)/)?.[1] : null;
+  const token = tokenFromParams ?? tokenFromPath ?? null;
   const [file, setFile] = useState<SharedFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,12 +94,12 @@ const SharedViewer: React.FC = () => {
   // Fetch current authenticated user
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch(`${API_URL}/auth/me`, {
-        credentials: "include",
+      const response = await api.get("/auth/me", {
+        withCredentials: true,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.data) {
+        const data = response.data;
         if (data.success && data.user) {
           setCurrentUser(data.user);
         }
@@ -113,13 +114,9 @@ const SharedViewer: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/sharing/public/${token}`);
+      const response = await api.get(`/sharing/public/${token}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (!data.success) {
         setError(data.error || "Failed to load shared file");
@@ -135,12 +132,14 @@ const SharedViewer: React.FC = () => {
       } else {
         setLoading(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error fetching share info:", err);
+      const apiError = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        : null;
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to connect to server. Please check your connection.",
+        apiError ||
+        (err instanceof Error ? err.message : "Failed to load shared file. Check the link and try again."),
       );
       setLoading(false);
     }
@@ -151,19 +150,11 @@ const SharedViewer: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/sharing/access/${token}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ password: pwd || password }),
+      const response = await api.post(`/sharing/access/${token}`, {
+        password: pwd || password,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (!data.success) {
         setError(data.error || "Failed to access file");
@@ -172,16 +163,21 @@ const SharedViewer: React.FC = () => {
       }
 
       if (data.signedUrl) {
-        setFileUrl(data.signedUrl);
+        // Use stream URL (same-origin) for previews to avoid CORS with B2/signed URLs
+        const streamUrl = `${getApiBaseURL()}/sharing/stream/${token}`;
+        setFileUrl(streamUrl);
         setPasswordRequired(false);
         setLoading(false);
       } else {
         setError("No file URL provided");
         setLoading(false);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error accessing file:", err);
-      setError(err instanceof Error ? err.message : "Failed to access file");
+      const apiError = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        : null;
+      setError(apiError || (err instanceof Error ? err.message : "Failed to access file"));
       setAuthenticating(false);
     } finally {
       setAuthenticating(false);
@@ -189,23 +185,40 @@ const SharedViewer: React.FC = () => {
   };
 
   const loadFileContent = async () => {
-    if (!fileUrl || !file) return;
+    if (!file || !token) return;
 
     const mimeType = file.mimeType.toLowerCase();
     const extension = getFileExtension(file.fileName);
 
-    // Text-based files that need to be loaded
+    // Text-based files: load via API proxy to avoid CORS with signed URLs
     if (
       mimeType.startsWith("text/") ||
       mimeType === "application/json" ||
       mimeType === "application/xml" ||
       mimeType === "application/javascript" ||
+      mimeType === "application/typescript" ||
+      mimeType === "application/x-yaml" ||
+      mimeType === "application/sql" ||
+      mimeType === "application/x-sh" ||
+      mimeType === "application/x-bat" ||
+      mimeType === "application/x-powershell" ||
+      mimeType === "application/x-httpd-php" ||
+      mimeType === "application/x-ruby" ||
+      mimeType === "text/x-python" ||
+      mimeType === "text/x-java" ||
+      mimeType === "text/x-go" ||
+      mimeType === "text/rust" ||
+      mimeType === "text/x-c++" ||
+      mimeType === "text/x-c" ||
+      mimeType === "text/x-csharp" ||
+      mimeType === "text/x-scss" ||
       [
         "txt",
         "md",
         "json",
         "xml",
         "csv",
+        "tsv",
         "log",
         "js",
         "jsx",
@@ -217,21 +230,35 @@ const SharedViewer: React.FC = () => {
         "cpp",
         "h",
         "css",
+        "scss",
         "html",
         "sql",
+        "yaml",
+        "yml",
+        "sh",
+        "bat",
+        "ps1",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "cs",
+        "ini",
+        "conf",
+        "env",
+        "lock",
       ].includes(extension)
     ) {
       setContentLoading(true);
       try {
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
-          throw new Error("Failed to load file content");
+        const response = await api.get(`/sharing/content/${token}`);
+        const data = response.data;
+        if (data?.success && typeof data.content === "string") {
+          setFileContent(data.content);
+          setEditedContent(data.content);
+        } else {
+          throw new Error("Invalid content response");
         }
-        const arrayBuffer = await response.arrayBuffer();
-        const decoder = new TextDecoder("utf-8");
-        const text = decoder.decode(arrayBuffer);
-        setFileContent(text);
-        setEditedContent(text);
       } catch (err) {
         console.error("Failed to load file content:", err);
         setError("Failed to load file content");
@@ -246,13 +273,9 @@ const SharedViewer: React.FC = () => {
 
     setLoadingComments(true);
     try {
-      const response = await fetch(`${API_URL}/sharing/comments/${token}`);
+      const response = await api.get(`/sharing/comments/${token}`);
 
-      if (!response.ok) {
-        throw new Error("Failed to load comments");
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success && data.comments) {
         setComments(data.comments);
@@ -282,19 +305,11 @@ const SharedViewer: React.FC = () => {
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/sharing/edit/${token}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content: editedContent }),
+      const response = await api.post(`/sharing/edit/${token}`, {
+        content: editedContent,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save changes");
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         setFileContent(editedContent);
@@ -322,23 +337,14 @@ const SharedViewer: React.FC = () => {
     const userName = currentUser?.firstName || "Anonymous";
 
     try {
-      const response = await fetch(`${API_URL}/sharing/comments/${token}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          text: newComment,
-          userName: userName,
-        }),
+      const response = await api.post(`/sharing/comments/${token}`, {
+        text: newComment,
+        userName: userName,
+      }, {
+        withCredentials: true,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to add comment");
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success && data.comment) {
         setComments([...comments, data.comment]);
@@ -414,12 +420,29 @@ const SharedViewer: React.FC = () => {
       mimeType === "application/json" ||
       mimeType === "application/xml" ||
       mimeType === "application/javascript" ||
+      mimeType === "application/typescript" ||
+      mimeType === "application/x-yaml" ||
+      mimeType === "application/sql" ||
+      mimeType === "application/x-sh" ||
+      mimeType === "application/x-bat" ||
+      mimeType === "application/x-powershell" ||
+      mimeType === "application/x-httpd-php" ||
+      mimeType === "application/x-ruby" ||
+      mimeType === "text/x-python" ||
+      mimeType === "text/x-java" ||
+      mimeType === "text/x-go" ||
+      mimeType === "text/rust" ||
+      mimeType === "text/x-c++" ||
+      mimeType === "text/x-c" ||
+      mimeType === "text/x-csharp" ||
+      mimeType === "text/x-scss" ||
       [
         "txt",
         "md",
         "json",
         "xml",
         "csv",
+        "tsv",
         "log",
         "js",
         "jsx",
@@ -431,8 +454,23 @@ const SharedViewer: React.FC = () => {
         "cpp",
         "h",
         "css",
+        "scss",
         "html",
         "sql",
+        "yaml",
+        "yml",
+        "sh",
+        "bat",
+        "ps1",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "cs",
+        "ini",
+        "conf",
+        "env",
+        "lock",
       ].includes(extension)
     ) {
       if (contentLoading) {
@@ -503,7 +541,7 @@ const SharedViewer: React.FC = () => {
     }
 
     // Office documents via Google Viewer
-    if (["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(extension)) {
+    if (["doc", "docx", "xls", "xlsx", "xlsm", "ppt", "pptx", "odt", "ods", "rtf"].includes(extension)) {
       const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(
         fileUrl,
       )}&embedded=true`;
@@ -514,6 +552,38 @@ const SharedViewer: React.FC = () => {
       );
     }
 
+    // Spreadsheets (CSV, TSV) - already handled as text above, but add fallback
+    if (["csv", "tsv"].includes(extension) && !fileContent) {
+      // If CSV/TSV wasn't loaded as text, try to show it
+      return (
+        <CenteredContainer>
+          <DownloadButton onClick={handleDownload}>
+            <Download size={20} />
+            Download {file.fileName}
+          </DownloadButton>
+          <InfoText>
+            CSV/TSV files can be viewed as text. Click download to open in a spreadsheet application.
+          </InfoText>
+        </CenteredContainer>
+      );
+    }
+
+    // Archive files - not previewable
+    if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) {
+      return (
+        <CenteredContainer>
+          <DownloadButton onClick={handleDownload}>
+            <Download size={20} />
+            Download {file.fileName}
+          </DownloadButton>
+          <InfoText>
+            Archive files cannot be previewed. Please download to extract.
+          </InfoText>
+        </CenteredContainer>
+      );
+    }
+
+    // Default fallback for unsupported formats
     return (
       <CenteredContainer>
         <UnsupportedIcon>📄</UnsupportedIcon>
@@ -535,8 +605,24 @@ const SharedViewer: React.FC = () => {
     if (token) {
       fetchShareInfo();
       fetchCurrentUser();
+    } else {
+      setLoading(false);
+      setError("Invalid share link. Check the URL and try again.");
     }
   }, [token]);
+
+  // Show invalid link immediately when no token (e.g. /shared without token)
+  if (!token) {
+    return (
+      <Container>
+        <CenteredContainer>
+          <AlertCircle size={64} color="#d93025" />
+          <ErrorTitle>Invalid share link</ErrorTitle>
+          <ErrorText>Check the URL and try again.</ErrorText>
+        </CenteredContainer>
+      </Container>
+    );
+  }
 
   useEffect(() => {
     if (fileUrl && file) {
@@ -1434,6 +1520,14 @@ const UnsupportedText = styled.div`
   font-size: 14px;
   color: #5f6368;
   margin-bottom: 16px;
+`;
+
+const InfoText = styled.div`
+  font-size: 14px;
+  color: #5f6368;
+  margin-top: 12px;
+  text-align: center;
+  max-width: 400px;
 `;
 
 const DownloadButton = styled.button`

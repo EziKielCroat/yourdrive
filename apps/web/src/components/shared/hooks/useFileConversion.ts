@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useAuthStore } from "../../../store/authStore";
 import { toast } from "react-hot-toast";
-import axios from "axios";
+import api from "../../../lib/axios";
 
 interface FormatMap {
   [key: string]: string[];
@@ -15,7 +14,6 @@ const formatMap: FormatMap = {
 };
 
 export const useFileConversion = () => {
-  const accessToken = useAuthStore((s) => s.accessToken);
   const [formats, setFormats] = useState<string[]>([]);
   const [converting, setConverting] = useState(false);
 
@@ -25,12 +23,7 @@ export const useFileConversion = () => {
   };
 
   const prepareFile = async (fileId: string) => {
-    if (!accessToken) throw new Error("Not authenticated");
-
-    const response = await axios.get(`/api/conversion/prepare/${fileId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
+    const response = await api.get(`/conversion/prepare/${fileId}`);
     return response.data;
   };
 
@@ -39,8 +32,6 @@ export const useFileConversion = () => {
     fileName: string,
     targetFormat: string,
   ) => {
-    if (!accessToken) return toast.error("Not logged in");
-
     setConverting(true);
 
     try {
@@ -84,13 +75,12 @@ export const useFileConversion = () => {
     fileName: string,
     newFormat: string,
   ) => {
-    if (!accessToken) throw new Error("Not authenticated");
-
-    const response = await axios.post(
-      "/api/conversion/save",
-      { originalFileId, convertedFileUrl, fileName, newFormat },
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const response = await api.post("/conversion/save", {
+      originalFileId,
+      convertedFileUrl,
+      fileName,
+      newFormat,
+    });
 
     return response.data;
   };
