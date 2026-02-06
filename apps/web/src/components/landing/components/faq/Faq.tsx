@@ -22,24 +22,24 @@ const Faq: React.FC = () => {
 
   const faqs = [
     {
-      q: "Is YourDrive free?",
-      a: "Yes! YourDrive offers a free plan with essential features. You can upgrade to Pro for only €2/month to unlock unlimited storage and advanced tools."
+      q: "Is NexaCore free?",
+      a: "Yes! NexaCore offers a free plan with essential features. You can upgrade to Pro for only €2/month to unlock unlimited storage and advanced tools."
     },
     {
-      q: "Who is YourDrive for?",
+      q: "Who is NexaCore for?",
       a: "Anyone who wants to securely store, edit, and share files—students, freelancers, teams, or businesses."
     },
     {
       q: "How secure is my data?",
-      a: "YourDrive uses end-to-end encryption and multiple layers of protection to make sure your files stay private and safe."
+      a: "NexaCore uses end-to-end encryption and multiple layers of protection to make sure your files stay private and safe."
     },
     {
-      q: "Can I share files with non-YourDrive users?",
-      a: "Yes. You can share any file via a secure link, even if the recipient doesn't have a YourDrive account."
+      q: "Can I share files with non-NexaCore users?",
+      a: "Yes. You can share any file via a secure link, even if the recipient doesn't have a NexaCore account."
     },
     {
       q: "What devices and platforms are supported?",
-      a: "YourDrive works on web, desktop, and mobile, so your files are always accessible wherever you are."
+      a: "NexaCore works on web, desktop, and mobile, so your files are always accessible wherever you are."
     },
     {
       q: "Can I talk to customer support?",

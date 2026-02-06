@@ -244,7 +244,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
               <DangerDescription>
                 All your files, folders, and settings will be permanently
                 deleted. Please contact{" "}
-                <ContactEmail>support@yourdrive.com</ContactEmail> to proceed.
+                <ContactEmail>support@NexaCore.com</ContactEmail> to proceed.
               </DangerDescription>
             </DangerInfo>
           </DangerItem>

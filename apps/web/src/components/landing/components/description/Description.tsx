@@ -32,7 +32,7 @@ const Description: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <WrapText>
-            <BlackText><span style={{color: "#0E84FF"}}>YourDrive</span> shows you</BlackText>
+            <BlackText><span style={{color: "#0E84FF"}}>NexaCore</span> shows you</BlackText>
           </WrapText>
           <BlackText>where everything is</BlackText>
         </Wrap>
@@ -44,7 +44,7 @@ const Description: React.FC = () => {
         viewport={{ once: true }}
         transition={{ duration: 0.5, delay: 0.5 }}
       >
-        After every upload, edit, or share, YourDrive helps you stay in control—whether you're working solo, collaborating with a team, or managing files across projects.
+        After every upload, edit, or share, NexaCore helps you stay in control—whether you're working solo, collaborating with a team, or managing files across projects.
       </Desc>
       <ImageWrapper
         as={motion.div}

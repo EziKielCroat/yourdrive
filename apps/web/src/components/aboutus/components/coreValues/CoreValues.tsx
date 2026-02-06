@@ -16,7 +16,7 @@ const CoreValues: React.FC = () => {
                         <ImgCont><Image src="/Images/Backgroundskib.png" height={426} width={406} /></ImgCont>
                         <TextCont>
                             <Wrap style={{ flexDirection: "column", alignItems: "center", marginTop: "3%" }}>
-                                <Desc>YourDrive is designed with end-to-end</Desc>
+                                <Desc>NexaCore is designed with end-to-end</Desc>
                                 <Desc>security at its core.</Desc>
                             </Wrap>
                         </TextCont>

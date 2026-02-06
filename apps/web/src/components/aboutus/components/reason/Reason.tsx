@@ -44,7 +44,7 @@ const Reason: React.FC = () => {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
         <Title>
-          Why We Built <Highlight>YourDrive</Highlight>
+          Why We Built <Highlight>NexaCore</Highlight>
         </Title>
         <StyledSubTitle>
           Born from the frustration of scattered files
@@ -68,7 +68,7 @@ const Reason: React.FC = () => {
                   From classrooms to startups, we've all experienced the pain of juggling too many tools and losing track of files.
                 </MainText>
                 <HighlightText>
-                  <Highlight>YourDrive</Highlight> was created to bring everything together in one simple, private, and polished space—so you can focus on what matters, not where your files are.
+                  <Highlight>NexaCore</Highlight> was created to bring everything together in one simple, private, and polished space—so you can focus on what matters, not where your files are.
                 </HighlightText>
               </TextBlock>
             </TextWrapper>
@@ -83,7 +83,7 @@ const Reason: React.FC = () => {
                 src="./Images/skibidi.png" 
                 width={878} 
                 height={625}
-                alt="YourDrive illustration"
+                alt="NexaCore illustration"
               />
             </ImageWrapper>
           </motion.div>

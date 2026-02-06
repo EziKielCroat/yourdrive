@@ -5,7 +5,7 @@ const HeroSection: React.FC = () => {
   return (
     <S.Container>
       <S.Title>
-        How <S.Highlight>YourDrive</S.Highlight> Works
+        How <S.Highlight>NexaCore</S.Highlight> Works
       </S.Title>
       <S.Subtitle>
         From upload to collaboration, it's as simple as three steps.

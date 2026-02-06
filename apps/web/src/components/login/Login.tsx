@@ -286,7 +286,7 @@ export default function LoginPage() {
     setTwoFactorError("");
 
     try {
-      // YourDrive uses a single endpoint that accepts both TOTP and recovery codes
+      // NexaCore uses a single endpoint that accepts both TOTP and recovery codes
       const response = await fetch("/api/auth/totp/verify", {
         method: "POST",
         headers: {
@@ -305,7 +305,7 @@ export default function LoginPage() {
 
       const data = await response.json();
       
-      // YourDrive returns refreshToken in cookie, just store accessToken
+      // NexaCore returns refreshToken in cookie, just store accessToken
       localStorage.setItem("accessToken", data.accessToken);
       
       // Update auth store

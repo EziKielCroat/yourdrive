@@ -50,7 +50,7 @@ const Features: React.FC = () => {
         transition={{ duration: 0.5, delay: 0.1 }}
         style={{marginLeft: "5%"}}
       >
-        Edit and manage files effortlessly via <span style={{color: "#0E84FF"}}>YourDrive</span>
+        Edit and manage files effortlessly via <span style={{color: "#0E84FF"}}>NexaCore</span>
       </DetailDesc>
       <ImgNDescCont
         as={motion.div}
@@ -84,7 +84,7 @@ const Features: React.FC = () => {
           <TextCont>
             <Wrap>
               <Title>Never in your way.</Title>
-              <Desc>YourDrive is designed as</Desc>
+              <Desc>NexaCore is designed as</Desc>
             </Wrap>
             <Desc>your go to platform with the simple and</Desc>
             <Desc>affordable features.</Desc>

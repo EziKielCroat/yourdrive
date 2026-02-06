@@ -44,7 +44,7 @@ const Hero: React.FC = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
           >
-            From class notes to client decks, YourDrive keeps it private, polished, and in your pocket.
+            From class notes to client decks, NexaCore keeps it private, polished, and in your pocket.
           </ShortDesc>
           <ButtonCont
             as={motion.div}
