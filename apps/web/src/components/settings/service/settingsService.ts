@@ -12,168 +12,125 @@ import type {
   ActiveSession,
 } from "../types/UserSettings";
 
-import { useAuthStore } from "../../../store/authStore";
+import api from "../../../lib/axios";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+export interface StorageInfo {
+  limit: string;
+  used: string;
+  available: string;
+  usagePercentage: number;
+  tier: string;
+  deviceName: string;
+}
 
-async function fetchAPI<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const token = useAuthStore.getState().accessToken;
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options?.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      message: "An error occurred",
-    }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
-  }
-
-  return response.json();
+export interface StorageStats {
+  total: StorageInfo;
+  byType: Array<{
+    mimeType: string;
+    size: string;
+    count: number;
+  }>;
+  largestFiles: Array<{
+    name: string;
+    size: string;
+    type: string;
+    uploaded: Date;
+  }>;
 }
 
 export const settingsService = {
   async getSettings(): Promise<UserSettings> {
-    return fetchAPI<UserSettings>("/settings");
+    const response = await api.get("/settings");
+    return response.data;
   },
 
   async updateProfile(data: UpdateProfileRequest): Promise<void> {
-    await fetchAPI("/settings/profile", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/profile", data);
   },
 
   async updateSecurity(data: UpdateSecurityRequest): Promise<void> {
-    await fetchAPI("/settings/security", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/security", data);
   },
 
   async updateAppearance(data: UpdateAppearanceRequest): Promise<void> {
-    await fetchAPI("/settings/appearance", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/appearance", data);
   },
 
   async updateLanguage(data: UpdateLanguageRequest): Promise<void> {
-    await fetchAPI("/settings/language", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/language", data);
   },
 
   async updateStorage(data: UpdateStorageRequest): Promise<void> {
-    await fetchAPI("/settings/storage", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/storage", data);
   },
 
   async updateSharing(data: UpdateSharingRequest): Promise<void> {
-    await fetchAPI("/settings/sharing", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/sharing", data);
   },
 
   async updatePreferences(data: UpdatePreferencesRequest): Promise<void> {
-    await fetchAPI("/settings/preferences", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/preferences", data);
   },
 
   async updatePrivacy(data: UpdatePrivacyRequest): Promise<void> {
-    await fetchAPI("/settings/privacy", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/privacy", data);
   },
 
   async updatePassword(data: {
     currentPassword: string;
     newPassword: string;
   }): Promise<void> {
-    await fetchAPI("/settings/password", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+    await api.patch("/settings/password", data);
   },
 
   async getLinkedAccounts(): Promise<LinkedAccount[]> {
-    return fetchAPI<LinkedAccount[]>("/settings/linked-accounts");
+    const response = await api.get("/settings/linked-accounts");
+    return response.data;
   },
 
   async linkAccount(
     provider: string,
     credentials: any
   ): Promise<LinkedAccount> {
-    return fetchAPI<LinkedAccount>("/settings/linked-accounts", {
-      method: "POST",
-      body: JSON.stringify({ provider, credentials }),
+    const response = await api.post("/settings/linked-accounts", {
+      provider,
+      credentials,
     });
+    return response.data;
   },
 
   async unlinkAccount(accountId: string): Promise<void> {
-    await fetchAPI(`/settings/linked-accounts/${accountId}`, {
-      method: "DELETE",
-    });
+    await api.delete(`/settings/linked-accounts/${accountId}`);
   },
 
   async getActiveSessions(): Promise<ActiveSession[]> {
-    return fetchAPI<ActiveSession[]>("/settings/sessions");
+    const response = await api.get("/settings/sessions");
+    return response.data;
   },
 
   async signOutSession(sessionId: string): Promise<void> {
-    await fetchAPI(`/settings/sessions/${sessionId}`, {
-      method: "DELETE",
-    });
+    await api.delete(`/settings/sessions/${sessionId}`);
   },
 
   async signOutAllSessions(): Promise<void> {
-    await fetchAPI("/settings/sessions/all", {
-      method: "DELETE",
-    });
+    await api.delete("/settings/sessions/all");
   },
 
   async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
     const formData = new FormData();
     formData.append("avatar", file);
 
-    const token = localStorage.getItem("authToken");
-
-    const response = await fetch(`${API_BASE_URL}/settings/avatar`, {
-      method: "POST",
+    const response = await api.post("/settings/avatar", formData, {
       headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
+        "Content-Type": "multipart/form-data",
       },
-      body: formData,
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to upload avatar");
-    }
-
-    return response.json();
+    return response.data;
   },
 
   async deleteAvatar(): Promise<void> {
-    await fetchAPI("/settings/avatar", {
-      method: "DELETE",
-    });
+    await api.delete("/settings/avatar");
   },
 
   async enableTwoFactor(): Promise<{
@@ -181,29 +138,21 @@ export const settingsService = {
     secret: string;
     backupCodes: string[];
   }> {
-    return fetchAPI("/settings/2fa/enable", {
-      method: "POST",
-    });
+    const response = await api.post("/settings/2fa/enable");
+    return response.data;
   },
 
   async verifyTwoFactor(code: string): Promise<void> {
-    await fetchAPI("/settings/2fa/verify", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    });
+    await api.post("/settings/2fa/verify", { code });
   },
 
   async disableTwoFactor(password: string): Promise<void> {
-    await fetchAPI("/settings/2fa/disable", {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    });
+    await api.post("/settings/2fa/disable", { password });
   },
 
   async regenerateBackupCodes(): Promise<{ backupCodes: string[] }> {
-    return fetchAPI("/settings/2fa/backup-codes", {
-      method: "POST",
-    });
+    const response = await api.post("/settings/2fa/backup-codes");
+    return response.data;
   },
 
   async getStorageUsage(): Promise<{
@@ -216,57 +165,90 @@ export const settingsService = {
       other: number;
     };
   }> {
-    return fetchAPI("/settings/storage/usage");
+    // Get real storage info first
+    const storageInfoResponse = await api.get("/storage/info");
+    const storageInfo: StorageInfo = storageInfoResponse.data;
+    
+    // Get detailed stats
+    const statsResponse = await api.get("/storage/stats");
+    const stats: StorageStats = statsResponse.data;
+    
+    // Calculate breakdown by type
+    const breakdown = {
+      documents: 0,
+      images: 0,
+      videos: 0,
+      other: 0
+    };
+    
+    stats.byType.forEach(item => {
+      const size = Number(item.size);
+      const mimeType = item.mimeType.toLowerCase();
+      
+      if (mimeType.startsWith('text/') || 
+          mimeType.includes('pdf') || 
+          mimeType.includes('document') ||
+          mimeType.includes('word') ||
+          mimeType.includes('excel') ||
+          mimeType.includes('powerpoint')) {
+        breakdown.documents += size;
+      } else if (mimeType.startsWith('image/')) {
+        breakdown.images += size;
+      } else if (mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+        breakdown.videos += size;
+      } else {
+        breakdown.other += size;
+      }
+    });
+    
+    return {
+      total: Number(storageInfo.limit),
+      used: Number(storageInfo.used),
+      breakdown
+    };
   },
 
   async clearCache(): Promise<void> {
-    await fetchAPI("/settings/storage/cache", {
-      method: "DELETE",
-    });
+    await api.post("/storage/clear-cache");
   },
 
   async removeDuplicates(): Promise<{
     filesRemoved: number;
     spaceFreed: number;
   }> {
-    return fetchAPI("/settings/storage/duplicates", {
-      method: "DELETE",
-    });
+    const response = await api.post("/storage/remove-duplicates");
+    return response.data;
   },
 
   async deleteOldVersions(olderThanDays: number = 30): Promise<{
     versionsDeleted: number;
     spaceFreed: number;
   }> {
-    return fetchAPI("/settings/storage/versions", {
-      method: "DELETE",
-      body: JSON.stringify({ olderThanDays }),
+    const response = await api.post("/storage/delete-old-versions", {
+      olderThanDays,
     });
+    return response.data;
   },
 
   async deleteAccount(): Promise<void> {
-    await fetchAPI("/settings/account", {
-      method: "DELETE",
-    });
+    await api.delete("/settings/account");
   },
 
   async cancelAccountDeletion(): Promise<void> {
-    await fetchAPI("/settings/account/deletion/cancel", {
-      method: "POST",
-    });
+    await api.post("/settings/account/deletion/cancel");
   },
 
   async requestDataExport(): Promise<{ exportId: string }> {
-    return fetchAPI("/settings/export", {
-      method: "POST",
-    });
+    const response = await api.post("/settings/export");
+    return response.data;
   },
 
   async getExportStatus(exportId: string): Promise<{
     status: "pending" | "processing" | "completed" | "failed";
     downloadUrl?: string;
   }> {
-    return fetchAPI(`/settings/export/${exportId}`);
+    const response = await api.get(`/settings/export/${exportId}`);
+    return response.data;
   },
 
   async getSharedFilesStats(): Promise<{
@@ -274,18 +256,84 @@ export const settingsService = {
     sharedWithMe: number;
     publicLinks: number;
   }> {
-    return fetchAPI("/settings/sharing/stats");
+    const response = await api.get("/settings/sharing/stats");
+    return response.data;
   },
 
   async revokeAllPublicLinks(): Promise<{ linksRevoked: number }> {
-    return fetchAPI("/settings/sharing/links/revoke-all", {
-      method: "POST",
-    });
+    const response = await api.post("/settings/sharing/links/revoke-all");
+    return response.data;
+  },
+
+  // ============================================
+  // STORAGE METHODS
+  // ============================================
+
+  async getRealStorageInfo(): Promise<StorageInfo> {
+    const response = await api.get("/storage/info");
+    return response.data;
+  },
+
+  async getStorageStats(): Promise<StorageStats> {
+    const response = await api.get("/storage/stats");
+    return response.data;
+  },
+
+  async updateStorageSettings(data: any): Promise<void> {
+    await api.put("/storage/settings", data);
+  },
+
+  // Helper function to format bytes
+  formatBytes(bytes: string | number | bigint): string {
+    let bytesNum: number;
+    
+    if (typeof bytes === "bigint") {
+      bytesNum = Number(bytes);
+    } else if (typeof bytes === "string") {
+      bytesNum = Number(bytes);
+    } else {
+      bytesNum = bytes;
+    }
+    
+    if (bytesNum === 0) return "0 B";
+    if (isNaN(bytesNum)) return "0 B";
+    
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytesNum) / Math.log(k));
+    
+    return `${(bytesNum / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  },
+
+  // Get storage tier name
+  getStorageTier(limitBytes: string | bigint | number): string {
+    let bytes: number;
+    
+    if (typeof limitBytes === "string") {
+      bytes = Number(limitBytes);
+    } else if (typeof limitBytes === "bigint") {
+      bytes = Number(limitBytes);
+    } else {
+      bytes = limitBytes;
+    }
+    
+    const inGB = bytes / (1024 * 1024 * 1024);
+    
+    if (inGB >= 150) return "150GB (Educational Plan)";
+    if (inGB >= 100) return "100GB (Pro Plan)";
+    if (inGB >= 50) return "50GB (Free Plan)";
+    return `${Math.round(inGB)}GB`;
+  },
+
+  // Get color based on usage percentage
+  getUsageColor(percentage: number): string {
+    if (percentage < 70) return "#10b981"; // green
+    if (percentage < 90) return "#f59e0b"; // yellow
+    return "#ef4444"; // red
   },
 };
 
-// za testiranje
-
+// Mock service for testing
 export const mockSettingsService = {
   async getSettings(): Promise<UserSettings> {
     return new Promise((resolve) => {
@@ -315,8 +363,8 @@ export const mockSettingsService = {
             timezone: "UTC",
           },
           storage: {
-            totalStorage: 10737418240, // 10GB
-            usedStorage: 6979321856, // 6.5GB
+            totalStorage: 10737418240,
+            usedStorage: 6979321856,
             autoSync: true,
             fileVersioning: true,
             maxVersionsToKeep: 10,

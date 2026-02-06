@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Shield, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import TwoFactorSettings from "./TwoFactorSettings";
+import { settingsService } from "../service/settingsService";
 import {
   Section,
   SectionTitle,
@@ -47,6 +48,9 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
   });
 
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const handleToggle = async (field: string) => {
     try {
@@ -61,76 +65,117 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
     }
   };
 
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return "Password must contain at least one special character";
+    }
+    return null;
+  };
+
+  const handlePasswordUpdate = async () => {
+    setPasswordError("");
+    setPasswordSuccess(false);
+
+    // Validation
+    if (!passwordData.currentPassword) {
+      setPasswordError("Current password is required");
+      return;
+    }
+
+    if (!passwordData.newPassword) {
+      setPasswordError("New password is required");
+      return;
+    }
+
+    const passwordValidationError = validatePassword(passwordData.newPassword);
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      setPasswordError("New password must be different from current password");
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      await settingsService.updatePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      // Clear form and show success
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordSuccess(true);
+
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setPasswordSuccess(false);
+      }, 5000);
+    } catch (error: any) {
+      console.error("Failed to update password:", error);
+      setPasswordError(
+        error.message || "Failed to update password. Please check your current password and try again."
+      );
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <>
-      <TwoFactorSettings />
-      <Section>
-        <SectionTitle>Security Settings</SectionTitle>
-        <SectionDescription>
-          Protect your account with additional security features
-        </SectionDescription>
-
-        <InfoCard>
-          <InfoText>
-            <Shield
-              size={16}
-              style={{ display: "inline", marginRight: "0.5rem" }}
-            />
-            Keep your account secure by enabling two-factor authentication and
-            using a strong password.
-          </InfoText>
-        </InfoCard>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Two-Factor Authentication</ToggleTitle>
-            <ToggleDescription>
-              Add an extra layer of security to your account with 2FA
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={securityData.twoFactorEnabled}
-            onClick={() => handleToggle("twoFactorEnabled")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Client-Side Encryption</ToggleTitle>
-            <ToggleDescription>
-              Encrypt files on your device before uploading (end-to-end
-              encryption)
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={securityData.clientSideEncryption}
-            onClick={() => handleToggle("clientSideEncryption")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Offline Mode</ToggleTitle>
-            <ToggleDescription>
-              Download and access your files when you're not connected to the
-              internet
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={securityData.offlineModeEnabled}
-            onClick={() => handleToggle("offlineModeEnabled")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
-      </Section>
-
+      <TwoFactorSettings /> 
       <Section>
         <SectionTitle>Change Password</SectionTitle>
         <SectionDescription>
           Update your password to keep your account secure
         </SectionDescription>
+
+        {passwordError && (
+          <InfoCard style={{ backgroundColor: "#fef2f2", borderColor: "#fecaca" }}>
+            <InfoText style={{ color: "#991b1b" }}>
+              <AlertCircle
+                size={16}
+                style={{ display: "inline", marginRight: "0.5rem" }}
+              />
+              {passwordError}
+            </InfoText>
+          </InfoCard>
+        )}
+
+        {passwordSuccess && (
+          <InfoCard style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0" }}>
+            <InfoText style={{ color: "#166534" }}>
+              <CheckCircle
+                size={16}
+                style={{ display: "inline", marginRight: "0.5rem" }}
+              />
+              Password updated successfully!
+            </InfoText>
+          </InfoCard>
+        )}
 
         <FormGroup>
           <Label>Current Password</Label>
@@ -145,6 +190,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 }))
               }
               placeholder="Enter current password"
+              disabled={passwordLoading}
             />
             <button
               onClick={() =>
@@ -163,6 +209,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 cursor: "pointer",
                 color: "#6b7280",
               }}
+              type="button"
             >
               {showPasswords.current ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -182,6 +229,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 }))
               }
               placeholder="Enter new password"
+              disabled={passwordLoading}
             />
             <button
               onClick={() =>
@@ -197,6 +245,7 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 cursor: "pointer",
                 color: "#6b7280",
               }}
+              type="button"
             >
               {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -220,6 +269,12 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 }))
               }
               placeholder="Confirm new password"
+              disabled={passwordLoading}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handlePasswordUpdate();
+                }
+              }}
             />
             <button
               onClick={() =>
@@ -238,13 +293,20 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
                 cursor: "pointer",
                 color: "#6b7280",
               }}
+              type="button"
             >
               {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </FormGroup>
 
-        <Button variant="primary">Update Password</Button>
+        <Button 
+          variant="primary" 
+          onClick={handlePasswordUpdate}
+          disabled={passwordLoading}
+        >
+          {passwordLoading ? "Updating..." : "Update Password"}
+        </Button>
       </Section>
     </>
   );

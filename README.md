@@ -6,6 +6,16 @@ yourdrive
 │  │  ├─ database-init.ts
 │  │  ├─ package.json
 │  │  ├─ prisma
+│  │  │  ├─ migrations
+│  │  │  │  ├─ 20260204172942_
+│  │  │  │  │  └─ migration.sql
+│  │  │  │  ├─ 20260205165140_add_password_reset_fields
+│  │  │  │  │  └─ migration.sql
+│  │  │  │  ├─ 20260205175942_add_password_reset_code_hash
+│  │  │  │  │  └─ migration.sql
+│  │  │  │  ├─ 20260205213314_add_email_verification
+│  │  │  │  │  └─ migration.sql
+│  │  │  │  └─ migration_lock.toml
 │  │  │  └─ schema.prisma
 │  │  ├─ src
 │  │  │  ├─ config
@@ -14,6 +24,8 @@ yourdrive
 │  │  │  ├─ index.ts
 │  │  │  ├─ lib
 │  │  │  │  ├─ b2.service.ts
+│  │  │  │  ├─ bigint-helper.ts
+│  │  │  │  ├─ email.service.ts
 │  │  │  │  ├─ helper.ts
 │  │  │  │  └─ prisma.ts
 │  │  │  ├─ middleware
@@ -25,11 +37,14 @@ yourdrive
 │  │  │  │  ├─ favorite.routes.ts
 │  │  │  │  ├─ files.routes.ts
 │  │  │  │  ├─ settings.routes.ts
-│  │  │  │  └─ sharing.routes.ts
+│  │  │  │  ├─ sharing.routes.ts
+│  │  │  │  └─ storage.routes.ts
 │  │  │  └─ services
 │  │  │     ├─ auth.service.ts
 │  │  │     ├─ device.service.ts
-│  │  │     └─ settings.service.ts
+│  │  │     ├─ settings.service.ts
+│  │  │     ├─ storage.service.ts
+│  │  │     └─ tempfix.ts
 │  │  ├─ temp
 │  │  │  └─ chunks
 │  │  └─ tsconfig.json
@@ -83,10 +98,12 @@ yourdrive
 │     │  │  │     │     └─ reason.ts
 │     │  │  │     └─ smtnelse
 │     │  │  ├─ auth
+│     │  │  │  ├─ ForgotPasswordModal.tsx
 │     │  │  │  ├─ PasskeySetupModal.tsx
 │     │  │  │  ├─ SocialLoginButtons.tsx
 │     │  │  │  ├─ TwoFactorModal.tsx
-│     │  │  │  └─ TwoFactorSetupModal.tsx
+│     │  │  │  ├─ TwoFactorSetupModal.tsx
+│     │  │  │  └─ VerifyEmail.tsx
 │     │  │  ├─ dashboard
 │     │  │  │  ├─ component
 │     │  │  │  │  ├─ Application.tsx

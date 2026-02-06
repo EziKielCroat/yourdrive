@@ -35,6 +35,7 @@ import FileSharingEditing from "../components/filesharingediting/FileSharingEdit
 import SecureStorage from "../components/securestorage/SecureStorage";
 import TeamCollaboration from "../components/teamcollaboration/TeamCollaboration";
 import { GlobalReset } from "../components/landing/styles/landing";
+import { VerifyEmail } from "../components/auth/VerifyEmail";
 
 export const ROUTES = {
   HOME: "/",
@@ -50,6 +51,7 @@ export const ROUTES = {
   PRIVACY: "/privacy",
   PERSONAL_STORAGE: "/personal",
   FILE_SHARING_EDITING: "/file-editing",
+  VERIFY_EMAIL: "/verify-email",
   SECURE_STORAGE: "/secure",
   TEAM_COLLABORATION: "/team",
   YOUR_FILES: "/dashboard/your-files",
@@ -126,6 +128,12 @@ const aboutUsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/aboutus",
   component: AboutUs,
+});
+
+const VerifyEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/verify-email",
+  component: VerifyEmail,
 });
 
 const personalStorageRoute = createRoute({
@@ -249,6 +257,7 @@ const routeTree = rootRoute.addChildren([
   personalStorageRoute,
   fileSharingEditingRoute,
   secureStorageRoute,
+  VerifyEmailRoute,
   teamCollaborationRoute,
   featuresRoute,
   helpCenterRoute,

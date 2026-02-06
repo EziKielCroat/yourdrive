@@ -5,6 +5,8 @@ export const MainContainer = styled.main`
   background: #fff;
   border-radius: 12px;
   margin-bottom: 10px;
+  overflow: hidden; /* Prevent scrolling */
+  height: 100%;
 `;
 
 export const EmptyStateWrapper = styled.div`

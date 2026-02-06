@@ -8,30 +8,35 @@ datasource db {
 }
 
 model User {
-  id                  String               @id @default(uuid())
-  firstName           String?              @map("first_name")
-  email               String               @unique
-  password            String
-  emailVerified       Boolean              @default(false) @map("emailVerified")
-  loginAttempts       Int                  @default(0) @map("loginAttempts")
-  lockUntil           DateTime?            @map("lockUntil")
-  createdAt           DateTime             @default(now()) @map("createdAt")
-  updatedAt           DateTime             @updatedAt @map("updatedAt")
-  totpSecret          String?              @map("totp_secret")
-  totpEnabled         Boolean              @default(false) @map("totp_enabled")
-  sessions            Session[]
-  FileShare           FileShare[]
-  shareActivities     ShareActivity[]
-  socialAccounts      SocialAccount[]
-  recoveryCodes       TotpRecoveryCode[]
-  userDevices         UserDevice[]
-  userFiles           UserFile[]
-  userSettings        UserSettings?
-  webauthnCredentials WebAuthnCredential[]
+  id                       String               @id @default(uuid())
+  firstName                String?              @map("first_name")
+  email                    String               @unique
+  password                 String
+  emailVerified            Boolean              @default(false) @map("emailVerified")
+  emailVerificationToken   String?              @map("email_verification_token")
+  emailVerificationExpires DateTime?            @map("email_verification_expires")
+  loginAttempts         Int                  @default(0) @map("loginAttempts")
+  lockUntil             DateTime?            @map("lockUntil")
+  createdAt             DateTime             @default(now()) @map("createdAt")
+  updatedAt             DateTime             @updatedAt @map("updatedAt")
+  totpSecret            String?              @map("totp_secret")
+  totpEnabled           Boolean              @default(false) @map("totp_enabled")
+  passwordResetToken    String?              @map("password_reset_token")
+  passwordResetExpires  DateTime?            @map("password_reset_expires")
+  passwordResetCodeHash String?              @map("password_reset_code_hash")
+  sessions              Session[]
+  FileShare             FileShare[]
+  shareActivities       ShareActivity[]
+  socialAccounts        SocialAccount[]
+  recoveryCodes         TotpRecoveryCode[]
+  userDevices           UserDevice[]
+  userFiles             UserFile[]
+  userSettings          UserSettings?
+  webauthnCredentials   WebAuthnCredential[]
 
+  @@index([emailVerificationToken])
   @@map("User")
 }
-
 model Session {
   id           String   @id @default(uuid())
   userId       String   @map("userId")
@@ -88,6 +93,7 @@ model UserFile {
   mimeType     String      @map("mime_type")
   isFolder     Boolean     @default(false) @map("is_folder")
   createdAt    DateTime    @default(now()) @map("created_at")
+
   updatedAt    DateTime    @updatedAt @map("updated_at")
   deletedAt    DateTime?   @map("deleted_at")
   FileShare    FileShare[]

@@ -40,18 +40,6 @@ const Footer: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Title>Support</Title>
-            <Link href="/helpcenter">Help Center</Link>
-            <Link href="/contact">Contact Us</Link>
-            <Link href="/status">System Status</Link>
-          </ItemBox>
-          <ItemBox
-            as={motion.div}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <Title>Use Cases</Title>

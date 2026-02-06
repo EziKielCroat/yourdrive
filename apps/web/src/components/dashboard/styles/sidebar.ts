@@ -24,6 +24,7 @@ export const SidebarWrapper = styled(motion.aside).attrs<SidebarWrapperProps>(
   background: transparent;
   position: relative;
   overflow: hidden;
+  height: 100%;
 
   & > *:not(button) {
     opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};

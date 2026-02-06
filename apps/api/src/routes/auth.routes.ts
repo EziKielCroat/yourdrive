@@ -22,6 +22,14 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // Limit each IP to 3 password reset requests per windowMs
+  message: "Too many password reset attempts. Try again in 15 minutes.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ============================================
 // Registration & Login Routes
 // ============================================
@@ -266,6 +274,105 @@ authRoutes.get("/status", async (req: Request, res: Response) => {
     });
   }
 });
+
+// ============================================
+// Password Reset Routes
+// ============================================
+
+authRoutes.post(
+  "/password/forgot",
+  passwordResetLimiter,
+  async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: "Email is required",
+        });
+      }
+
+      const result = await AuthService.requestPasswordReset(email);
+
+      res.json({
+        success: true,
+        message: result.message,
+        userId: result.userId, // Return userId if user exists
+      });
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to process password reset request",
+      });
+    }
+  },
+);
+
+authRoutes.post(
+  "/password/verify-code",
+  async (req: Request, res: Response) => {
+    try {
+      const { userId, code } = req.body;
+
+      if (!userId || !code) {
+        return res.status(400).json({
+          success: false,
+          error: "User ID and code are required",
+        });
+      }
+
+      const result = await AuthService.verifyResetCode(userId, code);
+
+      res.json({
+        success: true,
+        isValid: result.isValid,
+        resetToken: result.resetToken,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  },
+);
+
+authRoutes.post(
+  "/password/reset",
+  async (req: Request, res: Response) => {
+    try {
+      const { resetToken, newPassword } = req.body;
+
+      if (!resetToken || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          error: "Reset token and new password are required",
+        });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          error: "Password must be at least 8 characters",
+        });
+      }
+
+      const result = await AuthService.resetPassword(resetToken, newPassword);
+
+      res.json({
+        success: true,
+        message: "Password reset successful",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  },
+);
 
 // ============================================
 // Device Routes
@@ -647,6 +754,66 @@ authRoutes.delete(
     }
   },
 );
+
+// ============================================
+// Email Verification Routes
+// ============================================
+
+authRoutes.get("/verify-email", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    console.log(`🔍 Verify email endpoint called with token: ${token}`);
+
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Verification token is required",
+      });
+    }
+
+    const result = await AuthService.verifyEmail(token);
+
+    console.log(`✅ Verification result:`, result);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error("❌ Verification route error:", error);
+    console.error("Stack trace:", error.stack);
+    
+    res.status(400).json({
+      success: false,
+      error: error.message || "Verification failed",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
+});
+
+authRoutes.post("/resend-verification", async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    const result = await AuthService.resendVerificationEmail(email);
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 
 // ============================================
 // Social Accounts Routes

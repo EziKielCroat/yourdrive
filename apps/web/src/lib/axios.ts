@@ -1,32 +1,47 @@
 import axios from "axios";
-import { useAuthStore } from "../store/authStore";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
-  withCredentials: true,
+  baseURL: "/api",
+  withCredentials: true, // CRITICAL - ensures cookies are sent
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Request interceptor to add access token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
+// Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // If 401 and we haven't retried yet, try to refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        await useAuthStore.getState().refreshToken();
+        const refreshResponse = await api.post("/auth/refresh");
+        const newAccessToken = refreshResponse.data.accessToken;
+        
+        localStorage.setItem("accessToken", newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        
         return api(originalRequest);
       } catch (refreshError) {
-        useAuthStore.getState().logout();
+        // Refresh failed, user needs to log in again
+        localStorage.removeItem("accessToken");
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }

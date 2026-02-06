@@ -77,9 +77,6 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
             <NavLink>
               <Link to="/howitworks">How It Works</Link>
             </NavLink>
-            <NavLink>
-              <Link to="/helpcenter">Help Center</Link>
-            </NavLink>
           </NavLinkCont>
         </NContLeft>
 

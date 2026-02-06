@@ -44,10 +44,10 @@ const Header = styled.div`
 
 const Logo = styled.h1`
   font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
   margin: 0;
-  color: #000000;
+  color: #1F9AFE;
   font-family: "Poppins", sans-serif;
 `;
 
@@ -465,10 +465,6 @@ export default function RegisterPage() {
                   </ToggleIcon>
                 </InputWrapper>
 
-                <ForgotPassword>
-                  <button type="button">Forgot Password?</button>
-                </ForgotPassword>
-
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Creating account..." : "Sign Up"}
                 </Button>
@@ -487,7 +483,7 @@ export default function RegisterPage() {
         <Right>
           <RightContent>
             <h2>
-              Send, receive and edit files with <span>YourDrive</span>
+              Send, receive and edit files with <span>NexaCore</span>
             </h2>
           </RightContent>
         </Right>

@@ -4,6 +4,7 @@ import styled from "styled-components";
 import { Lock, Mail, X, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import TwoFactorModal from "../auth/TwoFactorModal";
+import ForgotPasswordModal from "../auth/ForgotPasswordModal";
 
 const Page = styled.div`
   min-height: 100vh;
@@ -36,10 +37,10 @@ const Header = styled.div`
 
 const Logo = styled.h1`
   font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
   margin: 0;
-  color: #000000;
+  color: #1F9AFE;
 `;
 
 const CloseButton = styled.button`
@@ -257,6 +258,9 @@ export default function LoginPage() {
   const [twoFactorError, setTwoFactorError] = useState("");
   const [is2FALoading, setIs2FALoading] = useState(false);
 
+  // Forgot password modal state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -266,7 +270,7 @@ export default function LoginPage() {
       
       // Check if 2FA is required
       if (result.requires2FA) {
-        setTempToken(result.tempToken);
+        setTempToken(result.tempToken || "");
         setShow2FAModal(true);
       } else {
         // Normal login successful, navigate to dashboard
@@ -329,7 +333,7 @@ export default function LoginPage() {
       <Page>
         <Left>
           <Header>
-            <Logo>YOURDRIVE</Logo>
+            <Logo>NexaCore</Logo>
             <CloseButton onClick={() => navigate({ to: "/" })}>
               <X size={20} />
               Close
@@ -377,7 +381,12 @@ export default function LoginPage() {
                 </InputWrapper>
 
                 <ForgotPassword>
-                  <button type="button">Forgot Password?</button>
+                  <button 
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Forgot Password?
+                  </button>
                 </ForgotPassword>
 
                 <Button type="submit" disabled={isLoading}>
@@ -400,7 +409,7 @@ export default function LoginPage() {
             <h2>
               Send, receive and edit files
               <br />
-              with <span>YourDrive</span>
+              with <span>NexaCore</span>
             </h2>
           </RightContent>
         </Right>
@@ -412,6 +421,19 @@ export default function LoginPage() {
         onVerify={handle2FAVerification}
         isLoading={is2FALoading}
         error={twoFactorError}
+      />
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onLoginClick={() => {
+          setShowForgotPassword(false);
+          // Focus email field when returning to login
+          setTimeout(() => {
+            const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+            if (emailInput) emailInput.focus();
+          }, 100);
+        }}
       />
     </>
   );

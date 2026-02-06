@@ -47,7 +47,6 @@ export const NavLinkCont = styled.div`
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
 
   @media (max-width: 1200px) {
     gap: 4px;

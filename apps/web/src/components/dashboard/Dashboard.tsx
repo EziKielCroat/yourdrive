@@ -5,12 +5,14 @@ import Application from "./component/Application";
 
 const Dashboard = () => {
   return (
+    <>
     <Container>
       <Navbar />
       <Application>
         <Outlet />
       </Application>
     </Container>
+    </>
   );
 };
 

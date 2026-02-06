@@ -1,7 +1,8 @@
 import styled from "styled-components";
 
 export const PageWrapper = styled.div`
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: #fafbfc;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -11,6 +12,7 @@ export const Container = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  padding-bottom: 80px;
 `;
 
 export const Header = styled.div`

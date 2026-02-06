@@ -14,10 +14,11 @@ const Application = ({ children }: ApplicationProps) => {
 
 const ApplicationContainer = styled.div`
   flex: 1;
-  overflow: hidden;
   position: relative;
   background: #f8f9fa;
+
   overflow-y: hidden;
+  overflow-x: hidden;
 `;
 
 export default Application;
