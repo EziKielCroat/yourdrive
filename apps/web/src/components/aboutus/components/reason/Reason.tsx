@@ -80,7 +80,7 @@ const Reason: React.FC = () => {
           >
             <ImageWrapper>
               <Image 
-                src="./Images/skibidi.png" 
+                src="./Images/aboutUs.jpg" 
                 width={878} 
                 height={625}
                 alt="NexaCore illustration"
