@@ -470,8 +470,8 @@ authRoutes.post(
       const result = await AuthService.verifyAndEnableTOTP(req.userId!, token);
 
       res.json({
-        success: true,
         ...result,
+        success: true,
       });
     } catch (error: any) {
       const msg = error?.message || "Failed to verify code";
@@ -574,7 +574,8 @@ authRoutes.get(
         req.userId!,
       );
 
-      req.session.challenge = options.challenge;
+      (req as any).session = (req as any).session || {};
+      (req as any).session.challenge = options.challenge;
 
       res.json({
         success: true,
@@ -633,8 +634,8 @@ authRoutes.get(
       const options =
         await AuthService.generateWebAuthnAuthenticationOptions(userId);
 
-      if (req.session) {
-        req.session.challenge = options.challenge;
+      if ((req as any).session) {
+        (req as any).session.challenge = options.challenge;
       }
 
       res.json({
@@ -790,8 +791,8 @@ authRoutes.get("/verify-email", async (req: Request, res: Response) => {
     console.log(`✅ Verification result:`, result);
 
     res.json({
-      success: true,
       ...result,
+      success: true,
     });
   } catch (error: any) {
     console.error("❌ Verification route error:", error);

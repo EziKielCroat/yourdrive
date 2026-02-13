@@ -336,7 +336,7 @@ export class B2Service {
         params: {
           Bucket: this.bucketName,
           Key: key,
-          Body: stream,
+          Body: stream as any,
           ContentType: mimeType,
         },
       });

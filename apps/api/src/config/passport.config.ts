@@ -11,7 +11,7 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       callbackURL: `${process.env.BACKEND_URL}/auth/oauth/google/callback`,
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: any) => void) => {
       try {
         const email = profile.emails?.[0]?.value;
 
@@ -47,7 +47,7 @@ passport.use(
       callbackURL: `${process.env.BACKEND_URL}/auth/oauth/github/callback`,
       scope: ["user:email"],
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: any) => void) => {
       try {
         const email =
           profile.emails?.[0]?.value || `${profile.username}@github.local`;
@@ -80,7 +80,7 @@ passport.use(
       callbackURL: `${process.env.BACKEND_URL}/auth/oauth/facebook/callback`,
       profileFields: ["id", "emails", "name", "picture"],
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: any) => void) => {
       try {
         const email = profile.emails?.[0]?.value;
 

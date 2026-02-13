@@ -23,7 +23,7 @@ favoritesRoutes.post(
         [userId, fileId],
       );
 
-      if (exists.rowCount > 0) {
+      if ((exists.rowCount ?? 0) > 0) {
         await pool.query(
           `DELETE FROM favorited_files WHERE user_id=$1 AND file_id=$2`,
           [userId, fileId],

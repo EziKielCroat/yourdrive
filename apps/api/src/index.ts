@@ -57,7 +57,7 @@ const allowedOrigins = [
   "https://5n3w3hsd-5173.euw.devtunnels.ms",
   process.env.FRONTEND_URL,
 ]
-  .filter(Boolean)
+  .filter((url): url is string => Boolean(url))
   .map(normalizeOrigin);
 
 // Helmet: relax COOP/origin-agent-cluster so HTTP dev origins don't trigger console warnings

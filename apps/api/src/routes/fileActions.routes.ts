@@ -513,7 +513,7 @@ fileActionsRoutes.post(
           .json({ success: false, error: "Missing required fields" });
       }
 
-      const file = await getFileDetails(fileId, userId);
+      const file = await getFileDetails(pool, fileId, userId);
       if (!file) {
         return res
           .status(404)
@@ -632,7 +632,7 @@ fileActionsRoutes.post(
       }
 
       const fileId = fileIds[0];
-      const file = await getFileDetails(fileId, userId);
+      const file = await getFileDetails(pool, fileId, userId);
 
       if (!file) {
         return res
