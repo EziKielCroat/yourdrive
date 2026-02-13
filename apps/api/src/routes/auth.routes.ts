@@ -79,27 +79,44 @@ authRoutes.post(
         success: true,
         user,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (res.headersSent) return;
-      if (error.name === "ZodError") {
-        return res.status(400).json({
-          success: false,
-          error: error.errors?.[0]?.message ?? "Validation failed",
-        });
+      const err = error as Record<string, unknown>;
+      console.error("[auth/register] Error:", err?.message ?? err?.code ?? error);
+      try {
+        // Zod validation
+        if (err?.name === "ZodError") {
+          const msg =
+            Array.isArray(err.errors) && err.errors[0] && typeof (err.errors[0] as any).message === "string"
+              ? (err.errors[0] as { message: string }).message
+              : "Validation failed";
+          return res.status(400).json({ success: false, error: msg });
+        }
+        // Prisma: unique constraint (duplicate email) or other Prisma errors
+        if (typeof err?.code === "string") {
+          if (err.code === "P2002") {
+            return res.status(409).json({ success: false, error: "User already exists" });
+          }
+          if (err.code === "P2003" || err.code.startsWith("P2")) {
+            const msg = typeof err?.message === "string" ? err.message : "Database error";
+            return res.status(400).json({ success: false, error: msg });
+          }
+        }
+        // Generic message for known throw types
+        const message =
+          typeof err?.message === "string" && err.message
+            ? err.message
+            : "Registration failed";
+        res.status(400).json({ success: false, error: message });
+      } catch (sendError) {
+        if (!res.headersSent) {
+          console.error("[auth/register] Unexpected error sending response:", sendError);
+          res.status(500).json({
+            success: false,
+            error: "Registration failed. Please try again.",
+          });
+        }
       }
-      // Prisma unique constraint (e.g. duplicate email)
-      if (error?.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          error: "User already exists",
-        });
-      }
-      const message =
-        typeof error?.message === "string" ? error.message : "Registration failed";
-      res.status(400).json({
-        success: false,
-        error: message,
-      });
     }
   },
 );

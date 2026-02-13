@@ -94,13 +94,14 @@ app.use(
       if (isAllowedOriginHost(origin)) {
         return callback(null, true);
       }
-      // Allow Cloudflare quick tunnels (e.g. https://xxx.trycloudflare.com)
+      // Allow Cloudflare quick tunnels: any subdomain of trycloudflare.com
       try {
         const host = new URL(origin).hostname.toLowerCase();
         if (host.endsWith(".trycloudflare.com")) return callback(null, true);
       } catch {
         // ignore
       }
+      if (origin.toLowerCase().includes("trycloudflare.com")) return callback(null, true);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
