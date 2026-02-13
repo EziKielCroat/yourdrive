@@ -120,11 +120,12 @@ Restart the API. If you use a new tunnel URL later, update this or add it: `CORS
    npm run dev
    ```
 
-4. **Start tunnel:**
+4. **Start tunnel** (use `127.0.0.1` so cloudflared uses IPv4; `localhost` can resolve to IPv6 `::1` and then connection is refused):
    ```bash
    cd /home/yourdrive/yourdrive
-   cloudflared tunnel --url http://localhost:5173
+   cloudflared tunnel --url http://127.0.0.1:5173
    ```
+   Or from repo root: `./scripts/tunnel.sh` (after `chmod +x scripts/tunnel.sh` once).
 
 5. Open the **tunnel URL** in the browser (e.g. `https://sea-glen-due-backed.trycloudflare.com`). Use that URL for both the app and API (via `/api`).
 

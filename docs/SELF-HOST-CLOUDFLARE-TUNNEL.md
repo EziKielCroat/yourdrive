@@ -32,6 +32,8 @@ cd apps/web && npm run build && cd ../..
 
 Replace `YOUR_USER/yourdrive` with your actual repo URL. If you don’t use Git, copy the project to `/home/pi/yourdrive` and run the same `npm install` and build commands from the repo root.
 
+**Important:** When building the web app, do **not** set `VITE_API_URL` to a full URL. Leave it unset (or set `VITE_API_URL=/api` in `apps/web/.env` before building) so the built app calls `/api` on the same origin; Nginx will proxy that to the API.
+
 ---
 
 ## 3. API `.env` (minimal for tunnel)

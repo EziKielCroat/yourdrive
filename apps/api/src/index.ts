@@ -31,43 +31,6 @@ const app = express();
 const PORT: number = parseInt(process.env.PORT ?? "3000", 10);
 const HOST: string = process.env.HOST ?? "0.0.0.0";
 
-// Allowed origins for CORS (localhost + FRONTEND_URL + LAN in dev)
-const normalizeOrigin = (url: string) => url?.trim().replace(/\/$/, "") || "";
-
-function isAllowedOriginHost(origin: string): boolean {
-  try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host.startsWith("192.168.") ||
-      host.startsWith("10.") ||
-      host.endsWith(".local")
-    );
-  } catch {
-    return false;
-  }
-}
-
-// Build allowed origins: defaults + FRONTEND_URL + optional CORS_ORIGINS (comma-separated for self-hosting)
-const corsOriginsEnv = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((u) => u.trim())
-  .filter(Boolean);
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:8080",
-  "http://127.0.0.1:8080",
-  "https://5n3w3hsd-5173.euw.devtunnels.ms",
-  process.env.FRONTEND_URL,
-  ...corsOriginsEnv,
-]
-  .filter((url): url is string => Boolean(url))
-  .map(normalizeOrigin);
-
 // Helmet: relax COOP/origin-agent-cluster so HTTP dev origins don't trigger console warnings
 app.use(
   helmet({
@@ -80,30 +43,11 @@ app.use((_req, res, next) => {
   res.removeHeader("Permissions-Policy");
   next();
 });
+// CORS: allow ALL origins so tunnel/self-host always works (no "blocked by CORS" on 4xx/5xx).
+// With credentials we must reflect the request origin, not "*".
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) return callback(null, true);
-
-      const normalized = normalizeOrigin(origin);
-      if (allowedOrigins.includes(normalized)) {
-        return callback(null, true);
-      }
-      // Always allow localhost and private LAN (any port/scheme) so http://192.168.1.2:5173 works even when FRONTEND_URL is https
-      if (isAllowedOriginHost(origin)) {
-        return callback(null, true);
-      }
-      // Allow Cloudflare quick tunnels: any subdomain of trycloudflare.com
-      try {
-        const host = new URL(origin).hostname.toLowerCase();
-        if (host.endsWith(".trycloudflare.com")) return callback(null, true);
-      } catch {
-        // ignore
-      }
-      if (origin.toLowerCase().includes("trycloudflare.com")) return callback(null, true);
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: (origin, callback) => callback(null, origin ?? true),
     credentials: true,
     exposedHeaders: ["ETag"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -117,6 +61,15 @@ app.use(
     optionsSuccessStatus: 204,
   }),
 );
+// Ensure CORS headers on EVERY response (including errors) so browser never shows "CORS error" for 500s.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  next();
+});
 app.use(express.json({ limit: "50mb" }));
 
 app.use(cookieParser());
@@ -146,6 +99,11 @@ app.use(
   ) => {
     console.error(err?.stack ?? err);
     if (!res.headersSent) {
+      const origin = req.headers.origin;
+      if (origin) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+      }
       res.status(err.status || 500).json({
         success: false,
         error:
@@ -157,7 +115,7 @@ app.use(
   },
 );
 
-// 404 handler
+// 404 handler (CORS headers already set by middleware above)
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Endpoint not found" });
 });
