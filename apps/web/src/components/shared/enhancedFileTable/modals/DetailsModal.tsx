@@ -381,15 +381,16 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const FileIconComponent = getFileIcon(file.mimeType);
-  const isImage = file.mimeType.startsWith("image/");
+  const mimeType = file.mimeType ?? "application/octet-stream";
+  const FileIconComponent = getFileIcon(mimeType);
+  const isImage = mimeType.startsWith("image/");
   const ownerName = getOwnerName(file.owner);
   const isOwner = isCurrentUserOwner(file.owner);
 
   const handleDownload = () => {
     if (onDownload) {
       onDownload(file);
-    } else if (file.url) {
+    } else if (file.url != null) {
       window.open(file.url, "_blank");
     }
   };
@@ -430,7 +431,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
 
         <ModalBody>
           <PreviewSection>
-            {isImage && file.url && (
+            {isImage && file.url != null && (
               <PreviewImage src={file.url} alt={file.name} />
             )}
 
@@ -440,7 +441,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
               </FileIconWrapper>
               <FileInfo>
                 <FileName>{file.name}</FileName>
-                <FileType>{file.mimeType}</FileType>
+                <FileType>{mimeType}</FileType>
               </FileInfo>
             </FilePreview>
 
@@ -467,7 +468,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
                 {file.isLocked ? "Locked" : "Unlocked"}
               </Tag>
 
-              {file.shared && <Tag $type="shared">Shared</Tag>}
+              {file.shared === true && <Tag $type="shared">Shared</Tag>}
             </TagContainer>
           </PreviewSection>
 
@@ -490,7 +491,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
                 </DetailIcon>
                 <DetailContent>
                   <DetailLabel>Size</DetailLabel>
-                  <DetailValue>{formatFileSize(file.size)}</DetailValue>
+                  <DetailValue>{formatFileSize(file.size ?? 0)}</DetailValue>
                 </DetailContent>
               </DetailItem>
 

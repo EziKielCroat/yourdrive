@@ -72,6 +72,10 @@ class ToastService {
   warning(message: string, duration?: number): void {
     this.show({ message, type: "warning", duration });
   }
+
+  dismiss(): void {
+    // No-op for API compatibility
+  }
 }
 
 export const toast = ToastService.getInstance();

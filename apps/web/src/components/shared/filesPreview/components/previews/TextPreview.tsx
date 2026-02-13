@@ -14,7 +14,7 @@ interface TextPreviewProps {
 
 const TextPreview: React.FC<TextPreviewProps> = ({
   url,
-  fileName,
+  fileName: _fileName,
   onDownload,
   onError,
   headers,

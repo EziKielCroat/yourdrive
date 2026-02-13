@@ -70,6 +70,11 @@ interface AuthStore {
 
   fetchCurrentDevice: () => Promise<void>;
   fetchDevices: () => Promise<void>;
+
+  registerPasskey: (deviceName: string) => Promise<void>;
+  loginWithGoogle: () => void;
+  loginWithGitHub: () => void;
+  loginWithFacebook: () => void;
 }
 
 let isCheckingAuth = false;
@@ -349,6 +354,19 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           console.warn("Failed to fetch devices:", error);
         }
+      },
+
+      registerPasskey: async (_deviceName: string) => {
+        // TODO: implement passkey registration
+      },
+      loginWithGoogle: () => {
+        window.location.href = "/api/auth/google";
+      },
+      loginWithGitHub: () => {
+        window.location.href = "/api/auth/github";
+      },
+      loginWithFacebook: () => {
+        window.location.href = "/api/auth/facebook";
       },
     }),
     {

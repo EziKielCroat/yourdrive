@@ -25,8 +25,8 @@ import { usePopupStore } from "../popups/popup.store";
 interface EnhancedFilesTableProps {
   files: EnhancedFileItem[];
   loading?: boolean;
-  onFilePreview?: (file: FileItem) => void;
-  onFileSelect?: (file: FileItem, selected: boolean) => void;
+  onFilePreview?: (file: FileItem | EnhancedFileItem) => void;
+  onFileSelect?: (file: FileItem | EnhancedFileItem, selected: boolean) => void;
   selectedFiles?: Set<string>;
   showOwner?: boolean;
   showLocation?: boolean;
@@ -40,6 +40,8 @@ interface EnhancedFilesTableProps {
   showFolderStructure?: boolean;
   currentUser?: string;
   onRefresh?: () => void;
+  onRestoreFile?: (fileId: string) => Promise<void>;
+  onDeletePermanently?: (fileId: string) => Promise<void>;
 }
 
 const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
@@ -60,6 +62,8 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   showFolderStructure,
   currentUser,
   onRefresh,
+  onRestoreFile,
+  onDeletePermanently,
 }) => {
   const [internalSelectedFiles, setInternalSelectedFiles] = useState<
     Set<string>
@@ -115,7 +119,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     if (onFileSelect) {
       selectedFiles.forEach((id) => {
         const file = files.find((f) => f.id === id);
-        if (file) onFileSelect(file, false);
+        if (file) onFileSelect?.(file as EnhancedFileItem, false);
       });
     } else {
       setInternalSelectedFiles(new Set());
@@ -125,7 +129,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
   const handleSelectAll = useCallback(() => {
     if (onFileSelect) {
-      files.forEach((file) => onFileSelect(file, true));
+      files.forEach((file) => onFileSelect?.(file, true));
     } else {
       setInternalSelectedFiles(new Set(files.map((f) => f.id)));
     }
@@ -150,6 +154,8 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     onOpenDetailsModal: (file) => setDetailsModal({ isOpen: true, file }),
     onOpenWatermarkModal: (files) => setWatermarkModal({ isOpen: true, files }),
     onOpenOptimizeModal: (file) => setOptimizeModal({ isOpen: true, file }),
+    onRestoreFile,
+    onDeletePermanently,
   });
 
   const { isPrefixActive, currentKey, shortcutInfo } = useKeyboardShortcuts({
@@ -233,7 +239,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   );
 
   const handleMove = useCallback(
-    async (fileIds: string[], targetFolderPath: string) => {
+    async (_fileIds: string[], targetFolderPath: string) => {
       await executeAction(
         "move",
         moveModal.files,
@@ -271,13 +277,13 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
       event.preventDefault();
       event.stopPropagation();
 
-      const enhanced = file as EnhancedFileItem;
+      const enhanced = file as unknown as EnhancedFileItem;
       const isSelected = selectedFiles.has(enhanced.id);
 
       if (!isSelected) {
         handleClearSelection();
         if (onFileSelect) {
-          onFileSelect(enhanced, true);
+          onFileSelect?.(enhanced, true);
         } else {
           setInternalSelectedFiles(new Set([enhanced.id]));
         }
@@ -298,7 +304,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
       if (file.type === "folder") return;
 
       if (onFileSelect) {
-        onFileSelect(file, !selectedFiles.has(file.id));
+        onFileSelect?.(file as EnhancedFileItem, !selectedFiles.has(file.id));
       } else {
         setInternalSelectedFiles((prev) => {
           const next = new Set(prev);
@@ -319,8 +325,8 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
   const renderRowActions = useCallback(
     (file: FileItem) => {
-      const actions = getQuickMenuActions(
-        file as EnhancedFileItem,
+      const actions =         getQuickMenuActions(
+        file as unknown as EnhancedFileItem,
         isRecycleBin,
         isShared,
       );
@@ -361,7 +367,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
                         $danger={action.danger}
                         onClick={() => {
                           handleActionClick(action.id, [
-                            file as EnhancedFileItem,
+                            file as unknown as EnhancedFileItem,
                           ]);
                           setQuickActionsFile(null);
                         }}
@@ -650,11 +656,11 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
       <TableWrapper>
         <FilesTable
-          files={files}
+          files={files as FileItem[]}
           loading={loading}
           onFileClick={handleFileClick}
           onFileDoubleClick={handleFileDoubleClick}
-          onFileSelect={onFileSelect}
+          onFileSelect={onFileSelect ? (file, selected) => onFileSelect(file as EnhancedFileItem, selected) : undefined}
           onFilePreview={onFilePreview}
           selectedFiles={selectedFiles}
           showOwner={showOwner}
@@ -665,7 +671,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           onFilesUpload={onFilesUpload}
           checkStorageLimit={checkStorageLimit}
           showFolderStructure={showFolderStructure}
-          onRowContextMenu={handleContextMenu}
+          onFileContextMenu={handleContextMenu}
           renderRowActions={renderRowActions}
         />
       </TableWrapper>
@@ -715,10 +721,6 @@ const ShortcutIndicator = styled.div`
   animation: ${slideDown} 0.3s ease-out;
   font-weight: 500;
   justify-content: center;
-`;
-
-const KeyboardIconSpan = styled.span`
-  font-size: 20px;
 `;
 
 const ShortcutText = styled.span`

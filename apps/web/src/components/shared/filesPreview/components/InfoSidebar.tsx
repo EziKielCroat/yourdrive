@@ -22,20 +22,31 @@ import {
   RelatedFileName,
 } from "../styles/filePreview.styles";
 
-// TODO: types
+interface InfoSidebarProps {
+  show: boolean;
+  mimeType?: string;
+  fileType?: string;
+  detectedType?: string;
+  metadata?: { size?: string; created?: string; createdAt?: string; modified?: string; updatedAt?: string };
+  tags?: string[];
+  viewers?: { name: string; avatar?: string }[];
+  comments?: { user: string; text: string; timestamp?: string }[];
+  activityLog?: { action: string; user: string; timestamp?: string }[];
+  relatedFiles?: { name: string }[];
+}
 
 export const InfoSidebar = ({
   show,
   mimeType,
   fileType,
   detectedType,
-  metadata,
-  tags,
-  viewers,
-  comments,
-  activityLog,
-  relatedFiles,
-}) => {
+  metadata = {},
+  tags = [],
+  viewers = [],
+  comments = [],
+  activityLog = [],
+  relatedFiles = [],
+}: InfoSidebarProps) => {
   return (
     <>
       {show && (
@@ -66,7 +77,7 @@ export const InfoSidebar = ({
             <InfoSection>
               <InfoTitle>Tags</InfoTitle>
               <TagsContainer>
-                {tags.map((tag, idx) => (
+                {tags.map((tag: string, idx: number) => (
                   <Tag key={idx}>{tag}</Tag>
                 ))}
               </TagsContainer>
@@ -76,7 +87,7 @@ export const InfoSidebar = ({
           {viewers.length > 0 && (
             <InfoSection>
               <InfoTitle>Currently Viewing</InfoTitle>
-              {viewers.map((viewer, idx) => (
+              {viewers.map((viewer: { name: string; avatar?: string }, idx: number) => (
                 <ViewerRow key={idx}>
                   {viewer.avatar ? (
                     <ViewerAvatar src={viewer.avatar} alt={viewer.name} />
@@ -94,7 +105,7 @@ export const InfoSidebar = ({
           {comments.length > 0 && (
             <InfoSection>
               <InfoTitle>Comments</InfoTitle>
-              {comments.map((comment, idx) => (
+              {comments.map((comment: { user: string; text: string; timestamp?: string }, idx: number) => (
                 <CommentItem key={idx}>
                   <CommentUser>{comment.user}</CommentUser>
                   <CommentText>{comment.text}</CommentText>
@@ -107,7 +118,7 @@ export const InfoSidebar = ({
           {activityLog.length > 0 && (
             <InfoSection>
               <InfoTitle>Activity</InfoTitle>
-              {activityLog.map((activity, idx) => (
+              {activityLog.map((activity: { action: string; user: string; timestamp?: string }, idx: number) => (
                 <ActivityItem key={idx}>
                   <ActivityText>
                     {activity.action} by {activity.user}
@@ -121,7 +132,7 @@ export const InfoSidebar = ({
           {relatedFiles.length > 0 && (
             <InfoSection>
               <InfoTitle>Related Files</InfoTitle>
-              {relatedFiles.map((file, idx) => (
+              {relatedFiles.map((file: { name: string }, idx: number) => (
                 <RelatedFileItem key={idx}>
                   <RelatedFileName>{file.name}</RelatedFileName>
                 </RelatedFileItem>

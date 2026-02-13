@@ -102,7 +102,7 @@ const PersonPopup: React.FC<PersonPopupProps> = ({ anchorRef }) => {
             name: person.name,
             isYou: person.isYou,
           };
-          const isSelected = personFilter?.id === person.id;
+          const isSelected = personFilter === person.id;
 
           return (
             <PopupItem

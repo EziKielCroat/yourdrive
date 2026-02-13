@@ -8,7 +8,6 @@ import {
   Upload,
   FileUp,
 } from "lucide-react";
-import { useAuthStore } from "../../../../store/authStore";
 import { eventBus } from "../../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import computeSHA256 from "../../utils/computeSHA256";
@@ -142,10 +141,6 @@ const UppyUploadPopup = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, preSelectedFiles, preSelectedFilesArray, folderPath]);
 
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    handleFileSelectFromArray(Array.from(files));
-  };
 
   const uploadDirectly = async (uploadFile: UploadFile): Promise<void> => {
     const { file, id: fileId, folderPath: fileFolderPath } = uploadFile;
@@ -473,7 +468,6 @@ const UppyUploadPopup = ({
   const completedFiles = uploadFiles.filter(
     (f) => f.status === "complete",
   ).length;
-  const failedFiles = uploadFiles.filter((f) => f.status === "error").length; // ?
   const allComplete =
     uploadFiles.length > 0 && completedFiles === uploadFiles.length;
 

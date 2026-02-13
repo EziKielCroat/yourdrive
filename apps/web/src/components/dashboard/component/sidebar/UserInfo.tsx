@@ -6,7 +6,7 @@ interface UserInfoProps {
     id: string;
     email: string;
     emailVerified: boolean;
-    createdAt: Date;
+    createdAt: Date | string;
   };
   currentDevice: {
     device_name: string | null;

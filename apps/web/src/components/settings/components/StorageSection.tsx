@@ -6,11 +6,6 @@ import {
   SectionDescription,
   StorageBar,
   StorageFill,
-  ToggleWrapper,
-  ToggleInfo,
-  ToggleTitle,
-  ToggleDescription,
-  Toggle,
   Button,
   ButtonGroup,
   InfoCard,
@@ -38,12 +33,12 @@ interface StorageInfo {
 
 export const StorageSection: React.FC<StorageSectionProps> = ({
   settings,
-  updateStorage, // FIXED: Changed from updateSettings to updateStorage
+  updateStorage: _updateStorage,
 }) => {
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [storageLoading, setStorageLoading] = useState(true);
-  const [storageSettings, setStorageSettings] = useState<{
+  const [_storageSettings, _setStorageSettings] = useState<{
     autoSync: boolean;
   }>({
     autoSync: settings?.storage?.autoSync ?? true,
@@ -100,21 +95,6 @@ export const StorageSection: React.FC<StorageSectionProps> = ({
     if (percentage < 70) return "#10b981"; // green
     if (percentage < 90) return "#f59e0b"; // yellow
     return "#ef4444"; // red
-  };
-
-  const handleToggle = async (field: string) => {
-    try {
-      setLoading(true);
-      const newValue = !storageSettings[field as keyof typeof storageSettings];
-
-      await updateStorage({
-        [field]: newValue,
-      });
-
-      setStorageSettings((prev) => ({ ...prev, [field]: newValue }));
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleClearCache = async () => {

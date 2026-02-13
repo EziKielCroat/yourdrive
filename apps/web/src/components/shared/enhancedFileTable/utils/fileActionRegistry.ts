@@ -17,6 +17,7 @@ import {
   X,
   Edit3,
   Move,
+  Image,
 } from "lucide-react";
 
 import type {
@@ -27,6 +28,8 @@ import type {
   ActionSlot,
   ActionListItem,
 } from "../types/fileActions";
+
+export type { EnhancedFileItem, FileActionDefinition, FileActionId };
 
 const isImageFile = (file: EnhancedFileItem): boolean =>
   file.mimeType?.startsWith("image/") ||
@@ -195,17 +198,17 @@ const registry: Record<FileActionId, FileActionDefinition> = {
       ctx.selectedFiles.every((f) => f.isLocked),
   },
 
-  // optimize: {
-  //   id: "optimize",
-  //   label: "Optimize image",
-  //   icon: Image,
-  //   shortcut: "Alt+K O",
-  //   available: (ctx: ActionContext) =>
-  //     ctx.selectionCount === 1 &&
-  //     isImageFile(ctx.selectedFiles[0]) &&
-  //     !ctx.selectedFiles[0].isLocked &&
-  //     !ctx.isRecycleBin,
-  // },
+  optimize: {
+    id: "optimize",
+    label: "Optimize image",
+    icon: Image,
+    shortcut: "Alt+K O",
+    available: (ctx: ActionContext) =>
+      ctx.selectionCount === 1 &&
+      isImageFile(ctx.selectedFiles[0]) &&
+      !ctx.selectedFiles[0].isLocked &&
+      !ctx.isRecycleBin,
+  },
 
   watermark: {
     id: "watermark",
@@ -375,6 +378,26 @@ export function getActionById(
   id: FileActionId,
 ): FileActionDefinition | undefined {
   return registry[id];
+}
+
+export type ActionEvaluationContext = ActionContext;
+
+/** Match keyboard event to an action by shortcut when prefix (e.g. Alt+K) is active. */
+export function findActionByShortcut(
+  event: KeyboardEvent,
+  actions: ActionListItem[],
+  _isPrefixActive: boolean,
+): FileActionDefinition | undefined {
+  const key = event.key.toLowerCase();
+  const defs = actions.filter(
+    (a): a is FileActionDefinition => a !== "divider",
+  );
+  return defs.find((a) => {
+    if (!a.shortcut) return false;
+    const parts = a.shortcut.split(/\s+/);
+    const lastPart = parts[parts.length - 1]?.toLowerCase();
+    return lastPart === key || lastPart === key + "+";
+  });
 }
 
 export const fileActionsRegistry = Object.freeze(registry);

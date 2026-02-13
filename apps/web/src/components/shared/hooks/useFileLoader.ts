@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { detectFileType } from "../filesPreview/utils/FileTypeDetector";
+import { getFileTypeInfo } from "../filesPreview/utils/FileTypeDetector";
 import api from "../../../lib/axios";
 
 interface UseFileLoaderProps {
@@ -36,7 +36,8 @@ export const useFileLoader = ({
         setError(null);
 
         // Detect file type from fileName and mimeType
-        const type = fileType || detectFileType(fileName, mimeType);
+        const info = getFileTypeInfo(fileName, mimeType);
+        const type = fileType || info.type;
         setDetectedType(type);
 
         // If propUrl is provided, use it directly

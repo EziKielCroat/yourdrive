@@ -56,11 +56,7 @@ const Settings = () => {
     error,
     updateProfile,
     updateSecurity,
-    updateAppearance,
-    updateLanguage,
     updateStorage,
-    updateSharing,
-    deleteAccount,
   } = useSettings();
 
   const tabs = [
@@ -120,9 +116,9 @@ const Settings = () => {
         );
 
       case "storage":
-        return (
+        return settings ? (
           <StorageSection settings={settings} updateStorage={updateStorage} />
-        );
+        ) : null;
 
       case "appearance":
         return (

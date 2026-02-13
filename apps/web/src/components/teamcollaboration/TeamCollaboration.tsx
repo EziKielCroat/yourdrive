@@ -1,13 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
-import {
-  HeroContGrad,
-  HeroContGradTop,
-} from "../landing/components/hero/styles/hero";
-import { UsersIcon, SyncIcon, CommentIcon } from "../shared/icons/IconSaxIcons";
+import { HeroContGrad } from "../landing/components/hero/styles/hero";
+import { UsersIcon, CommentIcon } from "../shared/icons/IconSaxIcons";
 import {
   TeamPermissionsIllustration,
   ShareLinkIllustration,
@@ -30,7 +26,6 @@ import {
   InfoCard,
   CardTitle,
   CardDescription,
-  ImagePlaceholder,
   HighlightBox,
 } from "./styles/teamCollaboration";
 import LandingButton from "../shared/landingbutton/LandingButton";

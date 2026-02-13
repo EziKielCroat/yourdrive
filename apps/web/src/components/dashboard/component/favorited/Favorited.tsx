@@ -123,16 +123,15 @@ const Favorited: React.FC = () => {
         </Header>
 
         <EnhancedFilesTable
-          files={files}
+          files={files as import("../../../shared/enhancedFileTable/types/fileActions").EnhancedFileItem[]}
           loading={loading}
           emptyMessage="No favorited files"
           emptySubtext="Star files to add them to your favorites"
-          onFilePreview={handleFilePreview}
-          onFileSelect={handleFileSelect}
+          onFilePreview={(f) => handleFilePreview(f as import("../../../shared/files_table/FilesTable").FileItem)}
+          onFileSelect={(f, sel) => handleFileSelect(f as import("../../../shared/files_table/FilesTable").FileItem, sel)}
           selectedFiles={selectedFiles}
           showOwner={false}
           showLocation={true}
-          singleClickMode="preview"
           maxHeight={770}
           onRefresh={fetchFavorites}
         />

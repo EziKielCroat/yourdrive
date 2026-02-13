@@ -102,12 +102,6 @@ const Form = styled.form`
   gap: 20px;
 `;
 
-const Row = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-`;
-
 const InputWrapper = styled.div`
   position: relative;
 `;
@@ -221,25 +215,6 @@ const Input = styled.input`
 
     & + ${Icon} {
       color: #10b981;
-    }
-  }
-`;
-
-const ForgotPassword = styled.div`
-  text-align: right;
-  margin-top: -8px;
-
-  button {
-    background: none;
-    border: none;
-    color: #3b82f6;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0;
-    font-family: "Poppins", sans-serif;
-
-    &:hover {
-      text-decoration: underline;
     }
   }
 `;

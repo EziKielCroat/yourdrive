@@ -47,9 +47,12 @@ function matchesFileType(file: FileItem, fileTypeFilter: string): boolean {
 
 function matchesPerson(
   file: FileItem,
-  personFilter: PersonFilter | null,
+  personFilter: PersonFilter | string | null,
 ): boolean {
-  if (!personFilter) return true;
+  if (personFilter == null) return true;
+  if (typeof personFilter === "string") {
+    return (file.owner as { id?: string }).id === personFilter;
+  }
 
   if (personFilter.isYou) {
     return file.owner.isYou === true;
@@ -58,7 +61,7 @@ function matchesPerson(
   // Match by owner name or email
   return (
     file.owner.name === personFilter.name ||
-    (file.owner as any).email === personFilter.name
+    (file.owner as { email?: string }).email === personFilter.name
   );
 }
 

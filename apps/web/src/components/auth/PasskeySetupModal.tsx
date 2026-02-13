@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import { X, Fingerprint, Check, AlertCircle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";

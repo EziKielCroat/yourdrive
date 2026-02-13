@@ -8,7 +8,6 @@ import Cta from "../shared/cta/Cta";
 import Features from "./components/features/Features";
 import Description from "./components/description/Description";
 import Faq from "./components/faq/Faq";
-import { GlobalReset } from "./styles/landing";
 
 const LandingPage: React.FC = () => {
   return (

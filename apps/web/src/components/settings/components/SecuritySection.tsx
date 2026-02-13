@@ -1,16 +1,11 @@
 import React, { useState } from "react";
-import { Shield, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import TwoFactorSettings from "./TwoFactorSettings";
 import { settingsService } from "../service/settingsService";
 import {
   Section,
   SectionTitle,
   SectionDescription,
-  ToggleWrapper,
-  ToggleInfo,
-  ToggleTitle,
-  ToggleDescription,
-  Toggle,
   FormGroup,
   Label,
   Input,
@@ -27,9 +22,9 @@ interface SecuritySectionProps {
 
 export const SecuritySection: React.FC<SecuritySectionProps> = ({
   settings,
-  updateSecurity,
+  updateSecurity: _updateSecurity,
 }) => {
-  const [securityData, setSecurityData] = useState<Record<string, boolean>>({
+  const [_securityData, _setSecurityData] = useState<Record<string, boolean>>({
     twoFactorEnabled: settings?.security?.twoFactorEnabled || false,
     clientSideEncryption: settings?.security?.clientSideEncryption || false,
     offlineModeEnabled: settings?.security?.offlineModeEnabled || false,
@@ -47,23 +42,10 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
     confirm: false,
   });
 
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  const handleToggle = async (field: string) => {
-    try {
-      setLoading(true);
-      const newValue = !securityData[field];
-      await updateSecurity({ [field]: newValue });
-      setSecurityData((prev) => ({ ...prev, [field]: newValue }));
-    } catch (error) {
-      console.error("Failed to update security setting:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const validatePassword = (password: string): string | null => {
     if (password.length < 8) {

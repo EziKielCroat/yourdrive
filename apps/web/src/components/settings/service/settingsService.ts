@@ -419,35 +419,35 @@ export const mockSettingsService = {
     });
   },
 
-  async updateProfile(data: any): Promise<void> {
+  async updateProfile(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updateSecurity(data: any): Promise<void> {
+  async updateSecurity(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updateAppearance(data: any): Promise<void> {
+  async updateAppearance(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updateLanguage(data: any): Promise<void> {
+  async updateLanguage(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updateStorage(data: any): Promise<void> {
+  async updateStorage(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updateSharing(data: any): Promise<void> {
+  async updateSharing(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updatePreferences(data: any): Promise<void> {
+  async updatePreferences(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 
-  async updatePrivacy(data: any): Promise<void> {
+  async updatePrivacy(_data: any): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 500));
   },
 

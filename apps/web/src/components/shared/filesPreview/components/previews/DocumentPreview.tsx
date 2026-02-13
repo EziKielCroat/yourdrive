@@ -132,7 +132,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     );
     return text
       .split(regex)
-      .map((part, index) => (regex.test(part) ? `<mark>${part}</mark>` : part))
+      .map((part) => (regex.test(part) ? `<mark>${part}</mark>` : part))
       .join("");
   };
 

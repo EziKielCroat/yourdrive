@@ -3,14 +3,11 @@ import styled, { keyframes } from "styled-components";
 import {
   X,
   Type,
-  Palette,
   Download,
   Image as ImageIcon,
   FileText,
   FileVideo,
   FileAudio,
-  Eye,
-  EyeOff,
   RotateCw,
   AlignLeft,
   AlignCenter,
@@ -160,28 +157,6 @@ const OptionLabel = styled.label`
   color: #202124;
 `;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
-  transition: all 0.15s ease;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: #1a73e8;
-    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
-  }
-
-  &:disabled {
-    background: #f8f9fa;
-    color: #9aa0a6;
-    cursor: not-allowed;
-  }
-`;
 
 const ColorPickerContainer = styled.div`
   display: flex;
@@ -634,19 +609,11 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
     setRotation((prev) => (prev + 15) % 360);
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
   const supportedFiles = files.filter(
     (file) =>
-      file.mimeType.startsWith("image/") ||
+      (file.mimeType ?? "").startsWith("image/") ||
       file.mimeType === "application/pdf" ||
-      file.mimeType.startsWith("video/"),
+      (file.mimeType ?? "").startsWith("video/"),
   );
 
   const isSupported = supportedFiles.length > 0;
@@ -669,7 +636,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
 
         <FilesList>
           {files.slice(0, 3).map((file, index) => {
-            const Icon = getFileIcon(file.mimeType);
+            const Icon = getFileIcon(file.mimeType ?? "application/octet-stream");
             return (
               <FileItem key={file.id}>
                 <FileIcon>

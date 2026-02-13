@@ -1,6 +1,5 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
 import {
@@ -9,7 +8,6 @@ import {
   HeroContent,
   HeroTitle,
   HeroSubtitle,
-  CTAButton,
   FeaturesGrid,
   FeatureCard,
   FeatureIcon,
@@ -22,13 +20,10 @@ import {
   InfoCard,
   CardTitle,
   CardDescription,
-  ImagePlaceholder,
-  SecurityBadge,
-  BadgesContainer
 } from "./styles/secureStorage.ts";
 import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
 import LandingButton from "../shared/landingbutton/LandingButton.tsx";
-import { LayersIcon, LockIcon, LightningIcon, ShieldIcon } from "../shared/icons/IconSaxIcons";
+import { LayersIcon, LockIcon, LightningIcon } from "../shared/icons/IconSaxIcons";
 import { SelfHostIllustration, ShareLinkIllustration } from "../shared/illustrations/UseCaseIllustrations";
 
 // Animation variants

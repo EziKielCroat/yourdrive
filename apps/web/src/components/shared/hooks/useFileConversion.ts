@@ -29,7 +29,7 @@ export const useFileConversion = () => {
 
   const convertFile = async (
     fileId: string,
-    fileName: string,
+    _fileName: string,
     targetFormat: string,
   ) => {
     setConverting(true);

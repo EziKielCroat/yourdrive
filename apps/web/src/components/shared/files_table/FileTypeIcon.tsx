@@ -13,7 +13,7 @@ const getFileExtension = (fileName: string | undefined): string => {
   return ext;
 };
 
-const getFileInfo = (fileName: string | undefined, mimeType?: string) => {
+const getFileInfo = (fileName: string | undefined, _mimeType?: string) => {
   const ext = getFileExtension(fileName);
 
   // Images

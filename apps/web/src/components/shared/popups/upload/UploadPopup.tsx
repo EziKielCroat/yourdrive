@@ -40,7 +40,7 @@ const UploadPopup: React.FC<UploadPopupProps> = ({
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
+  const [_uploadMode, setUploadMode] = useState<"file" | "folder">("file");
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [selectedFilesArray, setSelectedFilesArray] = useState<File[]>([]);
 

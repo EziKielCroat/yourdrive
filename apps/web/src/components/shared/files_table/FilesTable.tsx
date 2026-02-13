@@ -60,14 +60,6 @@ interface FilesTableProps {
   showFolderStructure?: boolean;
 }
 
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(i >= 2 ? 1 : 0)} ${sizes[i]}`;
-};
-
 const FilesTable: React.FC<FilesTableProps> = ({
   files,
   loading = false,
@@ -76,7 +68,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
   onFileClick,
   onFileDoubleClick,
   onFilePreview,
-  onFileSelect,
+  onFileSelect: _onFileSelect,
   onFileContextMenu,
   selectedFiles = new Set(),
   showOwner = true,

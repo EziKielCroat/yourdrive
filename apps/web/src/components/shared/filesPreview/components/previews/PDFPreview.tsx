@@ -25,14 +25,14 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   fileName,
   onDownload,
   onError,
-  headers,
+  headers: _headers,
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
-  const [numPages, setNumPages] = useState<number | null>(null);
+  const [numPages, _setNumPages] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 

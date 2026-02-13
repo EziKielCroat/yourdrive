@@ -1,6 +1,5 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
 import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";
@@ -22,10 +21,9 @@ import {
   InfoCard,
   CardTitle,
   CardDescription,
-  ImagePlaceholder
 } from "./styles/personalStorage";
 import LandingButton from "../shared/landingbutton/LandingButton";
-import { LockIcon, FolderIcon, DeviceIcon, ShieldIcon } from "../shared/icons/IconSaxIcons";
+import { LockIcon, FolderIcon, DeviceIcon } from "../shared/icons/IconSaxIcons";
 import { DragDropIllustration, ShieldLockIllustration } from "../shared/illustrations/UseCaseIllustrations";
 
 const PersonalStorage: React.FC = () => {

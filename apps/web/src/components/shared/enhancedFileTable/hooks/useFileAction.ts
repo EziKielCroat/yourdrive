@@ -107,7 +107,7 @@ export function useFileActions(options: UseFileActionsOptions) {
             onOpenDetailsModal?.(files[0]);
             return;
           case "watermark":
-            onOpenWatermarkModal?.(files[0]);
+            onOpenWatermarkModal?.([files[0]]);
             return;
           case "optimize":
             onOpenOptimizeModal?.(files[0]);
@@ -229,7 +229,7 @@ async function dispatch(
 
     case "getLink": {
       const link = await apiGetLink(ids[0]);
-      await copyToClipboard(link, "Link copied to clipboard!");
+      if (link) await copyToClipboard(link, "Link copied to clipboard!");
       break;
     }
 

@@ -263,7 +263,7 @@ export const FileContextMenu: React.FC<FileContextMenuProps> = ({
         </ContextMenuTitle>
         {selectedFiles.length === 1 && (
           <ContextMenuSubtitle>
-            {formatFileSize(selectedFiles[0].size)}
+            {formatFileSize(selectedFiles[0].size ?? 0)}
             {selectedFiles[0].mimeType &&
               ` • ${getFileType(selectedFiles[0].mimeType)}`}
           </ContextMenuSubtitle>

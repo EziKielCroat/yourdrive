@@ -303,7 +303,7 @@ export const OptimizeModal: React.FC<OptimizeModalProps> = ({
           <FileInfo>
             <FileName>{file.name}</FileName>
             <FileSize>
-              {formatFileSize(file.size)} • {file.mimeType}
+              {formatFileSize(file.size ?? 0)} • {file.mimeType}
             </FileSize>
           </FileInfo>
         </FilePreview>

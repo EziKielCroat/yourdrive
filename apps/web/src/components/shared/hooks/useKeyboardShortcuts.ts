@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from "react";
-import { toast } from "../../services/toast.service";
+import { toast } from "../../../services/toast.service";
 import {
   findActionByShortcut,
   getAvailableActions,
@@ -7,7 +7,7 @@ import {
   type ActionEvaluationContext,
   type EnhancedFileItem,
   type FileActionId,
-} from "../enhancedFileTable/fileActionsRegistry";
+} from "../enhancedFileTable/utils/fileActionRegistry";
 
 export interface UseKeyboardShortcutsOptions {
   selectedFiles: EnhancedFileItem[];
@@ -29,8 +29,6 @@ export function useKeyboardShortcuts({
   currentUser,
   enabled = true,
   onActionExecuted,
-  onSuccess,
-  onError,
   onSelectAll,
   onUnselectAll,
 }: UseKeyboardShortcutsOptions) {
@@ -107,12 +105,10 @@ export function useKeyboardShortcuts({
         const selectionActions = getAvailableActions(
           "selection-bar",
           context,
-          currentUser,
         );
         const quickMenuActions = getAvailableActions(
           "quick-menu",
           context,
-          currentUser,
         );
         const allActions = [...selectionActions, ...quickMenuActions];
 

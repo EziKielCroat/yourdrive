@@ -14,17 +14,13 @@ import {
   downloadSingleFile,
   downloadMultipleFiles,
   copyToClipboard,
-  apiRename,
   apiDuplicate,
-  apiMove,
   apiShare,
   apiGetLink,
   apiCompress,
   apiExtract,
   apiLock,
   apiUnlock,
-  apiOptimize,
-  apiWatermark,
   apiGeneratePdf,
   apiStar,
   apiUnstar,
@@ -44,6 +40,8 @@ export function useFileActions(options: UseFileActionsOptions) {
     onOpenDetailsModal,
     onOpenWatermarkModal,
     onOpenOptimizeModal,
+    onRestoreFile,
+    onDeletePermanently,
   } = options;
 
   const { isExecuting, markStart, markEnd } = useFileActionsStore();
@@ -127,6 +125,36 @@ export function useFileActions(options: UseFileActionsOptions) {
         return;
       }
 
+      if (actionId === "restore" && onRestoreFile) {
+        markStart();
+        try {
+          for (const f of files) await onRestoreFile(f.id);
+          onSuccess?.();
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error("Restore failed");
+          toast.error(e.message);
+          onError?.(e);
+        } finally {
+          markEnd();
+        }
+        return;
+      }
+
+      if (actionId === "deletePermanently" && onDeletePermanently) {
+        markStart();
+        try {
+          for (const f of files) await onDeletePermanently(f.id);
+          onSuccess?.();
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error("Delete failed");
+          toast.error(e.message);
+          onError?.(e);
+        } finally {
+          markEnd();
+        }
+        return;
+      }
+
       // For non-modal actions, call the API
       markStart();
 
@@ -151,6 +179,8 @@ export function useFileActions(options: UseFileActionsOptions) {
       onOpenDetailsModal,
       onOpenWatermarkModal,
       onOpenOptimizeModal,
+      onRestoreFile,
+      onDeletePermanently,
     ],
   );
 
@@ -165,7 +195,7 @@ export function useFileActions(options: UseFileActionsOptions) {
 async function dispatch(
   actionId: FileActionId,
   files: EnhancedFileItem[],
-  params: ActionParams,
+  _params: ActionParams,
 ): Promise<void> {
   const ids = files.map((f) => f.id);
 
@@ -194,7 +224,7 @@ async function dispatch(
 
     case "getLink": {
       const link = await apiGetLink(ids[0]);
-      await copyToClipboard(link, "Link copied to clipboard!");
+      if (link) await copyToClipboard(link, "Link copied to clipboard!");
       break;
     }
 

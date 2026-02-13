@@ -1,5 +1,4 @@
 import React from "react";
-import { GlobalReset } from "../landing/styles/landing";
 import Navbar_main from "../shared/navbar_main/Navbar_main";
 import Footer from "../shared/footer/Footer";
 import { HeroContGrad, HeroContGradTop } from "../landing/components/hero/styles/hero";

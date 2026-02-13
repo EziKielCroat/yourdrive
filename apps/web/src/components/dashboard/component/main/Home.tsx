@@ -16,7 +16,7 @@ const Home: React.FC<HomeProps> = () => {
       <MainContainer>
         <QuickSearch />
         <SuggestedFolders />
-        <RecentFiles singleClickMode="preview" />
+        <RecentFiles />
       </MainContainer>
     </PageTransition>
   );

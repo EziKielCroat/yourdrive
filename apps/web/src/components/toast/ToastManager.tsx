@@ -56,7 +56,9 @@ const ToastManager = () => {
           {toasts.map((toastItem) => (
             <Toast
               key={toastItem.id}
-              {...toastItem}
+              message={toastItem.message}
+              type={toastItem.type ?? "info"}
+              duration={typeof toastItem.duration === "string" ? 3000 : (toastItem.duration ?? 3000)}
               onClose={() => removeToast(toastItem.id)}
             />
           ))}

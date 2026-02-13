@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  LeftSection,
   RightSection,
   NavbarContainer,
   LeftSectionWithMobile,
@@ -10,7 +9,6 @@ import Image from "../image/Image";
 import NavButton from "./components/NavButton";
 
 import PlusIcon from "../icons/plus";
-import NotificationCenterIcon from "../icons/notificationCenter";
 import SettingsIcon from "../icons/settings";
 import LogOutIcon from "../icons/logout";
 import { usePopupStore } from "../popups/popup.store";
@@ -26,9 +24,6 @@ const Navbar = () => {
   const notificationRef = React.useRef<HTMLButtonElement>(null);
 
   const activateUploadPopup = usePopupStore((state) => state.toggleUploadPopup);
-  const activateNotificationPopup = usePopupStore(
-    (state) => state.toggleNotificationPopup,
-  );
 
   const logout = useAuthStore((state) => state.logout);
 

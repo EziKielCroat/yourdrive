@@ -34,7 +34,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   const personFilterRef = React.useRef<HTMLButtonElement>(null);
   const fileTypeFilterRef = React.useRef<HTMLButtonElement>(null);
   const lastModifiedFilterRef = React.useRef<HTMLButtonElement>(null);
-  const advancedFilterRef = React.useRef<SVGSVGElement>(null);
+  const advancedFilterRef = React.useRef<HTMLButtonElement>(null);
 
   const toggleFileTypePopup = usePopupStore((s) => s.toggleFileTypePopup);
   const togglePersonPopup = usePopupStore((s) => s.togglePersonPopup);
@@ -78,15 +78,20 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
               onChange={handleInputChange}
             />
             {showFilters && (
-              <FilterIcon
-                color={iconColor}
+              <button
+                type="button"
                 ref={advancedFilterRef}
                 onClick={toggleAdvancedPopup}
                 style={{
                   cursor: "pointer",
                   opacity: hasActiveFilters() ? 1 : 0.6,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
                 }}
-              />
+              >
+                <FilterIcon color={iconColor} />
+              </button>
             )}
           </InputWrapper>
         </CenterSection>

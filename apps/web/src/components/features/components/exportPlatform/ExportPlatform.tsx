@@ -10,7 +10,6 @@ import {
   SectionTitle,
   SectionDescription,
   PreviewContainer,
-  PreviewImage,
   ExportGrid,
   ExportCard,
   ExportIcon,

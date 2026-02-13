@@ -12,7 +12,6 @@ import {
   FeaturesGrid,
   FeatureCard,
   FeatureImageContainer,
-  FeatureImage,
   FeatureBadge,
   FeatureTitle,
   FeatureDescription,

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
-import { Shield, Copy, Download, AlertCircle, CheckCircle, X } from "lucide-react";
+import { Shield, Copy, Download, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuthStore } from "../../../store/authStore";
 import api from "../../../lib/axios"; // Add this import
 
@@ -321,7 +321,7 @@ interface SetupData {
 }
 
 export default function TwoFactorSettings() {
-  const { user } = useAuthStore();
+  useAuthStore();
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [setupData, setSetupData] = useState<SetupData | null>(null);

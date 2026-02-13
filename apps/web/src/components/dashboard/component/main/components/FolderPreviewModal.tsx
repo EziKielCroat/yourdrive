@@ -54,7 +54,7 @@ const FolderPreviewModal: React.FC<FolderPreviewModalProps> = ({
 
   useEffect(() => {
     fetchContent(currentPath);
-  }, [currentPath, accessToken]);
+  }, [currentPath]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

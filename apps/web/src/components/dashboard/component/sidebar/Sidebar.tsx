@@ -26,14 +26,19 @@ const Sidebar = () => {
   useEffect(() => {
     if (accessToken) {
       useStorageStore.getState().refreshStorage();
-      useAuthStore.getState().fetchCurrentDevice(accessToken);
+      useAuthStore.getState().fetchCurrentDevice();
     }
   }, [accessToken]);
 
   return (
     <SidebarWrapper $isOpen={isOpen}>
       {/* <SidebarToggle /> */}
-      {user && <UserInfo user={user} currentDevice={currentDevice} />}
+      {user && (
+        <UserInfo
+          user={{ ...user, createdAt: typeof user.createdAt === "string" ? new Date(user.createdAt) : user.createdAt }}
+          currentDevice={currentDevice ? { device_name: currentDevice.device_name } : { device_name: null }}
+        />
+      )}
       <NavigationMenu />
       <UpgradePrompt
         used={usedFormatted}

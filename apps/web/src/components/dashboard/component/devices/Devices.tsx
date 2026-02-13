@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
@@ -66,7 +66,7 @@ interface DeviceGroup {
 const Devices: React.FC = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const currentDevice = useAuthStore((s) => s.currentDevice);
-  const { usedBytes, getUsedFormatted } = useStorageStore();
+  useStorageStore();
   const [devices, setDevices] = useState<Device[]>([]);
   const [groups, setGroups] = useState<DeviceGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -638,7 +638,7 @@ const Devices: React.FC = () => {
                       handleRemoveDevice(deviceActionsModal);
                       setDeviceActionsModal(null);
                     }}
-                    disabled={removingDevice === deviceActionsModal.id}
+                    style={{ opacity: removingDevice === deviceActionsModal.id ? 0.6 : 1, pointerEvents: removingDevice === deviceActionsModal.id ? "none" : "auto" }}
                   >
                     <Trash2 size={20} />
                     <ActionInfo>
@@ -962,15 +962,6 @@ const spin = keyframes`
   }
   to {
     transform: rotate(360deg);
-  }
-`;
-
-const pulse = keyframes`
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
   }
 `;
 

@@ -17,7 +17,7 @@ const RecycleBin: React.FC = () => {
   const transformedFiles = files.map((f) => ({
     id: f.id.toString(),
     name: f.name ?? f.original_name,
-    type: "file",
+    type: "file" as const,
     size: Number(f.size) || 0,
     mimeType: f.mimeType ?? f.mime_type,
     isFolder: false,

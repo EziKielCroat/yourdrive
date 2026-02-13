@@ -276,12 +276,12 @@ const YourFiles: React.FC = () => {
         )}
 
         <EnhancedFilesTable
-          files={filteredFiles}
+          files={filteredFiles as import("../../../shared/enhancedFileTable/types/fileActions").EnhancedFileItem[]}
           loading={loading}
           emptyMessage={getEmptyMessage(hasActiveFilters)}
           emptySubtext={getEmptySubtext(hasActiveFilters)}
-          onFilePreview={handleFilePreview}
-          onFileSelect={handleFileSelect}
+          onFilePreview={(f) => handleFilePreview(f as import("../../../shared/files_table/FilesTable").FileItem)}
+          onFileSelect={(f, sel) => handleFileSelect(f as import("../../../shared/files_table/FilesTable").FileItem, sel)}
           selectedFiles={selectedFiles}
           showOwner={false}
           showLocation={true}

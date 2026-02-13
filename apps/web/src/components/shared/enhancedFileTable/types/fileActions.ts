@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 
 export interface FileOwner {
-  id: string;
+  id?: string;
   name: string;
+  avatar?: string;
   isYou?: boolean;
 }
 
@@ -11,7 +12,7 @@ export interface EnhancedFileItem {
   name: string;
   mimeType?: string;
   extension?: string;
-  size: number;
+  size?: number;
   isFolder?: boolean;
   isStarred?: boolean;
   isLocked?: boolean;
@@ -20,6 +21,13 @@ export interface EnhancedFileItem {
   createdAt?: string;
   updatedAt?: string;
   thumbnailUrl?: string;
+  /** Present when used where FileItem is expected */
+  url?: string;
+  shared?: boolean;
+  type?: "file" | "folder";
+  lastInteraction?: string;
+  lastInteractionType?: string;
+  location?: string;
 }
 
 export type FileActionId =
@@ -82,6 +90,10 @@ export interface UseFileActionsOptions {
   onOpenWatermarkModal: (files: EnhancedFileItem[]) => void;
   /** Called when the action flow wants to open the optimize modal. */
   onOpenOptimizeModal: (file: EnhancedFileItem) => void;
+  /** Optional: when in recycle bin, called for restore instead of default API. */
+  onRestoreFile?: (fileId: string) => Promise<void>;
+  /** Optional: when in recycle bin, called for delete permanently instead of default API. */
+  onDeletePermanently?: (fileId: string) => Promise<void>;
 }
 
 export interface ActionParams {

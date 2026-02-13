@@ -9,7 +9,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   size?: Size;
   children?: React.ReactNode;
-  purp?: "login" | "register" | "dashboard" | "howitworks";
+  purp?: "login" | "register" | "dashboard" | "howitworks" | "home";
   width?: string;
 };
 
@@ -61,6 +61,8 @@ const LandingButton = forwardRef<HTMLButtonElement, ButtonProps>(
         window.location.href = "/dashboard";
       } else if (purp === "howitworks") {
         window.location.href = "/howitworks";
+      } else if (purp === "home") {
+        window.location.href = "/";
       }
     };
 
