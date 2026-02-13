@@ -233,15 +233,15 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   );
 
   const handleMove = useCallback(
-    async (fileIds: string[], folderId: string) => {
+    async (fileIds: string[], targetFolderPath: string) => {
       await executeAction(
         "move",
-        fileIds.map((id) => ({ id }) as EnhancedFileItem),
-        { targetFolderPath: folderId },
+        moveModal.files,
+        { targetFolderPath },
       );
       setMoveModal({ isOpen: false, files: [] });
     },
-    [executeAction],
+    [executeAction, moveModal.files],
   );
 
   const handleWatermark = useCallback(

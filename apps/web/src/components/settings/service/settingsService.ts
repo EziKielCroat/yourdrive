@@ -6,6 +6,7 @@ import type {
   UpdateLanguageRequest,
   UpdateStorageRequest,
   UpdateSharingRequest,
+  SharingDefaultsResponse,
   UpdatePreferencesRequest,
   UpdatePrivacyRequest,
   LinkedAccount,
@@ -64,8 +65,19 @@ export const settingsService = {
     await api.patch("/settings/storage", data);
   },
 
-  async updateSharing(data: UpdateSharingRequest): Promise<void> {
-    await api.patch("/settings/sharing", data);
+  async getSharing(): Promise<SharingDefaultsResponse> {
+    const response = await api.get<{ success: boolean; sharing: SharingDefaultsResponse }>(
+      "/settings/sharing",
+    );
+    return response.data.sharing ?? {};
+  },
+
+  async updateSharing(data: UpdateSharingRequest): Promise<SharingDefaultsResponse> {
+    const response = await api.patch<{
+      success: boolean;
+      sharing: SharingDefaultsResponse;
+    }>("/settings/sharing", data);
+    return response.data.sharing ?? {};
   },
 
   async updatePreferences(data: UpdatePreferencesRequest): Promise<void> {

@@ -121,8 +121,19 @@ export const useAuthStore = create<AuthStore>()(
       ): Promise<LoginResponse> => {
         set({ isLoading: true, error: null });
 
+        const LOGIN_TIMEOUT_MS = 25000;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error("Request timed out. Check your connection and try again.")),
+            LOGIN_TIMEOUT_MS,
+          );
+        });
+
         try {
-          const response = await api.post("/auth/login", { email, password });
+          const response = await Promise.race([
+            api.post("/auth/login", { email, password }),
+            timeoutPromise,
+          ]);
           const data: LoginResponse = response.data;
 
           // Check if 2FA is required
@@ -171,14 +182,29 @@ export const useAuthStore = create<AuthStore>()(
             "Login failed";
           set({ error: msg, isLoading: false });
           throw new Error(msg);
+        } finally {
+          set({ isLoading: false });
         }
       },
 
       register: async (email, password, firstName) => {
         set({ isLoading: true, error: null });
+        const REGISTER_TIMEOUT_MS = 35000;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error("Request timed out. Check your connection and try again.")),
+            REGISTER_TIMEOUT_MS,
+          );
+        });
         try {
-          await api.post("/auth/register", { email, password, firstName });
-          await get().login(email, password);
+          await Promise.race([
+            api.post("/auth/register", { email, password, firstName }),
+            timeoutPromise,
+          ]);
+          await Promise.race([
+            get().login(email, password),
+            timeoutPromise,
+          ]);
         } catch (error: unknown) {
           const msg =
             (error as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ??
@@ -187,6 +213,8 @@ export const useAuthStore = create<AuthStore>()(
             "Registration failed";
           set({ error: msg, isLoading: false });
           throw new Error(msg);
+        } finally {
+          set({ isLoading: false });
         }
       },
 
@@ -332,12 +360,25 @@ export const useAuthStore = create<AuthStore>()(
         requires2FA: state.requires2FA,
         tempToken: state.tempToken,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<AuthStore> | undefined;
+        const c = current as AuthStore;
+        if (!p) return { ...c, isLoading: false, isAuthReady: true };
+        // Never leave loading true after merge (avoids stuck "Logging in...")
+        const base = { ...c, ...p, isLoading: false, isAuthReady: true };
+        // If we were mid-login, don't overwrite auth with stale persisted state
+        if (c.isLoading) {
+          base.user = c.user;
+          base.accessToken = c.accessToken;
+          base.isAuthenticated = c.isAuthenticated;
+        }
+        return base;
+      },
       onRehydrateStorage: () => (_state, err) => {
         if (err) console.warn("Auth rehydration error:", err);
         resolveRehydrated();
-        if (useAuthStore.getState().isAuthenticated) {
-          useAuthStore.setState({ isAuthReady: true });
-        }
+        // Do not call useAuthStore.setState here - store may not be initialized yet (ReferenceError).
+        // merge() above already sets isLoading: false and isAuthReady: true.
       },
     },
   ),

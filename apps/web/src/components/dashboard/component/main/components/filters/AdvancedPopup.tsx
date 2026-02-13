@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchStore } from "../../../../../../store/searchStore";
 import { usePopupStore } from "../../../../../shared/popups/popup.store";
 import {
@@ -10,7 +10,6 @@ import {
   SelectWrapper,
   StyledSelect,
 } from "../../styles/filterPopup.styles";
-import { useClickOutside } from "../../../../../shared/hooks/useOutsideClick";
 import { usePopupPosition } from "../../../../../shared/hooks/usePopupPosition";
 import ChevronDownIcon from "../../../../../shared/icons/chevronDown";
 
@@ -65,7 +64,26 @@ const AdvancedPopup: React.FC<AdvancedPopupProps> = ({ anchorRef }) => {
     offset: 8,
   });
 
-  useClickOutside(popupRef as React.RefObject<HTMLElement>, closePopup);
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (popupRef.current?.contains(target)) return;
+      if (anchorRef?.current?.contains(target)) return;
+      closePopup();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [closePopup, anchorRef]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closePopup();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, closePopup]);
 
   if (!isOpen) return null;
 
@@ -97,6 +115,8 @@ const AdvancedPopup: React.FC<AdvancedPopupProps> = ({ anchorRef }) => {
   return (
     <PopupContainer
       ref={popupRef}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,

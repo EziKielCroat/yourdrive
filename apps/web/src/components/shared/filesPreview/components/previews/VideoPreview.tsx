@@ -62,17 +62,30 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({
     );
   }
 
+  const extension = fileName.toLowerCase().split(".").pop() || "";
+  const mimeTypes: Record<string, string> = {
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    m4v: "video/x-m4v",
+    avi: "video/x-msvideo",
+    wmv: "video/x-ms-wmv",
+    flv: "video/x-flv",
+    mkv: "video/x-matroska",
+  };
+  const videoType = mimeTypes[extension] || mimeType || "video/mp4";
+
   return (
     <Container>
       <Video
         ref={videoRef}
-        src={url}
         controls
         preload="metadata"
         onError={() => {
-          setError("Failed to load video. The format may not be supported.");
+          setError("Failed to load video. The format or codec may not be supported. Try downloading the file.");
         }}
       >
+        <source src={url} type={videoType} />
         Your browser does not support the video tag.
       </Video>
       {onDownload && (

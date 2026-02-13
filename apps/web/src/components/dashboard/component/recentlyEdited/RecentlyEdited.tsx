@@ -36,13 +36,16 @@ const RecentlyEdited: React.FC = () => {
   };
 
   const transformedFiles = files.map((f) => ({
-    id: f.id,
-    name: f.original_name,
-    size: f.size,
-    mimeType: f.mime_type,
-    location: f.folder_path || "Root",
-    modifiedTime: formatRelativeTime(f.last_edited_at),
-    editCount: f.edit_count,
+    id: String(f.id),
+    name: f.original_name || "Untitled",
+    type: "file" as const,
+    mimeType: f.mime_type || "application/octet-stream",
+    lastInteraction: formatRelativeTime(f.last_edited_at),
+    lastInteractionType: "edited" as const,
+    location: f.folder_path && f.folder_path.trim() !== "" ? f.folder_path : "Your Files",
+    owner: { id: "me", name: "You", isYou: true },
+    size: Number(f.size) || 0,
+    url: f.s3_key || "",
     createdAt: f.created_at,
     updatedAt: f.updated_at ?? f.last_edited_at,
   }));
@@ -179,6 +182,7 @@ const RecentlyEdited: React.FC = () => {
             emptyMessage="No recent activity"
             emptySubtext="Files you edit will appear here"
             maxHeight={770}
+            onRefresh={fetchRecentFiles}
           />
         )}
 

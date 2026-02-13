@@ -9,6 +9,7 @@ import {
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { buildContentDisposition } from "../lib/contentDisposition";
 import archiver from "archiver";
 import { Readable } from "stream";
 import sharp from "sharp";
@@ -339,7 +340,7 @@ fileActionsRoutes.get(
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: file.s3_key,
-        ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.original_name)}"`,
+        ResponseContentDisposition: buildContentDisposition("attachment", file.original_name, true),
       });
 
       const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
@@ -392,7 +393,7 @@ fileActionsRoutes.post(
         const command = new GetObjectCommand({
           Bucket: BUCKET_NAME,
           Key: file.s3_key,
-          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.original_name)}"`,
+          ResponseContentDisposition: buildContentDisposition("attachment", file.original_name, true),
         });
 
         const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });

@@ -15,14 +15,14 @@ devicesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    // Get global storage stats for the user
+    // Get global storage stats for the user (exclude trashed files)
     const storageStats = await pool.query(
       `
       SELECT 
         COALESCE(SUM(uf.size), 0)::bigint as total_storage,
         COUNT(uf.id)::bigint as total_files
       FROM user_files uf
-      WHERE uf.user_id = $1 AND uf.original_name != '.metadata'
+      WHERE uf.user_id = $1 AND uf.deleted_at IS NULL AND uf.original_name != '.metadata'
       `,
       [req.userId],
     );
@@ -445,12 +445,16 @@ devicesRoutes.post(
         [deviceId],
       );
 
-      // Create action record
-      await pool.query(
-        `INSERT INTO device_actions (device_id, user_id, action_type, status)
-       VALUES ($1, $2, 'logout', 'completed')`,
-        [deviceId, req.userId],
-      );
+      // Create action record (optional - table may not exist in all setups)
+      try {
+        await pool.query(
+          `INSERT INTO device_actions (device_id, user_id, action_type, status)
+         VALUES ($1, $2, 'logout', 'completed')`,
+          [deviceId, req.userId],
+        );
+      } catch {
+        // device_actions table may not exist
+      }
 
       // Log action
       await logDeviceAction(
@@ -511,22 +515,29 @@ devicesRoutes.post(
         ],
       );
 
-      // Create action record
-      await pool.query(
-        `INSERT INTO device_actions (device_id, user_id, action_type, status, payload)
-       VALUES ($1, $2, 'lock', 'completed', $3)`,
-        [deviceId, req.userId, JSON.stringify({ message })],
-      );
+      // Create action record (optional - table may not exist in all setups)
+      try {
+        await pool.query(
+          `INSERT INTO device_actions (device_id, user_id, action_type, status, payload)
+         VALUES ($1, $2, 'lock', 'completed', $3)`,
+          [deviceId, req.userId, JSON.stringify({ message })],
+        );
+      } catch {
+        // device_actions table may not exist
+      }
 
-      // Log action
-      await logDeviceAction(
-        deviceId,
-        req.userId,
-        "lock_device",
-        { message },
-        req,
-        pool,
-      );
+      try {
+        await logDeviceAction(
+          deviceId,
+          req.userId,
+          "lock_device",
+          { message },
+          req,
+          pool,
+        );
+      } catch {
+        // device_activity_audit table may not exist
+      }
 
       res.json({
         success: true,
@@ -560,14 +571,29 @@ devicesRoutes.post(
         [deviceId, req.userId],
       );
 
-      await logDeviceAction(
-        deviceId,
-        req.userId,
-        "unlock_device",
-        {},
-        req,
-        pool,
-      );
+      // Create action record (optional)
+      try {
+        await pool.query(
+          `INSERT INTO device_actions (device_id, user_id, action_type, status)
+         VALUES ($1, $2, 'unlock', 'completed')`,
+          [deviceId, req.userId],
+        );
+      } catch {
+        // device_actions table may not exist
+      }
+
+      try {
+        await logDeviceAction(
+          deviceId,
+          req.userId,
+          "unlock_device",
+          {},
+          req,
+          pool,
+        );
+      } catch {
+        // device_activity_audit table may not exist
+      }
 
       res.json({
         success: true,

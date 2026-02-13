@@ -44,7 +44,7 @@ export async function generateSignedUrl(
 ): Promise<string> {
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME || "",
+      Bucket: process.env.AWS_S3_BUCKET_NAME || process.env.B2_BUCKET_NAME || "",
       Key: s3Key,
     });
     return await getSignedUrl(s3Client, command, { expiresIn });
@@ -61,7 +61,7 @@ export async function uploadToS3(
 ): Promise<void> {
   try {
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME || "",
+      Bucket: process.env.AWS_S3_BUCKET_NAME || process.env.B2_BUCKET_NAME || "",
       Key: s3Key,
       Body: Buffer.from(content, "utf-8"),
       ContentType: mimeType,

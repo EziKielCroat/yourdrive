@@ -223,6 +223,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
       case "office":
         return (
           <OfficePreview
+            key={url}
             url={url}
             fileName={fileName}
             fileType={fileTypeInfo.extension}

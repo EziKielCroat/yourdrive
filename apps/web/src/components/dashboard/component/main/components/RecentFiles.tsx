@@ -24,6 +24,10 @@ interface ApiFile {
   mimeType?: string;
   created_at?: string;
   createdAt?: string;
+  last_edited_at?: string;
+  is_shared?: boolean;
+  owner_name?: string;
+  owner_email?: string;
 }
 
 const formatBytes = (bytes: number): string => {
@@ -154,11 +158,11 @@ const RecentFiles: React.FC = () => {
 
     // Check if files have folder structure
     const hasStructure = Array.from(fileList).some(
-      (file) => (file as any).webkitRelativePath,
+      (file) => (file as File & { webkitRelativePath?: string }).webkitRelativePath,
     );
 
     Array.from(fileList).forEach((file, index) => {
-      const relativePath = (file as any).webkitRelativePath || "";
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
 
       if (hasStructure && relativePath) {
         const folderPath =
@@ -204,46 +208,46 @@ const RecentFiles: React.FC = () => {
   const fetchRecentFiles = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/files?limit=10&sort=recent");
+      const response = await api.get("/files/recent?limit=10");
       const data = response.data;
 
-      if (data.success) {
+      if (data.success && data.files) {
         const transformedFiles: FileItem[] = data.files.map(
           (file: ApiFile) => ({
             id: String(file.id),
-
             name: file.original_name || file.name || "Untitled",
-
             type: "file",
-
             mimeType:
               file.mime_type || file.mimeType || "application/octet-stream",
-
-            lastInteraction: formatDate(file.created_at || file.createdAt),
-
-            lastInteractionType: "uploaded",
-
+            lastInteraction: formatDate(
+              file.last_edited_at || file.created_at || file.createdAt,
+            ),
+            lastInteractionType: file.is_shared ? "shared" : "uploaded",
             location:
-              file.folder_path && file.folder_path.trim() !== ""
-                ? file.folder_path
-                : "Your Files",
-
-            owner: {
-              name: user?.firstName || user?.email || "You",
-              isYou: true,
-            },
-
+              file.is_shared
+                ? "Shared with you"
+                : file.folder_path && file.folder_path.trim() !== ""
+                  ? file.folder_path
+                  : "Your Files",
+            owner: file.is_shared
+              ? {
+                  name: file.owner_name || file.owner_email || "Someone",
+                  isYou: false,
+                }
+              : {
+                  name: user?.firstName || user?.email || "You",
+                  isYou: true,
+                },
             size: Number(file.size) || 0,
-
-            // ✅ preview / download
             url: file.s3_key,
           }),
         );
         setFiles(transformedFiles);
+      } else {
+        setFiles([]);
       }
     } catch (err) {
       console.error("Error fetching recent files:", err);
-      // Don't alert the user for fetch errors, just log them
       setFiles([]);
     } finally {
       setLoading(false);
@@ -252,6 +256,7 @@ const RecentFiles: React.FC = () => {
 
   useEffect(() => {
     fetchRecentFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run on user change only
   }, [user]);
 
   useEvent(FILES_REFRESH_EVENT, () => {

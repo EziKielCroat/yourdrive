@@ -100,8 +100,8 @@ export function useFileActions(options: UseFileActionsOptions) {
           case "rename":
             onOpenRenameModal?.(files[0]);
             return;
-            //case "move":
-            //  onOpenMoveModal?.(files);
+          case "move":
+            onOpenMoveModal?.(files);
             return;
           case "details":
             onOpenDetailsModal?.(files[0]);
@@ -164,16 +164,16 @@ async function dispatch(
       }
       break;
 
-    //case "move":
-    // if (params.targetFolderPath !== undefined) {
-    //  await apiMove(ids, params.targetFolderPath as string);
-    ///  toast.success(
-    //    ids.length === 1
-    //      ? `Moved "${files[0].name}"`
-    //      : `Moved ${ids.length} items`,
-    //  );
-    //}
-    //break;
+    case "move":
+      if (params.targetFolderPath !== undefined) {
+        await apiMove(ids, params.targetFolderPath as string);
+        toast.success(
+          ids.length === 1
+            ? `Moved "${files[0].name}"`
+            : `Moved ${ids.length} items`,
+        );
+      }
+      break;
 
     case "details":
       // Details is view-only, no API call needed

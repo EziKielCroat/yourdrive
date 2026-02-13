@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Lock, Calendar, Download } from "lucide-react";
+import { Lock, Calendar, Download, Share2 } from "lucide-react";
 import {
   Section,
   SectionTitle,
@@ -14,176 +14,227 @@ import {
   ToggleDescription,
   Toggle,
   SmallText,
+  Button,
 } from "../styles/settings.styles";
+import { settingsService } from "../service/settingsService";
+import { useSettings } from "../../shared/hooks/useSettings";
+import type { SharingDefaultsResponse } from "../types/UserSettings";
 
-interface SharingSectionProps {
-  settings: any;
-  updateSharing: (data: Record<string, unknown>) => Promise<void>;
+type FormState = {
+  requirePasswordForLinks: boolean;
+  defaultPassword: string;
+  defaultExpirationDays: number | null;
+  defaultDownloadLimit: number | null;
+};
+
+const defaultForm: FormState = {
+  requirePasswordForLinks: false,
+  defaultPassword: "",
+  defaultExpirationDays: null,
+  defaultDownloadLimit: null,
+};
+
+function toForm(s: SharingDefaultsResponse | null | undefined): FormState {
+  if (!s || typeof s !== "object") return { ...defaultForm };
+  return {
+    requirePasswordForLinks: Boolean(s.requirePasswordForLinks),
+    defaultPassword: typeof s.defaultPassword === "string" ? s.defaultPassword : "",
+    defaultExpirationDays:
+      s.defaultExpirationDays != null
+        ? Number(s.defaultExpirationDays)
+        : s.linkExpirationDays != null
+          ? Number(s.linkExpirationDays)
+          : null,
+    defaultDownloadLimit:
+      s.defaultDownloadLimit != null ? Number(s.defaultDownloadLimit) : null,
+  };
 }
 
-export const SharingSection: React.FC<SharingSectionProps> = ({
-  settings,
-  updateSharing,
-}) => {
-  const [sharingSettings, setSharingSettings] = useState({
-    defaultPassword: settings?.sharing?.defaultPassword || "",
-    defaultExpirationDays: settings?.sharing?.defaultExpirationDays || null,
-    defaultDownloadLimit: settings?.sharing?.defaultDownloadLimit || null,
-    requirePasswordForLinks:
-      settings?.sharing?.requirePasswordForLinks || false,
-  });
-  const [loading, setLoading] = useState(false);
+export const SharingSection: React.FC = () => {
+  const { refreshSettings } = useSettings();
+  const [form, setForm] = useState<FormState>(defaultForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    if (settings?.sharing) {
-      setSharingSettings({
-        defaultPassword: settings.sharing.defaultPassword || "",
-        defaultExpirationDays: settings.sharing.defaultExpirationDays || null,
-        defaultDownloadLimit: settings.sharing.defaultDownloadLimit || null,
-        requirePasswordForLinks:
-          settings.sharing.requirePasswordForLinks || false,
+    let cancelled = false;
+    setLoading(true);
+    settingsService
+      .getSharing()
+      .then((sharing) => {
+        if (!cancelled) setForm(toForm(sharing));
+      })
+      .catch(() => {
+        if (!cancelled) setFeedback({ type: "error", text: "Failed to load sharing options." });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-    }
-  }, [settings]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleToggle = async (field: string) => {
+  const setField = (field: keyof FormState, value: boolean | string | number | null) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setFeedback(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    setSaving(true);
     try {
-      setLoading(true);
-      const newValue = !sharingSettings[field as keyof typeof sharingSettings];
-      const updatedSettings = { ...sharingSettings, [field]: newValue };
-
-      await updateSharing({
-        [field]: newValue,
+      const payload = {
+        requirePasswordForLinks: form.requirePasswordForLinks,
+        defaultPassword: form.defaultPassword.trim(),
+        defaultExpirationDays: form.defaultExpirationDays,
+        defaultDownloadLimit: form.defaultDownloadLimit,
+      };
+      const updated = await settingsService.updateSharing(payload);
+      setForm(toForm(updated));
+      await refreshSettings();
+      setFeedback({ type: "success", text: "Default sharing options saved." });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to save. Please try again.",
       });
-
-      setSharingSettings(updatedSettings);
-    } catch (error) {
-      console.error("Failed to update sharing settings:", error);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleFieldChange = async (
-    field: string,
-    value: string | number | null,
-  ) => {
-    try {
-      setLoading(true);
-      const updatedSettings = { ...sharingSettings, [field]: value };
-
-      await updateSharing({
-        [field]: value,
-      });
-
-      setSharingSettings(updatedSettings);
-    } catch (error) {
-      console.error("Failed to update sharing settings:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) {
+    return (
+      <Section>
+        <SectionTitle>Default sharing options</SectionTitle>
+        <div style={{ padding: "2rem", color: "#536471", textAlign: "center" }}>
+          Loading…
+        </div>
+      </Section>
+    );
+  }
 
   return (
-    <>
-      <Section>
-        <SectionTitle>Default Sharing Settings</SectionTitle>
-        <SectionDescription>
-          Configure default options for sharing files. These settings will be
-          used when creating new shares.
-        </SectionDescription>
+    <Section>
+      <SectionTitle>
+        <Share2 size={20} style={{ display: "inline", marginRight: "0.5rem", verticalAlign: "middle" }} />
+        Default sharing options
+      </SectionTitle>
+      <SectionDescription>
+        These options are used when you create a new share. Change any value below and click Save to apply.
+      </SectionDescription>
 
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Require Password for Links</ToggleTitle>
-            <ToggleDescription>
-              Automatically require a password for all shared links
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            active={sharingSettings.requirePasswordForLinks}
-            onClick={() => handleToggle("requirePasswordForLinks")}
-            disabled={loading}
-          />
-        </ToggleWrapper>
+      <form onSubmit={handleSubmit} noValidate>
+        {/* A11y: optional username for password form */}
+        <div aria-hidden="true" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+          <input type="text" name="username" autoComplete="username" tabIndex={-1} readOnly defaultValue=" " />
+        </div>
 
-        <FormGroup>
-          <Label>
-            <Lock
-              size={16}
-              style={{ display: "inline", marginRight: "0.5rem" }}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "32rem" }}>
+          <ToggleWrapper style={{ marginBottom: 0 }}>
+            <ToggleInfo>
+              <ToggleTitle>Require password for new links</ToggleTitle>
+              <ToggleDescription>
+                When on, new shared links will require a password. You can set a default below or leave it empty.
+              </ToggleDescription>
+            </ToggleInfo>
+            <Toggle
+              type="button"
+              active={form.requirePasswordForLinks}
+              onClick={() => setField("requirePasswordForLinks", !form.requirePasswordForLinks)}
+              disabled={saving}
             />
-            Default Password
-          </Label>
-          <Input
-            type="password"
-            placeholder="Leave empty to disable default password"
-            value={sharingSettings.defaultPassword}
-            onChange={(e) =>
-              handleFieldChange("defaultPassword", e.target.value)
-            }
-            disabled={loading}
-          />
-          <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
-            This password will be automatically applied to new shared links
-          </SmallText>
-        </FormGroup>
+          </ToggleWrapper>
 
-        <FormGroup>
-          <Label>
-            <Calendar
-              size={16}
-              style={{ display: "inline", marginRight: "0.5rem" }}
+          <FormGroup style={{ marginTop: 0 }}>
+            <Label htmlFor="sharing-default-password">
+              <Lock size={16} style={{ display: "inline", marginRight: "0.5rem" }} />
+              Default password (optional)
+            </Label>
+            <Input
+              id="sharing-default-password"
+              type="password"
+              name="defaultPassword"
+              autoComplete="new-password"
+              placeholder="Leave empty to set per share"
+              value={form.defaultPassword}
+              onChange={(e) => setField("defaultPassword", e.target.value)}
+              disabled={saving}
             />
-            Default Expiration (days)
-          </Label>
-          <Select
-            value={sharingSettings.defaultExpirationDays || ""}
-            onChange={(e) =>
-              handleFieldChange(
-                "defaultExpirationDays",
-                e.target.value ? parseInt(e.target.value) : null,
-              )
-            }
-            disabled={loading}
-          >
-            <option value="">Never expire</option>
-            <option value="1">1 day</option>
-            <option value="7">7 days</option>
-            <option value="30">30 days</option>
-            <option value="90">90 days</option>
-          </Select>
-          <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
-            Shared links will automatically expire after this period
-          </SmallText>
-        </FormGroup>
+            <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
+              Used for new links when &quot;Require password&quot; is on. Empty = choose each time.
+            </SmallText>
+          </FormGroup>
 
-        <FormGroup>
-          <Label>
-            <Download
-              size={16}
-              style={{ display: "inline", marginRight: "0.5rem" }}
+          <FormGroup style={{ marginTop: 0 }}>
+            <Label htmlFor="sharing-expiration">
+              <Calendar size={16} style={{ display: "inline", marginRight: "0.5rem" }} />
+              Default link expiration (days)
+            </Label>
+            <Select
+              id="sharing-expiration"
+              value={form.defaultExpirationDays != null ? String(form.defaultExpirationDays) : ""}
+              onChange={(e) =>
+                setField("defaultExpirationDays", e.target.value ? parseInt(e.target.value, 10) : null)
+              }
+              disabled={saving}
+            >
+              <option value="">No expiration</option>
+              <option value="1">1 day</option>
+              <option value="7">7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+            </Select>
+            <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
+              New shared links expire after this many days.
+            </SmallText>
+          </FormGroup>
+
+          <FormGroup style={{ marginTop: 0 }}>
+            <Label htmlFor="sharing-download-limit">
+              <Download size={16} style={{ display: "inline", marginRight: "0.5rem" }} />
+              Default download limit
+            </Label>
+            <Input
+              id="sharing-download-limit"
+              type="number"
+              min={1}
+              placeholder="No limit"
+              value={form.defaultDownloadLimit != null ? String(form.defaultDownloadLimit) : ""}
+              onChange={(e) =>
+                setField("defaultDownloadLimit", e.target.value ? parseInt(e.target.value, 10) : null)
+              }
+              disabled={saving}
             />
-            Default Download Limit
-          </Label>
-          <Input
-            type="number"
-            min="1"
-            placeholder="No limit"
-            value={sharingSettings.defaultDownloadLimit || ""}
-            onChange={(e) =>
-              handleFieldChange(
-                "defaultDownloadLimit",
-                e.target.value ? parseInt(e.target.value) : null,
-              )
-            }
-            disabled={loading}
-          />
-          <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
-            Maximum number of downloads allowed for shared links
-          </SmallText>
-        </FormGroup>
-      </Section>
-    </>
+            <SmallText style={{ marginTop: "0.5rem", color: "#536471" }}>
+              Max downloads per link for new shares.
+            </SmallText>
+          </FormGroup>
+
+          {feedback && (
+            <div
+              role="alert"
+              style={{
+                padding: "0.75rem 1rem",
+                borderRadius: "8px",
+                backgroundColor: feedback.type === "success" ? "#dcfce7" : "#fee2e2",
+                color: feedback.type === "success" ? "#15803d" : "#dc2626",
+                fontSize: "0.875rem",
+              }}
+            >
+              {feedback.text}
+            </div>
+          )}
+
+          <Button type="submit" variant="primary" disabled={saving} style={{ alignSelf: "flex-start" }}>
+            {saving ? "Saving…" : "Save default sharing options"}
+          </Button>
+        </div>
+      </form>
+    </Section>
   );
 };

@@ -20,6 +20,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { trackFileActivity } from "../lib/helper";
+import { buildContentDisposition } from "../lib/contentDisposition";
 import favoritesRoutes from "./favorite.routes";
 
 import fs from "fs";
@@ -54,23 +55,6 @@ export const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.B2_BUCKET_NAME;
-
-function toAsciiFilenameFallback(filename: string) {
-  // Best-effort ASCII fallback for Content-Disposition
-  return filename
-    .replace(/[^\x20-\x7E]/g, "_")
-    .replace(/["\\]/g, "_")
-    .slice(0, 180);
-}
-
-function buildContentDisposition(
-  disposition: "inline" | "attachment",
-  filename: string,
-) {
-  const fallback = toAsciiFilenameFallback(filename) || "download";
-  const encoded = encodeURIComponent(filename);
-  return `${disposition}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
-}
 
 function inferMimeTypeFromName(fileName: string): string | undefined {
   const ext = fileName.split(".").pop()?.toLowerCase();
@@ -413,14 +397,14 @@ filesRoutes.get("/", authMiddleware, async (req: AuthRequest, res) => {
         CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
        FROM user_files uf
        LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
-       WHERE uf.user_id = $1 AND uf.original_name != '.metadata'
+       WHERE uf.user_id = $1 AND (uf.original_name != '.metadata' OR uf.is_folder = true)
        ORDER BY uf.is_folder DESC, uf.created_at DESC`,
         [req.userId],
       );
 
     const transformedFiles = filesResult.rows.map((row) => ({
       id: row.id,
-      name: row.original_name,
+      name: row.is_folder ? (row.folder_path?.split("/").filter(Boolean).pop() || row.original_name) : row.original_name,
       mimeType: row.mime_type,
       size: parseInt(row.size, 10),
       folderPath: row.folder_path,
@@ -966,6 +950,7 @@ filesRoutes.get(
         ResponseContentDisposition: buildContentDisposition(
           "attachment",
           file.original_name,
+          true,
         ),
         ResponseContentType:
           file.mime_type ||
@@ -1209,10 +1194,10 @@ filesRoutes.get(
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: file.s3_key,
-        // Force inline + correct content-type for reliable browser previews
         ResponseContentDisposition: buildContentDisposition(
           "inline",
           file.original_name,
+          true,
         ),
         ResponseContentType:
           file.mime_type ||
@@ -1649,6 +1634,7 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
         FROM user_files uf
         LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
         WHERE uf.user_id = $1
+          AND uf.deleted_at IS NULL
           AND uf.original_name != '.metadata'
           AND (
             uf.updated_at >= NOW() - INTERVAL '${days} days'
@@ -1688,6 +1674,7 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
           FROM user_files uf
           LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
           WHERE uf.user_id = $1
+            AND uf.deleted_at IS NULL
             AND uf.original_name != '.metadata'
             AND (
               uf.updated_at >= NOW() - INTERVAL '${days} days'
@@ -1725,6 +1712,7 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
           FROM user_files uf
           LEFT JOIN favorited_files ff ON ff.file_id = uf.id AND ff.user_id = $1
           WHERE uf.user_id = $1
+            AND uf.deleted_at IS NULL
             AND uf.original_name != '.metadata'
           ORDER BY GREATEST(uf.created_at, uf.updated_at) DESC
           LIMIT $2
@@ -1740,17 +1728,85 @@ filesRoutes.get("/recent", authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
-    const files = (result?.rows || []).map((row) => ({
+    let ownFiles = (result?.rows || []).map((row) => ({
       ...row,
       is_locked: row.is_locked || false,
       is_favorited: row.is_favorited || false,
-      // Ensure last_edited_at is always set
       last_edited_at: row.last_edited_at || row.updated_at || row.created_at,
-      // Ensure edit_count is always a number
       edit_count: row.edit_count || 0,
+      is_shared: false,
+      owner_name: null,
+      owner_email: null,
     }));
 
-    console.log(`Found ${files.length} recent files for user ${req.userId} (days: ${days}, limit: ${limit})`);
+    // Include shared-with-me files in recent (when share_recipients exists)
+    try {
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'share_recipients'
+        );
+      `);
+      if (tableCheck.rows[0]?.exists) {
+        const sharedResult = await pool.query(
+          `
+          SELECT
+            uf.id,
+            uf.original_name,
+            uf.s3_key,
+            uf.folder_path,
+            uf.size,
+            uf.mime_type,
+            uf.created_at,
+            uf.updated_at,
+            uf.is_locked,
+            fs.created_at AS share_created_at,
+            u.name AS owner_name,
+            u.email AS owner_email,
+            CASE WHEN ff.id IS NOT NULL THEN true ELSE false END AS is_favorited
+          FROM share_recipients sr
+          JOIN file_shares fs ON fs.id = sr.share_id
+          JOIN user_files uf ON uf.id = fs.file_id
+          JOIN "User" u ON u.id = fs.owner_id
+          LEFT JOIN favorited_files ff ON ff.user_id = $1 AND ff.file_id = uf.id
+          WHERE sr.recipient_user_id = $1
+            AND fs.is_active = true
+            AND (fs.expires_at IS NULL OR fs.expires_at > NOW())
+            AND uf.deleted_at IS NULL
+          ORDER BY fs.created_at DESC
+          LIMIT $2
+          `,
+          [req.userId, limit],
+        );
+        const sharedRows = sharedResult.rows.map((row) => ({
+          id: row.id,
+          original_name: row.original_name,
+          s3_key: row.s3_key,
+          folder_path: row.folder_path,
+          size: row.size,
+          mime_type: row.mime_type,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          is_locked: row.is_locked || false,
+          is_favorited: row.is_favorited || false,
+          last_edited_at: row.share_created_at,
+          edit_count: 0,
+          is_shared: true,
+          owner_name: row.owner_name,
+          owner_email: row.owner_email,
+        }));
+        ownFiles = ownFiles.concat(sharedRows);
+        ownFiles.sort(
+          (a, b) =>
+            new Date(b.last_edited_at).getTime() - new Date(a.last_edited_at).getTime(),
+        );
+        ownFiles = ownFiles.slice(0, limit);
+      }
+    } catch (sharedErr: any) {
+      // Non-fatal: recent list stays as own files only
+    }
+
+    const files = ownFiles;
 
     res.json({
       success: true,

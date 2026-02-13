@@ -7,6 +7,8 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { uploadToS3, generateSignedUrl } from "../lib/helper";
 import { emailService } from "../lib/email.service";
 import { s3Client } from "./files.routes";
+import { authMiddleware, AuthRequest } from "../middleware/auth.middleware";
+import { SettingsService } from "../services/settings.service";
 
 const sharingRoutes = express.Router();
 const prisma = new PrismaClient();
@@ -110,10 +112,35 @@ sharingRoutes.get("/file/:fileId", async (req, res) => {
   }
 });
 
-// Create a new share
-sharingRoutes.post("/create", async (req, res) => {
+// Create a new share (auth required; apply user's default share settings when not provided)
+sharingRoutes.post("/create", authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const validated = createShareSchema.parse(req.body);
+    if (!req.userId) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+
+    const body = req.body || {};
+    let defaults: Record<string, unknown> = {};
+    try {
+      const settings = await SettingsService.getSettings(req.userId);
+      defaults = (settings?.sharing as Record<string, unknown>) || {};
+    } catch {
+      // no defaults
+    }
+
+    const merged = {
+      ...body,
+      permission: body.permission ?? defaults.defaultLinkPermission ?? "view",
+      expiresIn: body.expiresIn ?? (typeof (defaults.defaultExpirationDays as number) === "number"
+        ? (defaults.defaultExpirationDays as number) * 24
+        : null),
+      maxDownloads: body.maxDownloads ?? (defaults.defaultDownloadLimit as number | null) ?? null,
+      password: body.password ?? ((defaults.requirePasswordForLinks && defaults.defaultPassword)
+        ? String(defaults.defaultPassword)
+        : undefined),
+    };
+
+    const validated = createShareSchema.parse(merged);
 
     const file = await prisma.userFile.findUnique({
       where: { id: validated.fileId },
@@ -123,6 +150,13 @@ sharingRoutes.post("/create", async (req, res) => {
       return res.status(404).json({
         success: false,
         error: "File not found",
+      });
+    }
+
+    if (file.userId !== req.userId) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only share your own files",
       });
     }
 
@@ -223,6 +257,51 @@ sharingRoutes.post("/create", async (req, res) => {
         } catch (emailError) {
           console.error(`Failed to send email to ${recipient.value}:`, emailError);
           // Continue with other recipients even if one fails
+        }
+      }
+    }
+
+    // Link share to platform users: if a recipient email belongs to a user, add to share_recipients
+    // so the file appears in "Shared with me" and recent files for that user
+    if (validated.recipients && validated.recipients.length > 0) {
+      for (const r of validated.recipients) {
+        const email = r.type === "email" ? r.value.trim().toLowerCase() : null;
+        const userIdOrEmail = r.type === "user" ? r.value.trim() : email;
+        if (!userIdOrEmail) continue;
+
+        let recipientUser: { id: string } | null = null;
+        if (r.type === "email" && email) {
+          recipientUser = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true },
+          });
+        } else if (r.type === "user") {
+          if (userIdOrEmail.includes("@")) {
+            recipientUser = await prisma.user.findUnique({
+              where: { email: userIdOrEmail.toLowerCase() },
+              select: { id: true },
+            });
+          } else {
+            recipientUser = await prisma.user.findUnique({
+              where: { id: userIdOrEmail },
+              select: { id: true },
+            });
+          }
+        }
+
+        if (recipientUser && recipientUser.id !== file.userId) {
+          try {
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO share_recipients (id, share_id, recipient_user_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (share_id, recipient_user_id) DO NOTHING`,
+              crypto.randomUUID(),
+              share.id,
+              recipientUser.id,
+            );
+          } catch (e) {
+            console.error("Failed to link share to recipient:", e);
+          }
         }
       }
     }

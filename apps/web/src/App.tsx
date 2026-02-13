@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect } from "react";
-import styled from "styled-components";
+import styled, { ThemeProvider } from "styled-components";
 import ToastManager from "./components/toast/ToastManager";
 import { toast } from "./services/toast.service";
+import { theme } from "./theme/theme";
 
 interface ApplicationProps {
   children: ReactNode;
@@ -15,22 +16,18 @@ declare global {
 
 const Application = ({ children }: ApplicationProps) => {
   useEffect(() => {
-    // Initialize the toast service
     toast.initialize();
-
-    // Expose toast globally for debugging
     window.toast = toast;
-
     return () => {
       delete window.toast;
     };
   }, []);
 
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <ApplicationContainer>{children}</ApplicationContainer>
       <ToastManager />
-    </>
+    </ThemeProvider>
   );
 };
 

@@ -109,6 +109,26 @@ export const FILE_TYPE_MAP = {
     mimeType: "video/x-m4v",
     previewCategory: "video" as const,
   },
+  avi: {
+    type: "video",
+    mimeType: "video/x-msvideo",
+    previewCategory: "video" as const,
+  },
+  wmv: {
+    type: "video",
+    mimeType: "video/x-ms-wmv",
+    previewCategory: "video" as const,
+  },
+  flv: {
+    type: "video",
+    mimeType: "video/x-flv",
+    previewCategory: "video" as const,
+  },
+  mkv: {
+    type: "video",
+    mimeType: "video/x-matroska",
+    previewCategory: "video" as const,
+  },
 
   // Audio
   mp3: {

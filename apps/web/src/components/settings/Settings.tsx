@@ -1,4 +1,5 @@
 import { useState } from "react";
+import styled from "styled-components";
 import { User, Shield, Palette, Globe, HardDrive, Share2 } from "lucide-react";
 import { useSettings } from "../shared/hooks/useSettings";
 import SidebarToggle from "../dashboard/component/sidebar/SidebarToggle";
@@ -19,6 +20,33 @@ import {
   TabButton,
   MainContent,
 } from "./styles/settings.styles";
+
+const ComingSoonCard = styled.div`
+  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 420px;
+  margin: 0 auto;
+`;
+const ComingSoonIcon = styled.div`
+  color: #94a3b8;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+`;
+const ComingSoonTitle = styled.div`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.5rem;
+`;
+const ComingSoonText = styled.div`
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+`;
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState("account");
@@ -45,7 +73,7 @@ const Settings = () => {
   ];
 
   const renderContent = () => {
-    if (loading) {
+    if (loading && !settings) {
       return (
         <div
           style={{
@@ -98,22 +126,32 @@ const Settings = () => {
 
       case "appearance":
         return (
-          <div style={{ padding: "1rem", color: "#536471" }}>
-            Appearance settings coming soon...
-          </div>
+          <ComingSoonCard>
+            <ComingSoonIcon>
+              <Palette size={40} strokeWidth={1.2} />
+            </ComingSoonIcon>
+            <ComingSoonTitle>Appearance</ComingSoonTitle>
+            <ComingSoonText>
+              Theme, file view, and display options are coming soon.
+            </ComingSoonText>
+          </ComingSoonCard>
         );
 
       case "language":
         return (
-          <div style={{ padding: "1rem", color: "#536471" }}>
-            Language settings coming soon...
-          </div>
+          <ComingSoonCard>
+            <ComingSoonIcon>
+              <Globe size={40} strokeWidth={1.2} />
+            </ComingSoonIcon>
+            <ComingSoonTitle>Language & region</ComingSoonTitle>
+            <ComingSoonText>
+              Display language, date and time format are coming soon.
+            </ComingSoonText>
+          </ComingSoonCard>
         );
 
       case "sharing":
-        return (
-          <SharingSection settings={settings} updateSharing={updateSharing} />
-        );
+        return <SharingSection />;
 
       default:
         return null;

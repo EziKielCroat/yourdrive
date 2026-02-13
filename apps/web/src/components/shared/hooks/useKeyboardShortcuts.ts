@@ -41,8 +41,9 @@ export function useKeyboardShortcuts({
     (event: KeyboardEvent) => {
       if (!enabled) return;
 
-      // Don't trigger shortcuts when typing in input fields
-      const target = event.target as HTMLElement;
+      const target = event.target as HTMLElement | null;
+      if (!target || !target.tagName) return;
+
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||

@@ -25,12 +25,12 @@ const Footer: React.FC = () => {
         const response = await api.get("/health");
         setIsApiHealthy(response.data?.status === "OK");
       } catch {
+        // API unreachable (wrong URL, no port, or server down) - fail silently
         setIsApiHealthy(false);
       }
     };
 
     checkApiHealth();
-    // Check health every 30 seconds
     const interval = setInterval(checkApiHealth, 30000);
     return () => clearInterval(interval);
   }, []);

@@ -72,27 +72,16 @@ const SharePopup: React.FC<SharePopupProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load default settings when popup opens
+  // Prefill from user's default share settings when popup opens
   useEffect(() => {
-    if (settings?.sharing) {
-      if (settings.sharing.defaultPassword && !password) {
-        setPassword(settings.sharing.defaultPassword);
-      }
-      if (settings.sharing.defaultExpirationDays && !expiresIn) {
-        // Convert days to hours for expiresIn
-        setExpiresIn(settings.sharing.defaultExpirationDays * 24);
-      }
-      if (settings.sharing.defaultDownloadLimit && !maxDownloads) {
-        setMaxDownloads(settings.sharing.defaultDownloadLimit);
-      }
-      if (
-        settings.sharing.requirePasswordForLinks &&
-        !password &&
-        settings.sharing.defaultPassword
-      ) {
-        setPassword(settings.sharing.defaultPassword);
-      }
+    if (!settings?.sharing) return;
+    const s = settings.sharing as Record<string, unknown>;
+    if (s.defaultLinkPermission && ["view", "comment", "edit", "download"].includes(String(s.defaultLinkPermission))) {
+      setPermission(s.defaultLinkPermission as Permission);
     }
+    if (s.defaultPassword) setPassword(String(s.defaultPassword));
+    if (typeof s.defaultExpirationDays === "number") setExpiresIn(s.defaultExpirationDays * 24);
+    if (typeof s.defaultDownloadLimit === "number") setMaxDownloads(s.defaultDownloadLimit);
   }, [settings]);
 
   useEffect(() => {
@@ -260,20 +249,10 @@ const SharePopup: React.FC<SharePopupProps> = ({
                     <OptionDesc>Send to specific people</OptionDesc>
                   </div>
                 </ShareTypeOption>
-                <ShareTypeOption
-                  $active={shareType === "internal"}
-                  onClick={() => setShareType("internal")}
-                >
-                  <Users size={18} />
-                  <div>
-                    <OptionTitle>Internal</OptionTitle>
-                    <OptionDesc>Share with team members</OptionDesc>
-                  </div>
-                </ShareTypeOption>
               </ShareTypeSelector>
             </Section>
 
-            {(shareType === "email" || shareType === "internal") && (
+            {shareType === "email" && (
               <Section>
                 <Label>
                   {shareType === "email" ? "Email addresses" : "Team members"}

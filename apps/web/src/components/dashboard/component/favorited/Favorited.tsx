@@ -134,6 +134,7 @@ const Favorited: React.FC = () => {
           showLocation={true}
           singleClickMode="preview"
           maxHeight={770}
+          onRefresh={fetchFavorites}
         />
 
         {previewFile && (

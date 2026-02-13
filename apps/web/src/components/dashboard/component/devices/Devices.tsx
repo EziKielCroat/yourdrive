@@ -447,7 +447,7 @@ const Devices: React.FC = () => {
             </GroupsGrid>
           </GroupsView>
         ) : (
-          <TableContainer>
+        <TableContainer>
             <Table>
               <thead>
                 <TableRow $isHeader>

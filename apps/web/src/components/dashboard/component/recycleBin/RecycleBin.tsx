@@ -262,6 +262,7 @@ const RecycleBin: React.FC = () => {
           emptyMessage="Recycle Bin is empty"
           emptySubtext="Deleted files will appear here"
           maxHeight={770}
+          onRefresh={fetchRecycleBin}
         />
 
         {previewFile && (

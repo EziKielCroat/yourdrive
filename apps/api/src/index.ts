@@ -31,21 +31,41 @@ const app = express();
 const PORT: number = parseInt(process.env.PORT ?? "3000", 10);
 const HOST: string = process.env.HOST ?? "0.0.0.0";
 
-// Allowed origins for CORS (localhost + FRONTEND_URL so setup works on any machine)
+// Allowed origins for CORS (localhost + FRONTEND_URL + LAN in dev)
+const normalizeOrigin = (url: string) => url?.trim().replace(/\/$/, "") || "";
+
+function isAllowedOriginHost(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.startsWith("192.168.") ||
+      host.startsWith("10.") ||
+      host.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+}
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://5n3w3hsd-5173.euw.devtunnels.ms",
   process.env.FRONTEND_URL,
-].filter(Boolean);
+]
+  .filter(Boolean)
+  .map(normalizeOrigin);
 
 // Helmet: relax COOP/origin-agent-cluster so HTTP dev origins don't trigger console warnings
 app.use(
   helmet({
     crossOriginOpenerPolicy: false,
     originAgentCluster: false,
-  })
+  }),
 );
 // Remove Permissions-Policy so browsers don't complain about unrecognized features (e.g. browsing-topics, interest-cohort)
 app.use((_req, res, next) => {
@@ -58,11 +78,15 @@ app.use(
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+      const normalized = normalizeOrigin(origin);
+      if (allowedOrigins.includes(normalized)) {
+        return callback(null, true);
       }
+      // Always allow localhost and private LAN (any port/scheme) so http://192.168.1.2:5173 works even when FRONTEND_URL is https
+      if (isAllowedOriginHost(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
     exposedHeaders: ["ETag"],
@@ -114,8 +138,11 @@ app.use((req, res) => {
 });
 
 const server = app.listen(PORT, HOST, () => {
-  const base = HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
-  console.log(`✅ API server running on ${base} (listening on ${HOST}:${PORT})`);
+  const base =
+    HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+  console.log(
+    `✅ API server running on ${base} (listening on ${HOST}:${PORT})`,
+  );
 });
 
 server.timeout = 120000;

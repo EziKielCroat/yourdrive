@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { X, Folder, ChevronRight, Home, Search, Check } from "lucide-react";
 import type { EnhancedFileItem } from "../types/fileActions";
+import api from "../../../../lib/axios";
+
+export interface MoveFolderOption {
+  id: string;
+  name: string;
+  path: string;
+}
 
 interface MoveModalProps {
   isOpen: boolean;
   files: EnhancedFileItem[];
   onClose: () => void;
-  onMove: (fileIds: string[], folderId: string) => Promise<void>;
-  folders?: Array<{ id: string; name: string; path: string }>;
+  onMove: (fileIds: string[], targetFolderPath: string) => Promise<void>;
+  folders?: MoveFolderOption[];
 }
 
 const fadeIn = keyframes`
@@ -286,73 +293,93 @@ const ErrorMessage = styled.div`
   font-size: 13px;
 `;
 
-// Mock folders for demo
-const MOCK_FOLDERS = [
-  { id: "root", name: "My Drive", path: "/" },
-  { id: "folder1", name: "Documents", path: "/Documents" },
-  { id: "folder2", name: "Images", path: "/Images" },
-  { id: "folder3", name: "Work", path: "/Work" },
-  { id: "folder4", name: "Personal", path: "/Personal" },
-  { id: "folder5", name: "Projects", path: "/Projects" },
-  { id: "folder6", name: "Archive", path: "/Archive" },
-];
+const ROOT_OPTION: MoveFolderOption = { id: "root", name: "Your Files", path: "" };
 
 export const MoveModal: React.FC<MoveModalProps> = ({
   isOpen,
   files,
   onClose,
   onMove,
-  folders = MOCK_FOLDERS,
+  folders: foldersProp,
 }) => {
-  const [selectedFolder, setSelectedFolder] = useState<string>("root");
+  const [folders, setFolders] = useState<MoveFolderOption[]>([ROOT_OPTION]);
+  const [foldersLoading, setFoldersLoading] = useState(false);
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState("/");
-  const [filteredFolders, setFilteredFolders] = useState(folders);
+  const [currentPath, setCurrentPath] = useState("");
+  const [filteredFolders, setFilteredFolders] = useState<MoveFolderOption[]>([]);
+
+  const fetchFolders = useCallback(async () => {
+    setFoldersLoading(true);
+    try {
+      const res = await api.get("/files/folders");
+      const data = res.data;
+      if (data.success && Array.isArray(data.folders)) {
+        const list: MoveFolderOption[] = [
+          ROOT_OPTION,
+          ...data.folders.map((f: { path: string; name: string }) => ({
+            id: f.path,
+            name: f.name,
+            path: f.path,
+          })),
+        ];
+        setFolders(list);
+      } else {
+        setFolders([ROOT_OPTION]);
+      }
+    } catch {
+      setFolders([ROOT_OPTION]);
+    } finally {
+      setFoldersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedFolder("root");
+      setSelectedFolderPath("root");
       setSearchQuery("");
       setError(null);
-      setCurrentPath("/");
+      setCurrentPath("");
+      if (foldersProp && foldersProp.length > 0) {
+        setFolders([ROOT_OPTION, ...foldersProp]);
+      } else {
+        fetchFolders();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, fetchFolders, foldersProp]);
 
   useEffect(() => {
+    const list = foldersProp && foldersProp.length > 0 ? [ROOT_OPTION, ...foldersProp] : folders;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      const filtered = folders.filter(
+      const filtered = list.filter(
         (folder) =>
           folder.name.toLowerCase().includes(query) ||
-          folder.path.toLowerCase().includes(query),
+          (folder.path && folder.path.toLowerCase().includes(query)),
       );
       setFilteredFolders(filtered);
     } else {
-      setFilteredFolders(folders);
+      setFilteredFolders(list);
     }
-  }, [searchQuery, folders]);
+  }, [searchQuery, folders, foldersProp]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!selectedFolder) {
-      setError("Please select a destination folder");
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
 
     try {
+      const targetPath = selectedFolderPath === "root" ? "" : selectedFolderPath;
       await onMove(
         files.map((f) => f.id),
-        selectedFolder,
+        targetPath,
       );
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to move files");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to move files");
     } finally {
       setIsSubmitting(false);
     }
@@ -368,14 +395,13 @@ export const MoveModal: React.FC<MoveModalProps> = ({
   };
 
   const getSelectedFolderName = () => {
-    const folder = folders.find((f) => f.id === selectedFolder);
-    return folder?.name || "Select folder";
+    if (selectedFolderPath === "" || selectedFolderPath === "root") return "Your Files";
+    const folder = filteredFolders.find((f) => f.path === selectedFolderPath);
+    return folder?.name || selectedFolderPath || "Select folder";
   };
 
-  const pathSegments = currentPath.split("/").filter(Boolean);
-  const displayedFolders = filteredFolders.filter(
-    (folder) => folder.path.startsWith(currentPath) && folder.id !== "root",
-  );
+  const pathSegments = currentPath ? currentPath.split("/").filter(Boolean) : [];
+  const displayedFolders = filteredFolders;
 
   return (
     <ModalOverlay onClick={onClose}>
@@ -431,29 +457,37 @@ export const MoveModal: React.FC<MoveModalProps> = ({
         </Breadcrumbs>
 
         <FolderList>
-          {displayedFolders.length > 0 ? (
-            displayedFolders.map((folder) => (
-              <FolderItem
-                key={folder.id}
-                $selected={selectedFolder === folder.id}
-                onClick={() => setSelectedFolder(folder.id)}
-              >
-                <FolderIcon $selected={selectedFolder === folder.id}>
-                  <Folder size={16} />
-                </FolderIcon>
-                <FolderInfo>
-                  <FolderName $selected={selectedFolder === folder.id}>
-                    {folder.name}
-                  </FolderName>
-                  <FolderPath>{folder.path}</FolderPath>
-                </FolderInfo>
-                {selectedFolder === folder.id && (
-                  <SelectedIndicator>
-                    <Check size={16} />
-                  </SelectedIndicator>
-                )}
-              </FolderItem>
-            ))
+          {foldersLoading ? (
+            <EmptyState>
+              <p>Loading folders...</p>
+            </EmptyState>
+          ) : displayedFolders.length > 0 ? (
+            displayedFolders.map((folder) => {
+              const value = folder.id === "root" ? "root" : folder.path;
+              const isSelected = selectedFolderPath === value;
+              return (
+                <FolderItem
+                  key={folder.id}
+                  $selected={isSelected}
+                  onClick={() => setSelectedFolderPath(value)}
+                >
+                  <FolderIcon $selected={isSelected}>
+                    <Folder size={16} />
+                  </FolderIcon>
+                  <FolderInfo>
+                    <FolderName $selected={isSelected}>
+                      {folder.name}
+                    </FolderName>
+                    <FolderPath>{folder.path || "—"}</FolderPath>
+                  </FolderInfo>
+                  {isSelected && (
+                    <SelectedIndicator>
+                      <Check size={16} />
+                    </SelectedIndicator>
+                  )}
+                </FolderItem>
+              );
+            })
           ) : (
             <EmptyState>
               <Folder size={32} />
@@ -473,7 +507,7 @@ export const MoveModal: React.FC<MoveModalProps> = ({
           <Button
             $primary
             onClick={handleSubmit}
-            disabled={isSubmitting || !selectedFolder}
+            disabled={isSubmitting}
           >
             {isSubmitting ? (
               <>

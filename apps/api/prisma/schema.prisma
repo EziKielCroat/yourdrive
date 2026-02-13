@@ -31,6 +31,7 @@ model User {
   userSettings        UserSettings?
   shareActivities     ShareActivity[]
   fileShares          FileShare[]
+  shareRecipients     ShareRecipient[]
   favoritedFiles      FavoritedFile[]
   recycleBinItems     RecycleBin[]
   webauthnCredentials WebAuthnCredential[]
@@ -193,25 +194,39 @@ model TotpRecoveryCode {
 }
 
 model FileShare {
-  id            String          @id @default(uuid())
-  fileId        Int             @map("file_id")
-  ownerId       String          @map("owner_id")
-  shareToken    String          @unique @map("share_token")
-  shareType     String          @map("share_type")
-  permission    String
-  password      String?
-  expiresAt     DateTime?       @map("expires_at")
-  maxDownloads  Int?            @map("max_downloads")
-  downloadCount Int             @default(0) @map("download_count")
-  isActive      Boolean         @default(true) @map("is_active")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  file          UserFile        @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  activities    ShareActivity[]
-  comments      ShareComment[]
+  id              String           @id @default(uuid())
+  fileId          Int              @map("file_id")
+  ownerId         String          @map("owner_id")
+  shareToken      String          @unique @map("share_token")
+  shareType       String          @map("share_type")
+  permission      String
+  password        String?
+  expiresAt       DateTime?       @map("expires_at")
+  maxDownloads    Int?            @map("max_downloads")
+  downloadCount   Int             @default(0) @map("download_count")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  file            UserFile        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  owner           User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  activities      ShareActivity[]
+  comments        ShareComment[]
+  shareRecipients ShareRecipient[]
 
   @@map("file_shares")
+}
+
+model ShareRecipient {
+  id               String   @id @default(uuid())
+  shareId          String   @map("share_id")
+  recipientUserId  String   @map("recipient_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  share            FileShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  recipient        User      @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@unique([shareId, recipientUserId])
+  @@index([recipientUserId])
+  @@map("share_recipients")
 }
 
 model ShareComment {

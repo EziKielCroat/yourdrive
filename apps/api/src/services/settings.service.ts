@@ -9,6 +9,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import sharp from "sharp";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -180,16 +181,42 @@ export class SettingsService {
     );
   }
 
-  static async updateSharing(userId: string, data: any) {
+  static async getSharing(userId: string): Promise<Record<string, unknown>> {
+    await this.ensureSettingsExist(userId);
+    const result = await pool.query(
+      `SELECT sharing FROM user_settings WHERE user_id = $1`,
+      [userId],
+    );
+    const raw = result.rows[0]?.sharing;
+    if (raw == null) return {};
+    if (typeof raw === "string") return JSON.parse(raw || "{}") as Record<string, unknown>;
+    return (raw as Record<string, unknown>) || {};
+  }
+
+  static async updateSharing(userId: string, data: any): Promise<Record<string, unknown>> {
     await this.ensureSettingsExist(userId);
 
+    const current = await pool.query(
+      `SELECT sharing FROM user_settings WHERE user_id = $1`,
+      [userId],
+    );
+    const raw = current.rows[0]?.sharing;
+    const existing: Record<string, unknown> =
+      raw == null
+        ? {}
+        : typeof raw === "string"
+          ? (JSON.parse(raw || "{}") as Record<string, unknown>)
+          : (raw as Record<string, unknown>);
+
+    const merged = { ...existing, ...data };
     await pool.query(
       `UPDATE user_settings
-       SET sharing = sharing || $1::jsonb,
+       SET sharing = $1::jsonb,
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = $2`,
-      [JSON.stringify(data), userId],
+      [JSON.stringify(merged), userId],
     );
+    return merged;
   }
 
   static async updatePreferences(userId: string, data: any) {
@@ -263,24 +290,45 @@ export class SettingsService {
       throw new Error("User not found");
     }
 
-    const timestamp = Date.now();
-    const extension = file.originalname.split(".").pop();
-    const s3Key = `avatars/${user.email}/${timestamp}.${extension}`;
+    let body: Buffer;
+    try {
+      body = await sharp(file.buffer)
+        .resize(256, 256, { fit: "cover" })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+    } catch {
+      body = file.buffer;
+    }
 
-    const uploadParams = {
-      Bucket: BUCKET_NAME,
-      Key: s3Key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-      Metadata: {
-        userId: userId,
-        uploadDate: new Date().toISOString(),
-      },
-    };
+    // Only use B2 when we have a public URL; otherwise avatars are stored as base64 in DB (free, always works)
+    const useB2 =
+      BUCKET_NAME &&
+      process.env.B2_KEY_ID &&
+      process.env.B2_APPLICATION_KEY &&
+      process.env.B2_PUBLIC_URL;
 
-    await s3Client.send(new PutObjectCommand(uploadParams));
+    let avatarUrl: string;
 
-    const avatarUrl = `${process.env.B2_PUBLIC_URL}/${s3Key}`;
+    if (useB2) {
+      const timestamp = Date.now();
+      const s3Key = `avatars/${user.email}/${timestamp}.jpg`;
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: s3Key,
+          Body: body,
+          ContentType: "image/jpeg",
+          Metadata: {
+            userId,
+            uploadDate: new Date().toISOString(),
+          },
+        }),
+      );
+      avatarUrl = `${process.env.B2_PUBLIC_URL}/${s3Key}`;
+    } else {
+      // Free fallback: store resized image as base64 in DB (no B2/S3 needed)
+      avatarUrl = `data:image/jpeg;base64,${body.toString("base64")}`;
+    }
 
     await pool.query(
       `UPDATE user_settings
@@ -306,8 +354,16 @@ export class SettingsService {
     const profile = result.rows[0].profile;
     const avatarUrl = profile?.avatarUrl;
 
-    if (avatarUrl) {
-      const s3Key = avatarUrl.replace(`${process.env.B2_PUBLIC_URL}/`, "");
+    if (avatarUrl && !avatarUrl.startsWith("data:")) {
+      const publicBase =
+        process.env.B2_PUBLIC_URL ||
+        (process.env.B2_ENDPOINT && BUCKET_NAME
+          ? `${process.env.B2_ENDPOINT}/${BUCKET_NAME}`
+          : "");
+      const s3Key =
+        publicBase && avatarUrl.startsWith(publicBase)
+          ? avatarUrl.replace(`${publicBase}/`, "")
+          : avatarUrl;
 
       try {
         await s3Client.send(
@@ -444,8 +500,7 @@ export class SettingsService {
       where: { userId },
     });
 
-    // Delete TOTP if exists
-    await prisma.tOTP.deleteMany({
+    await prisma.totpRecoveryCode.deleteMany({
       where: { userId },
     });
 

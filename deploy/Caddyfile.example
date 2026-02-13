@@ -1,0 +1,17 @@
+# Copy to /etc/caddy/Caddyfile on the Pi and:
+# 1. Replace yourapp.duckdns.org with your DuckDNS hostname
+# 2. Replace /home/pi/yourdrive with the path where the repo is cloned
+# Then: sudo systemctl reload caddy
+
+yourapp.duckdns.org {
+    root * /home/pi/yourdrive/apps/web/dist
+    encode gzip
+    file_server
+    handle /api/* {
+        reverse_proxy 127.0.0.1:3001
+    }
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+}

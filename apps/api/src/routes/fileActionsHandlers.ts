@@ -8,6 +8,7 @@ import {
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { buildContentDisposition } from "../lib/contentDisposition";
 import archiver from "archiver";
 import unzipper from "unzipper";
 import { Readable } from "stream";
@@ -766,7 +767,7 @@ export class FileActionsHandlers {
       const result = await client.query(
         `UPDATE user_files 
          SET folder_path = $1, updated_at = NOW()
-         WHERE id = ANY($2) AND user_id = $3
+         WHERE id = ANY($2) AND user_id = $3 AND is_folder = false
          RETURNING id`,
         [targetFolderPath, fileIds.map((id) => parseInt(id)), userId],
       );
@@ -1129,7 +1130,7 @@ export class FileActionsHandlers {
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: file.s3_key,
-        ResponseContentDisposition: `inline; filename="${encodeURIComponent(file.original_name)}"`,
+        ResponseContentDisposition: buildContentDisposition("inline", file.original_name, true),
       });
 
       const signedUrl = await getSignedUrl(s3Client, command, {

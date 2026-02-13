@@ -302,6 +302,26 @@ settingsRoutes.patch(
   },
 );
 
+settingsRoutes.get(
+  "/sharing",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ success: false, error: "Authentication required" });
+      }
+      const sharing = await SettingsService.getSharing(req.userId);
+      res.json({ success: true, sharing });
+    } catch (err) {
+      console.error("Error fetching sharing settings:", err);
+      res.status(500).json({
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to load sharing settings",
+      });
+    }
+  },
+);
+
 settingsRoutes.patch(
   "/sharing",
   authMiddleware,
@@ -315,11 +335,12 @@ settingsRoutes.patch(
       }
 
       const validated = updateSharingSchema.parse(req.body);
-      await SettingsService.updateSharing(req.userId, validated);
+      const sharing = await SettingsService.updateSharing(req.userId, validated);
 
       res.json({
         success: true,
         message: "Sharing settings updated successfully",
+        sharing,
       });
     } catch (err) {
       console.error("Error updating sharing settings:", err);

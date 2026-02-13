@@ -11,24 +11,31 @@ interface OfficePreviewProps {
   onShare?: () => void;
 }
 
-const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
+type ViewerType = "office" | "google" | "failed";
+
+const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName, onDownload }) => {
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<ViewerType>("office");
 
   const extension = fileName.split(".").pop()?.toLowerCase();
   const isPresentation = ["ppt", "pptx", "odp"].includes(extension || "");
   const isSpreadsheet = ["xls", "xlsx", "ods"].includes(extension || "");
   const isDocument = ["doc", "docx", "odt"].includes(extension || "");
 
-  const getMicrosoftViewerUrl = () => {
-    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-      url,
-    )}`;
+  const getViewerUrl = () => {
+    if (viewer === "office") {
+      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    }
+    if (viewer === "google") {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    }
+    return "";
   };
 
-  const viewerUrl = getMicrosoftViewerUrl();
+  const viewerUrl = getViewerUrl();
 
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 10, 200));
@@ -49,18 +56,25 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
 
   const handleIframeError = () => {
     setLoading(false);
-    setError(
-      "Failed to load document. Try opening it in a new tab or downloading the file.",
-    );
+    if (viewer === "office") {
+      setViewer("google");
+      setError(null);
+      setLoading(true);
+    } else {
+      setViewer("failed");
+      setError(
+        "Preview could not be loaded. Try opening in a new tab or downloading the file.",
+      );
+    }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+  // When url changes, parent should pass key={url} so we remount and reset state
 
+  useEffect(() => {
+    if (!loading || !viewerUrl) return;
+    const timer = setTimeout(() => setLoading(false), 3000);
     return () => clearTimeout(timer);
-  }, [url]);
+  }, [url, viewer, viewerUrl, loading]);
 
   return (
     <Container>
@@ -186,33 +200,41 @@ const OfficePreview: React.FC<OfficePreviewProps> = ({ url, fileName }) => {
           </LoadingOverlay>
         )}
 
-        {error && (
+        {error && viewer === "failed" && (
           <ErrorOverlay>
             <ErrorIcon>⚠</ErrorIcon>
             <ErrorText>{error}</ErrorText>
             <RetryButton
               onClick={() => {
+                setViewer("office");
                 setError(null);
                 setLoading(true);
               }}
             >
               Try Again
             </RetryButton>
+            {onDownload && (
+              <RetryButton onClick={onDownload} style={{ marginTop: 8 }}>
+                Download File
+              </RetryButton>
+            )}
           </ErrorOverlay>
         )}
 
-        <ViewerFrame
-          src={viewerUrl}
-          title={fileName}
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
+        {viewerUrl && (
+          <ViewerFrame
+            src={viewerUrl}
+            title={fileName}
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
           style={{
             transform: `scale(${zoom / 100})`,
             transformOrigin: "top left",
             width: `${100 / (zoom / 100)}%`,
             height: `${100 / (zoom / 100)}%`,
           }}
-        />
+          />
+        )}
       </ViewerContainer>
 
       <InfoBar>

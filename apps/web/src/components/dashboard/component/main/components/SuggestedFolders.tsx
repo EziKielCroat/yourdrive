@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Container,
   Header,
@@ -18,6 +18,8 @@ import {
 import FilesIcon from "../../../../shared/icons/files";
 import FolderPreviewModal from "./FolderPreviewModal";
 import api from "../../../../../lib/axios";
+import { useEvent } from "../../../../../events/useEvent";
+import { FILES_REFRESH_EVENT } from "../../../../../events/fileEvents";
 
 interface Folder {
   name: string;
@@ -32,23 +34,26 @@ const SuggestedFolders: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
 
-  useEffect(() => {
-    const fetchFolders = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/files/folders");
-        const data = response.data;
-        if (data.success) setFolders(data.folders);
-      } catch (err) {
-        console.error("Error fetching folders:", err);
-        setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFolders();
+  const fetchFolders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get("/files/folders");
+      const data = response.data;
+      if (data.success) setFolders(data.folders || []);
+    } catch (err) {
+      console.error("Error fetching folders:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchFolders();
+  }, [fetchFolders]);
+
+  useEvent(FILES_REFRESH_EVENT, fetchFolders);
 
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return "0 B";

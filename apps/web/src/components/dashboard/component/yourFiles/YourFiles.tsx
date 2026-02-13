@@ -196,8 +196,6 @@ const YourFiles: React.FC = () => {
         return;
       }
 
-      console.log(filesData.files);
-
       const transformedFiles: FileItem[] = filesData.files.map((file: any) => ({
         id: String(file.id),
 
@@ -233,7 +231,6 @@ const YourFiles: React.FC = () => {
         updatedAt: file.updatedAt ?? file.updated_at,
       }));
 
-      console.log("Transformed files:", transformedFiles);
       setFiles(transformedFiles);
     } catch (err) {
       console.error("Error fetching files:", err);
@@ -292,6 +289,7 @@ const YourFiles: React.FC = () => {
           maxHeight={770}
           onFilesUpload={handleFilesUpload}
           checkStorageLimit={checkStorageLimit}
+          onRefresh={fetchFiles}
         />
 
         {previewFile && previewFile.type === "file" && (

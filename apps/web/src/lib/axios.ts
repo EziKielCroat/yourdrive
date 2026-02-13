@@ -1,11 +1,31 @@
 import axios from "axios";
 
 // Use relative /api so cookies (refreshToken) are sent same-origin. Avoid full URLs that cause cross-origin and cookie issues.
+function isLocalOrPrivateHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.startsWith("192.168.") ||
+      host.startsWith("10.") ||
+      host.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const getApiBaseURL = (): string => {
-  const envApiUrl = import.meta.env.VITE_API_URL;
+  let envApiUrl = import.meta.env.VITE_API_URL;
   if (envApiUrl && typeof envApiUrl === "string" && envApiUrl.trim() !== "") {
-    if (envApiUrl.startsWith("http")) {
-      return envApiUrl;
+    envApiUrl = envApiUrl.trim();
+    // Local/LAN servers usually run HTTP; force http to avoid ERR_SSL_PROTOCOL_ERROR
+    if (
+      envApiUrl.startsWith("https://") &&
+      isLocalOrPrivateHost(envApiUrl)
+    ) {
+      envApiUrl = envApiUrl.replace(/^https:\/\//i, "http://");
     }
     return envApiUrl;
   }

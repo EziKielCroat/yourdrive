@@ -81,8 +81,9 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
   };
 
   const toggleFullscreen = () => {
-    if (!isFullscreen && iframeRef.current?.requestFullscreen) {
-      iframeRef.current.requestFullscreen();
+    const iframe = iframeRef.current;
+    if (!isFullscreen && iframe?.requestFullscreen) {
+      iframe.requestFullscreen();
       setIsFullscreen(true);
     } else if (document.exitFullscreen) {
       document.exitFullscreen();
@@ -96,7 +97,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({
 
   const handleError = () => {
     setError(
-      "Failed to load PDF. The file may be corrupted or the browser does not support PDF preview.",
+      "Failed to load PDF. The file may be corrupted or the server rejected the request.",
     );
     onError?.("Failed to load PDF");
     setLoading(false);

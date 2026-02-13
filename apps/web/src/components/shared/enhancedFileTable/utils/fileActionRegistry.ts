@@ -16,6 +16,7 @@ import {
   Info,
   X,
   Edit3,
+  Move,
 } from "lucide-react";
 
 import type {
@@ -139,16 +140,16 @@ const registry: Record<FileActionId, FileActionDefinition> = {
       !ctx.selectedFiles.some((f) => f.isLocked) && !ctx.isRecycleBin,
   },
 
-  // move: {
-  //   id: "move",
-  //   label: "Move",
-  //   icon: Move,
-  //   shortcut: "Alt+K V",
-  //   available: (ctx: ActionContext) =>
-  //     !ctx.selectedFiles.some((f) => f.isLocked) &&
-  //     !ctx.isRecycleBin &&
-  //     !ctx.isShared,
-  // },
+  move: {
+    id: "move",
+    label: "Move",
+    icon: Move,
+    shortcut: "Alt+K V",
+    available: (ctx: ActionContext) =>
+      !ctx.selectedFiles.some((f) => f.isLocked) &&
+      !ctx.isRecycleBin &&
+      !ctx.isShared,
+  },
 
   compress: {
     id: "compress",
@@ -288,7 +289,7 @@ const registry: Record<FileActionId, FileActionDefinition> = {
 
 const CONTEXT_MENU_GROUPS: readonly (readonly FileActionId[])[] = [
   ["preview", "edit", "details"],
-  ["rename", "duplicate"],
+  ["rename", "duplicate", "move"],
   ["share", "getLink"],
   ["compress", "extract", "optimize", "watermark", "generatePdf"],
   ["lock", "unlock", "star", "unstar"],
@@ -299,6 +300,7 @@ const SELECTION_BAR_PRIORITY: readonly FileActionId[] = [
   "download",
   "share",
   "edit",
+  "move",
   "compress",
   "star",
   "unstar",

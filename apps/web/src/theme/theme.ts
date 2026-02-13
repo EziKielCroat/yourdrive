@@ -1,83 +1,84 @@
-export const lightTheme = {
-  // Backgrounds
-  background: "#f8f9fa",
-  card: "#ffffff",
-  inputBg: "#ffffff",
-  buttonBg: "#ffffff",
-  iconBg: "#f3f4f6",
-  hover: "#f9fafb",
-  progressBg: "#f3f4f6",
-  infoBg: "#eff6ff",
+/**
+ * NEXA Core design system theme for styled-components.
+ * Use via ThemeProvider and theme prop in styled components.
+ */
+export const theme = {
+  colors: {
+    primary: "#2563eb",
+    primaryHover: "#1d4ed8",
+    secondary: "#f3f4f6",
+    secondaryHover: "#e5e7eb",
+    danger: "#dc2626",
+    dangerHover: "#b91c1c",
+    success: "#16a34a",
+    successHover: "#15803d",
+    text: {
+      primary: "#111827",
+      secondary: "#6b7280",
+      muted: "#9ca3af",
+    },
+    background: {
+      primary: "#ffffff",
+      secondary: "#f9fafb",
+      tertiary: "#f3f4f6",
+    },
+    border: {
+      light: "#e5e7eb",
+      medium: "#d1d5db",
+      dark: "#9ca3af",
+    },
+  },
+  spacing: {
+    xs: "0.5rem",
+    sm: "0.75rem",
+    md: "1rem",
+    lg: "1.5rem",
+    xl: "2rem",
+    "2xl": "2.5rem",
+    "3xl": "3rem",
+  },
+  fontSize: {
+    xs: "0.75rem",
+    sm: "0.875rem",
+    base: "1rem",
+    lg: "1.125rem",
+    xl: "1.25rem",
+    "2xl": "1.5rem",
+    "3xl": "1.875rem",
+    "4xl": "2.25rem",
+  },
+  fontWeight: {
+    normal: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
+  borderRadius: {
+    sm: "0.25rem",
+    md: "0.375rem",
+    lg: "0.5rem",
+    xl: "0.75rem",
+    "2xl": "1rem",
+    full: "9999px",
+  },
+  shadows: {
+    sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    md: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+    lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+    xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+  },
+  transitions: {
+    fast: "150ms ease-in-out",
+    base: "200ms ease-in-out",
+    slow: "300ms ease-in-out",
+  },
+  breakpoints: {
+    sm: "640px",
+    md: "768px",
+    lg: "1024px",
+    xl: "1280px",
+    "2xl": "1536px",
+  },
+} as const;
 
-  // Primary Colors
-  primary: "#7c3aed",
-  primaryHover: "#6d28d9",
-  primaryBg: "#f3f4f6",
-  primaryShadow: "rgba(124, 58, 237, 0.1)",
-
-  // Text Colors
-  text: "#1a1a1a",
-  textSecondary: "#6b7280",
-  textTertiary: "#9ca3af",
-
-  // Borders
-  border: "#e5e7eb",
-  borderLight: "#f3f4f6",
-  infoBorder: "#dbeafe",
-
-  // Danger Colors
-  danger: "#dc2626",
-  dangerBg: "#fee2e2",
-  dangerBgHover: "#fecaca",
-  dangerBgLight: "rgba(254, 226, 226, 0.3)",
-  dangerBorder: "#fee2e2",
-
-  // Toggle
-  toggleBg: "#e5e7eb",
-
-  // Shadow
-  shadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-};
-
-export const darkTheme = {
-  // Backgrounds
-  background: "#0f0f0f",
-  card: "#1a1a1a",
-  inputBg: "#0f0f0f",
-  buttonBg: "#242424",
-  iconBg: "#242424",
-  hover: "#242424",
-  progressBg: "#242424",
-  infoBg: "#1e293b",
-
-  // Primary Colors
-  primary: "#7c3aed",
-  primaryHover: "#6d28d9",
-  primaryBg: "#7c3aed",
-  primaryShadow: "rgba(124, 58, 237, 0.2)",
-
-  // Text Colors
-  text: "#e0e0e0",
-  textSecondary: "#a0a0a0",
-  textTertiary: "#737373",
-
-  // Borders
-  border: "#333333",
-  borderLight: "#242424",
-  infoBorder: "#1e3a5f",
-
-  // Danger Colors
-  danger: "#fca5a5",
-  dangerBg: "#991b1b",
-  dangerBgHover: "#7f1d1d",
-  dangerBgLight: "rgba(153, 27, 27, 0.1)",
-  dangerBorder: "#991b1b",
-
-  // Toggle
-  toggleBg: "#333333",
-
-  // Shadow
-  shadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
-};
-
-export type Theme = typeof lightTheme;
+export type Theme = typeof theme;

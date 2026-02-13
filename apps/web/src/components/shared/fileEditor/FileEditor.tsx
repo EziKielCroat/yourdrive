@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
 import { useParams, useRouter } from "@tanstack/react-router";
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Check } from "lucide-react";
 import api from "../../../lib/axios";
 import { eventBus } from "../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../events/fileEvents";
+import { toast } from "../../../services/toast.service";
 
 type FileMeta = {
   fileName: string;
@@ -31,6 +32,7 @@ export const FileEditor: React.FC = () => {
   const [originalContent, setOriginalContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export const FileEditor: React.FC = () => {
     }
   }, [fileId]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!meta || !isTextMime(meta.mimeType)) return;
     try {
       setSaving(true);
@@ -91,15 +93,31 @@ export const FileEditor: React.FC = () => {
       }
 
       setOriginalContent(content);
+      setJustSaved(true);
       eventBus.emit(FILES_REFRESH_EVENT);
+      toast.success("Saved");
+      setTimeout(() => setJustSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save file");
     } finally {
       setSaving(false);
     }
-  };
+  }, [fileId, meta, content]);
 
   const isDirty = content !== originalContent;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (isDirty && !saving && meta && isTextMime(meta.mimeType)) {
+          handleSave();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSave, isDirty, saving, meta]);
 
   const goBack = () => {
     router.history.back();
@@ -121,9 +139,9 @@ export const FileEditor: React.FC = () => {
       <EditorContainer>
         <TopBar>
           <LeftGroup>
-            <IconButton onClick={goBack} title="Back">
+            <BackButton onClick={goBack} title="Back">
               <ArrowLeft size={18} />
-            </IconButton>
+            </BackButton>
             <Title>
               {meta?.fileName}{" "}
               {!isTextMime(meta?.mimeType) && (
@@ -141,11 +159,13 @@ export const FileEditor: React.FC = () => {
             )}
 
             <SaveButton
-              disabled={saving || !isDirty || !isTextMime(meta?.mimeType)}
+              disabled={saving || (!isDirty && !justSaved) || !isTextMime(meta?.mimeType)}
               onClick={handleSave}
+              $saved={justSaved}
+              title="Save (Ctrl+S)"
             >
-              <Save size={16} />
-              {saving ? "Saving…" : "Save"}
+              {justSaved ? <Check size={16} /> : <Save size={16} />}
+              {saving ? "Saving…" : justSaved ? "Saved" : "Save"}
             </SaveButton>
           </RightGroup>
         </TopBar>
@@ -228,6 +248,18 @@ const IconButton = styled.button`
   }
 `;
 
+const BackButton = styled(IconButton)`
+  border: 1px solid #d1d5db;
+  color: #374151;
+  background: #fff;
+
+  &:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #111827;
+  }
+`;
+
 const Title = styled.div`
   font-size: 14px;
   font-weight: 600;
@@ -252,14 +284,14 @@ const ErrorChip = styled.div`
   font-size: 12px;
 `;
 
-const SaveButton = styled.button`
+const SaveButton = styled.button<{ $saved?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
   border-radius: 999px;
   border: none;
-  background: #2563eb;
+  background: ${(p) => (p.$saved ? "#16a34a" : "#2563eb")};
   color: white;
   font-size: 13px;
   font-weight: 500;
@@ -271,7 +303,7 @@ const SaveButton = styled.button`
   }
 
   &:not(:disabled):hover {
-    background: #1d4ed8;
+    background: ${(p) => (p.$saved ? "#15803d" : "#1d4ed8")};
   }
 `;
 

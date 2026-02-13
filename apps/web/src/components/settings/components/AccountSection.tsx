@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Section,
   SectionTitle,
@@ -11,7 +11,6 @@ import {
   FormGroup,
   Label,
   Input,
-  GridTwo,
   DangerZone,
   DangerItem,
   DangerInfo,
@@ -24,14 +23,14 @@ import type { UserSettings } from "../types/UserSettings";
 
 interface AccountSectionProps {
   settings: UserSettings | null;
-  updateProfile: (data: { email: string; firstName: string }) => Promise<void>;
+  updateProfile: (data: { email?: string; firstName?: string }) => Promise<void>;
 }
 
 export const AccountSection: React.FC<AccountSectionProps> = ({
   settings,
   updateProfile,
 }) => {
-  const { deleteAccount } = useSettings();
+  const { deleteAccount, refreshSettings } = useSettings();
   const [formData, setFormData] = useState({
     email: settings?.profile?.email || "",
     firstName: settings?.profile?.firstName || "",
@@ -39,95 +38,57 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(
     settings?.profile?.avatarUrl || null,
   );
-  const [loading, setLoading] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savingFirstName, setSavingFirstName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [initialized, setInitialized] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Prefill form fields once settings have loaded
+  // Prefill form when settings load
   useEffect(() => {
     if (!settings?.profile) return;
-
-    const email = settings.profile.email || "";
-    const firstName = settings.profile.firstName || "";
-
-    // Always set initial values when settings load
     setFormData({
-      email,
-      firstName,
+      email: settings.profile.email || "",
+      firstName: settings.profile.firstName || "",
     });
+    setAvatarUrl(settings.profile.avatarUrl || null);
+  }, [settings?.profile]);
 
-    if (settings.profile.avatarUrl !== avatarUrl) {
-      setAvatarUrl(settings.profile.avatarUrl || null);
-    }
-
-    if (!initialized) {
-      setInitialized(true);
-    }
-  }, [settings]);
-
-  // Autosave function with debouncing
-  const autoSave = useCallback(
-    async (data: { email: string; firstName: string }) => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          setSaving(true);
-          await updateProfile(data);
-          setMessage("Profile saved automatically");
-          setTimeout(() => setMessage(""), 2000);
-        } catch (error) {
-          console.error("Autosave failed:", error);
-          setMessage("Failed to save changes");
-          setTimeout(() => setMessage(""), 3000);
-        } finally {
-          setSaving(false);
-        }
-      }, 1000); // 1 second debounce
-    },
-    [updateProfile],
-  );
-
-  // Handle field changes with autosave
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    const newFormData = { ...formData, email: newValue };
-    setFormData(newFormData);
-    autoSave(newFormData);
+    setFormData((prev) => ({ ...prev, email: e.target.value }));
   };
 
   const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    const newFormData = { ...formData, firstName: newValue };
-    setFormData(newFormData);
-    autoSave(newFormData);
+    setFormData((prev) => ({ ...prev, firstName: e.target.value }));
   };
 
-  const handleSave = async () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+  const handleSaveEmail = async () => {
     try {
-      setLoading(true);
+      setSavingEmail(true);
       setMessage("");
-      await updateProfile(formData);
-      setMessage("Profile updated successfully!");
-
-      setTimeout(() => setMessage(""), 3000);
+      await updateProfile({ email: formData.email.trim() });
+      setMessage("Email saved");
+      setTimeout(() => setMessage(""), 2500);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to update profile";
-      setMessage(message);
+      setMessage(error instanceof Error ? error.message : "Failed to save email");
     } finally {
-      setLoading(false);
+      setSavingEmail(false);
+    }
+  };
+
+  const handleSaveFirstName = async () => {
+    try {
+      setSavingFirstName(true);
+      setMessage("");
+      await updateProfile({ firstName: formData.firstName.trim() });
+      setMessage("Name saved");
+      setTimeout(() => setMessage(""), 2500);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to save name");
+    } finally {
+      setSavingFirstName(false);
     }
   };
 
@@ -156,15 +117,6 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
       setDeleting(false);
     }
   };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -204,7 +156,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
       if (response.avatarUrl) {
         setAvatarUrl(response.avatarUrl);
         setMessage("Avatar updated successfully!");
-
+        await refreshSettings();
         setTimeout(() => setMessage(""), 3000);
       }
     } catch (error) {
@@ -232,7 +184,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
 
       setAvatarUrl(null);
       setMessage("Avatar removed successfully!");
-
+      await refreshSettings();
       setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       const message =
@@ -265,8 +217,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
             height: "80px",
           }}
           onError={() => {
-            // Fallback to initials if image fails to load
-            console.error("Failed to load avatar:", avatarUrl);
+            // Fallback to initials if image fails to load (e.g. B2 URL not public)
             setAvatarUrl(null);
           }}
         />
@@ -319,30 +270,47 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
           />
         </ProfilePictureWrapper>
 
-        <GridTwo>
-          <FormGroup>
-            <Label>
-              Email <span>*</span>
-            </Label>
+        <FormGroup>
+          <Label>Email</Label>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             <Input
               type="email"
               value={formData.email}
               onChange={handleEmailChange}
               placeholder="your@email.com"
+              style={{ flex: "1", minWidth: "200px" }}
             />
-          </FormGroup>
-          <FormGroup>
-            <Label>
-              First Name <span>*</span>
-            </Label>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleSaveEmail}
+              disabled={savingEmail || !formData.email.trim()}
+            >
+              {savingEmail ? "Saving..." : "Save email"}
+            </Button>
+          </div>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>First name</Label>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             <Input
               type="text"
               value={formData.firstName}
               onChange={handleFirstNameChange}
               placeholder="First name"
+              style={{ flex: "1", minWidth: "200px" }}
             />
-          </FormGroup>
-        </GridTwo>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleSaveFirstName}
+              disabled={savingFirstName}
+            >
+              {savingFirstName ? "Saving..." : "Save name"}
+            </Button>
+          </div>
+        </FormGroup>
 
         {message && (
           <div
@@ -351,38 +319,29 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
               borderRadius: "8px",
               background:
                 message.toLowerCase().includes("success") ||
-                message.toLowerCase().includes("saved")
+                message.toLowerCase().includes("saved") ||
+                message.toLowerCase().includes("updated")
                   ? "#dcfce7"
                   : "#fee2e2",
               color:
                 message.toLowerCase().includes("success") ||
-                message.toLowerCase().includes("saved")
+                message.toLowerCase().includes("saved") ||
+                message.toLowerCase().includes("updated")
                   ? "#15803d"
                   : "#dc2626",
               fontSize: "0.875rem",
               marginBottom: "1rem",
               border:
                 message.toLowerCase().includes("success") ||
-                message.toLowerCase().includes("saved")
+                message.toLowerCase().includes("saved") ||
+                message.toLowerCase().includes("updated")
                   ? "1px solid #bbf7d0"
                   : "1px solid #fecaca",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
             }}
           >
-            {saving && <span>💾</span>}
             {message}
           </div>
         )}
-
-        <Button
-          variant="primary"
-          onClick={handleSave}
-          disabled={loading || saving}
-        >
-          {loading ? "Saving..." : saving ? "Saving..." : "Save Changes"}
-        </Button>
       </Section>
 
       <Section>

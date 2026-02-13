@@ -30,7 +30,7 @@ export type FileActionId =
   | "edit"
   | "rename"
   | "duplicate"
-  //  | "move"
+  | "move"
   | "compress"
   | "extract"
   | "lock"

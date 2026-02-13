@@ -6,6 +6,7 @@ import { usePopupPosition } from "../../hooks/usePopupPosition";
 import { eventBus } from "../../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import api from "../../../../lib/axios";
+import { toast } from "../../../../services/toast.service";
 
 import { PopupIcon, PopupText } from "../styles/general";
 import {
@@ -112,9 +113,13 @@ const UploadPopup: React.FC<UploadPopupProps> = ({
       eventBus.emit(FILES_REFRESH_EVENT);
       setShowNewFolderModal(false);
       setFolderName("");
-    } catch (error) {
+      toast.success("Folder created");
+    } catch (error: unknown) {
       console.error("Error creating folder:", error);
-      alert("Failed to create folder. Please try again.");
+      const msg =
+        (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Failed to create folder. Please try again.";
+      toast.error(msg);
     } finally {
       setIsCreatingFolder(false);
     }

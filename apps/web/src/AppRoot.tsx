@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { router } from "./router/router";
 import { useAuthStore, authRehydratedPromise } from "./store/authStore";
 import Application from "./App";
+import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 
 const auth = {
   isLoggedIn: () => !!localStorage.getItem("accessToken"),
@@ -22,7 +23,9 @@ export function AppRoot() {
 
   return (
     <Application>
-      <RouterProvider router={router} context={{ auth }} />
+      <ErrorBoundary>
+        <RouterProvider router={router} context={{ auth }} />
+      </ErrorBoundary>
     </Application>
   );
 }
