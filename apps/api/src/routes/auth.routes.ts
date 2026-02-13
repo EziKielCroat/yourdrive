@@ -6,6 +6,34 @@ import { DeviceService } from "../services/device.service";
 
 const authRoutes = express.Router();
 
+/**
+ * Cookie options derived only from the request Origin (no env).
+ * - HTTPS origin (tunnel, custom domain): secure + sameSite=none so cookies work.
+ * - HTTP origin (localhost, LAN): sameSite=lax, secure=false so local dev is unchanged.
+ */
+function getCookieOptions(req: Request, maxAgeMs: number) {
+  const origin = (req.headers.origin || "").toLowerCase();
+  const isHttpsOrigin = origin.startsWith("https://");
+  return {
+    httpOnly: true,
+    secure: isHttpsOrigin || process.env.NODE_ENV === "production",
+    sameSite: isHttpsOrigin ? ("none" as const) : ("lax" as const),
+    maxAge: maxAgeMs,
+    path: "/",
+  };
+}
+
+function getClearCookieOptions(req: Request) {
+  const origin = (req.headers.origin || "").toLowerCase();
+  const isHttpsOrigin = origin.startsWith("https://");
+  return {
+    httpOnly: true,
+    secure: isHttpsOrigin || process.env.NODE_ENV === "production",
+    sameSite: isHttpsOrigin ? ("none" as const) : ("lax" as const),
+    path: "/",
+  };
+}
+
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 30,
@@ -52,16 +80,25 @@ authRoutes.post(
         user,
       });
     } catch (error: any) {
+      if (res.headersSent) return;
       if (error.name === "ZodError") {
         return res.status(400).json({
           success: false,
-          error: error.errors[0].message,
+          error: error.errors?.[0]?.message ?? "Validation failed",
         });
       }
-
+      // Prisma unique constraint (e.g. duplicate email)
+      if (error?.code === "P2002") {
+        return res.status(409).json({
+          success: false,
+          error: "User already exists",
+        });
+      }
+      const message =
+        typeof error?.message === "string" ? error.message : "Registration failed";
       res.status(400).json({
         success: false,
-        error: error.message,
+        error: message,
       });
     }
   },
@@ -96,22 +133,14 @@ authRoutes.post("/login", loginLimiter, async (req: Request, res: Response) => {
       deviceName,
     );
 
-    // Set cookies
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: "/",
-    });
-
-    res.cookie("deviceId", device.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
-      path: "/",
-    });
+    // Set cookies (self-hosting: sameSite=none + secure for HTTPS origins)
+    const cookieOpts = getCookieOptions(req, 7 * 24 * 60 * 60 * 1000);
+    res.cookie("refreshToken", result.refreshToken, cookieOpts);
+    res.cookie(
+      "deviceId",
+      device.id,
+      getCookieOptions(req, 365 * 24 * 60 * 60 * 1000),
+    );
 
     res.json({
       success: true,
@@ -120,16 +149,18 @@ authRoutes.post("/login", loginLimiter, async (req: Request, res: Response) => {
       currentDevice: device,
     });
   } catch (error: any) {
+    if (res.headersSent) return;
     if (error.name === "ZodError") {
       return res.status(400).json({
         success: false,
-        error: error.errors[0].message,
+        error: error.errors?.[0]?.message ?? "Validation failed",
       });
     }
-
+    const message =
+      typeof error?.message === "string" ? error.message : "Login failed";
     res.status(401).json({
       success: false,
-      error: error.message,
+      error: message,
     });
   }
 });
@@ -167,29 +198,21 @@ authRoutes.post("/logout", async (req: Request, res: Response) => {
       await AuthService.logout(refreshToken);
     }
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      path: "/",
-    });
-
-    res.clearCookie("deviceId", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      path: "/",
-    });
+    const clearOpts = getClearCookieOptions(req);
+    res.clearCookie("refreshToken", clearOpts);
+    res.clearCookie("deviceId", clearOpts);
 
     res.json({
       success: true,
       message: "Logged out successfully",
     });
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: typeof error?.message === "string" ? error.message : "Logout failed",
+      });
+    }
   }
 });
 
@@ -510,22 +533,10 @@ authRoutes.post("/totp/verify", async (req: Request, res: Response) => {
       "2FA Login",
     );
 
-    // Set cookies
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
-
-    res.cookie("deviceId", device.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      maxAge: 365 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
+    const cookieOpts7d = getCookieOptions(req, 7 * 24 * 60 * 60 * 1000);
+    const cookieOpts1y = getCookieOptions(req, 365 * 24 * 60 * 60 * 1000);
+    res.cookie("refreshToken", result.refreshToken, cookieOpts7d);
+    res.cookie("deviceId", device.id, cookieOpts1y);
 
     res.json({
       success: true,
@@ -534,10 +545,12 @@ authRoutes.post("/totp/verify", async (req: Request, res: Response) => {
       currentDevice: device,
     });
   } catch (error: any) {
-    res.status(401).json({
-      success: false,
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      res.status(401).json({
+        success: false,
+        error: typeof error?.message === "string" ? error.message : "2FA verification failed",
+      });
+    }
   }
 });
 
@@ -690,22 +703,10 @@ authRoutes.post(
         "Passkey Login",
       );
 
-      // Set cookies
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/",
-      });
-
-      res.cookie("deviceId", device.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-        maxAge: 365 * 24 * 60 * 60 * 1000,
-        path: "/",
-      });
+      const cookieOpts7d = getCookieOptions(req, 7 * 24 * 60 * 60 * 1000);
+      const cookieOpts1y = getCookieOptions(req, 365 * 24 * 60 * 60 * 1000);
+      res.cookie("refreshToken", refreshToken, cookieOpts7d);
+      res.cookie("deviceId", device.id, cookieOpts1y);
 
       res.json({
         success: true,

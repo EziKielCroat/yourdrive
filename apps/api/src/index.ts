@@ -49,13 +49,21 @@ function isAllowedOriginHost(origin: string): boolean {
   }
 }
 
+// Build allowed origins: defaults + FRONTEND_URL + optional CORS_ORIGINS (comma-separated for self-hosting)
+const corsOriginsEnv = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
   "https://5n3w3hsd-5173.euw.devtunnels.ms",
   process.env.FRONTEND_URL,
+  ...corsOriginsEnv,
 ]
   .filter((url): url is string => Boolean(url))
   .map(normalizeOrigin);
@@ -98,7 +106,14 @@ app.use(
     credentials: true,
     exposedHeaders: ["ETag"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "X-Requested-With",
+      "Origin",
+    ],
+    optionsSuccessStatus: 204,
   }),
 );
 app.use(express.json({ limit: "50mb" }));
@@ -128,14 +143,16 @@ app.use(
     res: express.Response,
     next: express.NextFunction,
   ) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({
-      success: false,
-      error:
-        process.env.NODE_ENV === "production"
-          ? "Internal server error"
-          : err.message,
-    });
+    console.error(err?.stack ?? err);
+    if (!res.headersSent) {
+      res.status(err.status || 500).json({
+        success: false,
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : (err?.message ?? "Internal server error"),
+      });
+    }
   },
 );
 
