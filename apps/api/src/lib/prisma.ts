@@ -25,6 +25,6 @@ if (process.env.NODE_ENV !== "production") {
 prisma
   .$connect()
   .then(() => console.log("✅ Prisma connected"))
-  .catch((err) => console.error("❌ Prisma connection error:", err));
+  .catch((err: unknown) => console.error("❌ Prisma connection error:", err));
 
 export default prisma;

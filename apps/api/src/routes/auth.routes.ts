@@ -752,9 +752,9 @@ authRoutes.delete(
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
-      const { passkeyId } = req.params;
+      const passkeyId = Array.isArray(req.params.passkeyId) ? req.params.passkeyId[0] : req.params.passkeyId;
 
-      await AuthService.deletePasskey(req.userId!, passkeyId);
+      await AuthService.deletePasskey(req.userId!, passkeyId as string);
 
       res.json({
         success: true,
@@ -858,9 +858,9 @@ authRoutes.delete(
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
-      const { provider } = req.params;
+      const provider = Array.isArray(req.params.provider) ? req.params.provider[0] : req.params.provider;
 
-      await AuthService.unlinkSocialAccount(req.userId!, provider);
+      await AuthService.unlinkSocialAccount(req.userId!, provider as string);
 
       res.json({
         success: true,

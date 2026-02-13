@@ -84,7 +84,7 @@ sharingRoutes.get("/file/:fileId", async (req, res) => {
 
     res.json({
       success: true,
-      shares: shares.map((share) => ({
+      shares: shares.map((share: (typeof shares)[number]) => ({
         id: share.id,
         shareToken: share.shareToken,
         shareType: share.shareType,
@@ -893,7 +893,7 @@ sharingRoutes.get("/comments/:token", async (req, res) => {
 
     res.json({
       success: true,
-      comments: comments.map((c) => ({
+      comments: comments.map((c: { id: string; userName: string; text: string; createdAt: Date }) => ({
         id: c.id,
         userName: c.userName,
         text: c.text,

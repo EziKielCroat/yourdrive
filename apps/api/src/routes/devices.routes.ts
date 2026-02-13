@@ -458,7 +458,7 @@ devicesRoutes.post(
 
       // Log action
       await logDeviceAction(
-        deviceId,
+        deviceId as string,
         req.userId,
         "force_logout",
         {},
@@ -528,7 +528,7 @@ devicesRoutes.post(
 
       try {
         await logDeviceAction(
-          deviceId,
+          deviceId as string,
           req.userId,
           "lock_device",
           { message },
@@ -584,7 +584,7 @@ devicesRoutes.post(
 
       try {
         await logDeviceAction(
-          deviceId,
+          deviceId as string,
           req.userId,
           "unlock_device",
           {},
@@ -880,7 +880,7 @@ devicesRoutes.delete(
 
       // Log action
       await logDeviceAction(
-        deviceId,
+        deviceId as string,
         req.userId,
         "remove_device",
         {},

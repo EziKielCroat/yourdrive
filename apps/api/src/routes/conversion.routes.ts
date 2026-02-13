@@ -12,11 +12,11 @@ conversionRoutes.get(
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
     try {
-      const { fileId } = req.params;
+      const fileId = Array.isArray(req.params.fileId) ? req.params.fileId[0] : req.params.fileId;
       const userId = req.userId!;
 
       const file = await prisma.userFile.findFirst({
-        where: { id: parseInt(fileId, 10), userId },
+        where: { id: parseInt(fileId as string, 10), userId },
       });
 
       if (!file) {

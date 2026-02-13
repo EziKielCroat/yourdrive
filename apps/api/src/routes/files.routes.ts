@@ -1515,7 +1515,7 @@ filesRoutes.post(
     }
 
     const fileActions = new FileActionsHandlers(pool);
-    return await fileActions.handleDelete([fileId], userId, req, res);
+    return await fileActions.handleDelete([fileId as string], userId, req, res);
   },
 );
 
@@ -1534,7 +1534,7 @@ filesRoutes.post(
     }
 
     const fileActions = new FileActionsHandlers(pool);
-    return await fileActions.handleRestore([fileId], userId, req, res);
+    return await fileActions.handleRestore([fileId as string], userId, req, res);
   },
 );
 
@@ -1555,7 +1555,7 @@ filesRoutes.post(
 
     const fileActions = new FileActionsHandlers(pool);
     return await fileActions.handleDeletePermanently(
-      [fileId],
+      [fileId as string],
       userId,
       req,
       res,
@@ -1842,7 +1842,7 @@ filesRoutes.post(
       }
 
       await trackFileActivity(
-        parseInt(fileId),
+        parseInt(fileId as string, 10),
         req.userId,
         activityType,
         metadata || {},

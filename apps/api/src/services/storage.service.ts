@@ -163,12 +163,12 @@ export class StorageService {
 
   return {
     total: totalInfo,
-    byType: fileTypes.map(type => ({
+    byType: fileTypes.map((type: (typeof fileTypes)[number]) => ({
       mimeType: type.mimeType,
       size: BigIntHelper.toBigInt(type._sum.size).toString(),
       count: type._count.id,
     })),
-    largestFiles: largestFiles.map(file => ({
+    largestFiles: largestFiles.map((file: (typeof largestFiles)[number]) => ({
       name: file.originalName,
       size: BigIntHelper.toBigInt(file.size).toString(),
       type: file.mimeType,

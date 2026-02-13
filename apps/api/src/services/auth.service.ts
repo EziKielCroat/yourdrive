@@ -271,7 +271,7 @@ export class AuthService {
 
   console.log(`🔄 Creating user with base storage: ${BigIntHelper.formatBytes(BASE_STORAGE)}`);
   
-  const user = await prisma.$transaction(async (tx) => {
+  const user = await prisma.$transaction(async (tx: any) => {
     const createdUser = await tx.user.create({
       data: {
         email: validated.email,
@@ -447,7 +447,7 @@ static async verifyEmail(token: string): Promise<{
 
     // Update user and grant bonus if applicable
     console.log('🔄 Starting database transaction...');
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Mark email as verified (and clear token in the same operation)
       console.log('✅ Marking email as verified and clearing token');
       await tx.user.update({
@@ -1220,7 +1220,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       userID: Uint8Array.from(Buffer.from(userId, "utf-8")),
       userName: user.email,
       attestationType: "none",
-      excludeCredentials: existingCredentials.map((cred) => ({
+      excludeCredentials: existingCredentials.map((cred: { credentialId: string }) => ({
         id: cred.credentialId,
         transports: ["internal", "hybrid"] as AuthenticatorTransportFuture[],
       })),
@@ -1286,7 +1286,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
         select: { credentialId: true },
       });
 
-      allowCredentials = credentials.map((cred) => ({
+      allowCredentials = credentials.map((cred: { credentialId: string }) => ({
         id: cred.credentialId,
         transports: ["internal", "hybrid"] as AuthenticatorTransportFuture[],
       }));

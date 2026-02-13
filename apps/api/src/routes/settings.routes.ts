@@ -589,7 +589,7 @@ settingsRoutes.delete(
         });
       }
 
-      const { sessionId } = req.params;
+      const sessionId = (Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId) as string;
       await SettingsService.signOutSession(req.userId, sessionId);
 
       res.json({
@@ -680,7 +680,7 @@ settingsRoutes.delete(
         });
       }
 
-      const { accountId } = req.params;
+      const accountId = (Array.isArray(req.params.accountId) ? req.params.accountId[0] : req.params.accountId) as string;
       await SettingsService.unlinkAccount(req.userId, accountId);
 
       res.json({

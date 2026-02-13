@@ -218,7 +218,7 @@ fileActionsRoutes.patch(
   authMiddleware,
   async (req: AuthRequest, res) => {
     await handlers.handleRename(
-      req.params.fileId,
+      (Array.isArray(req.params.fileId) ? req.params.fileId[0] : req.params.fileId) as string,
       req.body.newName,
       req.userId!,
       req,
@@ -297,7 +297,7 @@ fileActionsRoutes.get(
   "/get-link/:fileId",
   authMiddleware,
   async (req: AuthRequest, res) => {
-    await handlers.handleGetLink(req.params.fileId, req.userId!, req, res);
+    await handlers.handleGetLink((Array.isArray(req.params.fileId) ? req.params.fileId[0] : req.params.fileId) as string, req.userId!, req, res);
   },
 );
 
@@ -306,7 +306,7 @@ fileActionsRoutes.post(
   "/:operation/batch",
   authMiddleware,
   async (req: AuthRequest, res) => {
-    const { operation } = req.params;
+    const operation = (Array.isArray(req.params.operation) ? req.params.operation[0] : req.params.operation) as string;
     await handlers.handleBatch(
       operation,
       req.body.fileIds,
@@ -330,7 +330,7 @@ fileActionsRoutes.get(
         return res.status(401).json({ success: false, error: "Unauthorized" });
       }
 
-      const file = await getFileDetails(pool, fileId, userId);
+      const file = await getFileDetails(pool, fileId as string, userId);
       if (!file) {
         return res
           .status(404)

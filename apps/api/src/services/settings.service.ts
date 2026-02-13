@@ -402,7 +402,7 @@ export class SettingsService {
       },
     });
 
-    return sessions.map((session) => ({
+    return sessions.map((session: (typeof sessions)[number]) => ({
       id: session.id,
       deviceType: "web" as const,
       deviceName: "Web Browser",
