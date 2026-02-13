@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -43,31 +42,15 @@ app.use((_req, res, next) => {
   res.removeHeader("Permissions-Policy");
   next();
 });
-// CORS: allow ALL origins so tunnel/self-host always works (no "blocked by CORS" on 4xx/5xx).
-// With credentials we must reflect the request origin, not "*".
-app.use(
-  cors({
-    origin: (origin, callback) => callback(null, origin ?? true),
-    credentials: true,
-    exposedHeaders: ["ETag"],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "Accept",
-      "X-Requested-With",
-      "Origin",
-    ],
-    optionsSuccessStatus: 204,
-  }),
-);
-// Ensure CORS headers on EVERY response (including errors) so browser never shows "CORS error" for 500s.
+// CORS disabled / fully permissive (insecure – allow any origin).
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-  }
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  if (origin) res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Expose-Headers", "ETag");
+  if (req.method === "OPTIONS") return res.status(204).end();
   next();
 });
 app.use(express.json({ limit: "50mb" }));
@@ -104,12 +87,10 @@ app.use(
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Credentials", "true");
       }
+      const msg = typeof err?.message === "string" ? err.message : "Internal server error";
       res.status(err.status || 500).json({
         success: false,
-        error:
-          process.env.NODE_ENV === "production"
-            ? "Internal server error"
-            : (err?.message ?? "Internal server error"),
+        error: msg,
       });
     }
   },

@@ -66,6 +66,7 @@ authRoutes.post(
   "/register",
   registerLimiter,
   async (req: Request, res: Response) => {
+    if (res.headersSent) return;
     try {
       const { email, password, firstName } = req.body;
 
@@ -79,42 +80,40 @@ authRoutes.post(
         success: true,
         user,
       });
-    } catch (error: unknown) {
+    } catch (raw: unknown) {
       if (res.headersSent) return;
-      const err = error as Record<string, unknown>;
-      console.error("[auth/register] Error:", err?.message ?? err?.code ?? error);
+      const err = raw as Record<string, unknown>;
+      const errMessage = typeof err?.message === "string" ? err.message : String(raw ?? "Unknown error");
+      const errCode = typeof err?.code === "string" ? err.code : "";
+      console.error("[auth/register] Error:", errMessage, errCode || "");
+
+      let status = 400;
+      let message = "Registration failed";
+
+      if (err?.name === "ZodError") {
+        status = 400;
+        message =
+          Array.isArray(err.errors) && err.errors[0] && typeof (err.errors[0] as any).message === "string"
+            ? (err.errors[0] as { message: string }).message
+            : "Validation failed";
+      } else if (errCode === "P2002") {
+        status = 409;
+        message = "User already exists";
+      } else if (errCode === "P2003" || errCode.startsWith("P2")) {
+        status = 400;
+        message = errMessage || "Database error";
+      } else if (errMessage && errMessage !== "Unknown error") {
+        message = errMessage;
+      } else {
+        status = 500;
+        message = errMessage || "Registration failed. Please try again.";
+      }
+
       try {
-        // Zod validation
-        if (err?.name === "ZodError") {
-          const msg =
-            Array.isArray(err.errors) && err.errors[0] && typeof (err.errors[0] as any).message === "string"
-              ? (err.errors[0] as { message: string }).message
-              : "Validation failed";
-          return res.status(400).json({ success: false, error: msg });
-        }
-        // Prisma: unique constraint (duplicate email) or other Prisma errors
-        if (typeof err?.code === "string") {
-          if (err.code === "P2002") {
-            return res.status(409).json({ success: false, error: "User already exists" });
-          }
-          if (err.code === "P2003" || err.code.startsWith("P2")) {
-            const msg = typeof err?.message === "string" ? err.message : "Database error";
-            return res.status(400).json({ success: false, error: msg });
-          }
-        }
-        // Generic message for known throw types
-        const message =
-          typeof err?.message === "string" && err.message
-            ? err.message
-            : "Registration failed";
-        res.status(400).json({ success: false, error: message });
-      } catch (sendError) {
+        res.status(status).json({ success: false, error: message });
+      } catch (_) {
         if (!res.headersSent) {
-          console.error("[auth/register] Unexpected error sending response:", sendError);
-          res.status(500).json({
-            success: false,
-            error: "Registration failed. Please try again.",
-          });
+          res.status(500).json({ success: false, error: message });
         }
       }
     }

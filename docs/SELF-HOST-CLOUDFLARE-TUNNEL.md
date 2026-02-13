@@ -4,6 +4,42 @@ No port forwarding, no DuckDNS, free HTTPS. ~10–15 minutes on a Raspberry Pi 5
 
 ---
 
+## Quick path (no Nginx – tunnel to Vite, works every time)
+
+If you just need it working **fast** (e.g. for a demo), skip Nginx and tunnel straight to the Vite dev server. Do this **after** steps 1–4 below (PostgreSQL, clone+build, API `.env`, migrations).
+
+**Terminal 1 – API (must be port 3001):**
+
+```bash
+cd /home/pi/yourdrive/apps/api
+# or: cd /home/yourdrive/yourdrive/apps/api
+npm run dev
+# or: node dist/index.js
+```
+
+Wait until you see `API server running on http://localhost:3001` (or `127.0.0.1:3001`).
+
+**Terminal 2 – Web (Vite, proxy to API):**
+
+```bash
+cd /home/pi/yourdrive/apps/web
+API_PROXY_TARGET=http://localhost:3001 npm run dev
+```
+
+Wait until you see `Local: http://localhost:5173/`.
+
+**Terminal 3 – Tunnel (use 127.0.0.1 so cloudflared uses IPv4):**
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:5173
+```
+
+Copy the `https://xxx.trycloudflare.com` URL, open it in the browser. Set `FRONTEND_URL` (and optionally `BACKEND_URL`, `VERT_URL`) in `apps/api/.env` to that URL, then restart the API so links/emails use it.
+
+- **If register returns 500:** Open DevTools → Network → click the failed `register` request → **Response** tab. The body will show `{ "success": false, "error": "<actual reason>" }`. Fix that (e.g. DB connection, duplicate email, validation). Also check the API terminal for `[auth/register] Error: ...`.
+
+---
+
 ## 1. Install PostgreSQL
 
 ```bash
@@ -135,7 +171,14 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-If your repo is not at `/home/pi/yourdrive`, edit the `root` path in the config above.
+**Important:** Replace `/home/pi/yourdrive` in the `root` line with your **actual** repo path (e.g. `/home/yourdrive/yourdrive`). If the path is wrong, you get **500 on the main page** when using the tunnel to 8080. Check with:
+
+```bash
+ls /home/pi/yourdrive/apps/web/dist/index.html
+# or: ls /home/yourdrive/yourdrive/apps/web/dist/index.html
+```
+
+If that file doesn’t exist, fix the path in the Nginx config and run `sudo nginx -t && sudo systemctl restart nginx`.
 
 ---
 
@@ -249,6 +292,16 @@ sudo systemctl start cloudflared-tunnel
 ```
 
 Note: In quick mode the URL can change when the tunnel restarts. For a stable URL, use a free Cloudflare account and a named tunnel (see Cloudflare docs).
+
+---
+
+## Troubleshooting
+
+| Symptom | What to do |
+|--------|------------|
+| **500 on the main page** (tunnel to 8080) | Nginx is returning 500. Fix the `root` path in `/etc/nginx/sites-available/yourdrive` so it points to your real repo path (e.g. `/home/yourdrive/yourdrive/apps/web/dist`). Run `sudo nginx -t && sudo systemctl restart nginx`. Or use the **Quick path** (tunnel to 5173, no Nginx). |
+| **500 on `/api/auth/register`** | The API is throwing. In the browser: DevTools → Network → click the failed request → **Response** tab; the body has `error: "<reason>"`. On the Pi: check the API terminal for `[auth/register] Error: ...`. Common causes: wrong `DATABASE_URL`, DB not running, migrations not applied, or duplicate email (use a different email). |
+| **Connection refused** (tunnel) | Use `http://127.0.0.1:5173` or `http://127.0.0.1:8080` instead of `localhost` so cloudflared uses IPv4. |
 
 ---
 
