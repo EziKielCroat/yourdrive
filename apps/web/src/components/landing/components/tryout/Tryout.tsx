@@ -41,10 +41,17 @@ const Tryout: React.FC = () => {
       });
 
       if (response.data?.success) {
+        const token = response.data.shareToken as string | undefined;
+        const publicBase = (
+          import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined
+        )?.replace(/\/$/, "");
+        // Prefer canonical URL from build-time env (production / DuckDNS) over API Origin / window.location
         const shareUrl =
-          response.data.shareUrl ||
-          response.data.shortUrl ||
-          `${window.location.origin}/shared/${response.data.shareToken}`;
+          publicBase && token
+            ? `${publicBase}/shared/${token}`
+            : response.data.shareUrl ||
+              response.data.shortUrl ||
+              `${window.location.origin}/shared/${token}`;
 
         const copied = await copyToClipboard(shareUrl);
         if (copied) {
