@@ -38,6 +38,13 @@ function normalizeFrontendBase(rawBase: string): string {
 }
 
 function resolveFrontendBase(req: express.Request): string {
+  const envBase = (process.env.FRONTEND_URL || "").trim();
+  // In production, always use canonical URL from env so share links match your real host
+  // (avoids *.trycloudflare.com or old tunnel URLs when Origin reflects a temporary tunnel).
+  if (process.env.NODE_ENV === "production" && envBase) {
+    return normalizeFrontendBase(envBase);
+  }
+
   const origin = String(req.headers.origin || "").trim();
   if (origin) return normalizeFrontendBase(origin);
 
@@ -51,7 +58,6 @@ function resolveFrontendBase(req: express.Request): string {
     return normalizeFrontendBase(`${forwardedProto}://${forwardedHost}`);
   }
 
-  const envBase = (process.env.FRONTEND_URL || "").trim();
   if (envBase) return normalizeFrontendBase(envBase);
 
   return "http://localhost:5173";

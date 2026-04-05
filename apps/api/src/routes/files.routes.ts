@@ -81,6 +81,11 @@ function normalizeFrontendBase(rawBase: string): string {
 }
 
 function resolveFrontendBase(req: Request): string {
+  const envBase = (process.env.FRONTEND_URL || "").trim();
+  if (process.env.NODE_ENV === "production" && envBase) {
+    return normalizeFrontendBase(envBase);
+  }
+
   const origin = String(req.headers.origin || "").trim();
   if (origin) return normalizeFrontendBase(origin);
 
@@ -94,7 +99,6 @@ function resolveFrontendBase(req: Request): string {
     return normalizeFrontendBase(`${forwardedProto}://${forwardedHost}`);
   }
 
-  const envBase = (process.env.FRONTEND_URL || "").trim();
   if (envBase) return normalizeFrontendBase(envBase);
 
   return "http://localhost:5173";
