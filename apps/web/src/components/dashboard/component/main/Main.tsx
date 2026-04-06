@@ -14,7 +14,7 @@ const Main = ({ children }: MainProps) => {
   const resolvedTheme = useUserUiPreferencesStore((s) => s.resolvedTheme);
 
   return (
-    <MainContainer $themeMode={resolvedTheme}>
+    <MainContainer $themeMode={resolvedTheme} data-dashboard-scroll="true">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentPath}

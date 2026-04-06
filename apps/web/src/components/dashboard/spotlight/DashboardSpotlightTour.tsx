@@ -90,6 +90,36 @@ function getPrefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/**
+ * `querySelector` would return the first match even when it is `display:none` (e.g. desktop
+ * vs mobile upload). Pick the largest visible rectangle among all `[data-tour]` matches.
+ */
+function findVisibleTourTargetElement(target: string): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  const nodes = document.querySelectorAll(`[data-tour="${target}"]`);
+  let best: HTMLElement | null = null;
+  let bestArea = 0;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!(node instanceof HTMLElement)) continue;
+    const style = window.getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden") continue;
+    const opacity = Number.parseFloat(style.opacity);
+    if (!Number.isNaN(opacity) && opacity < 0.05) continue;
+
+    const r = node.getBoundingClientRect();
+    const area = r.width * r.height;
+    if (area < 4) continue;
+    if (area > bestArea) {
+      bestArea = area;
+      best = node;
+    }
+  }
+
+  return best;
+}
+
 export function DashboardSpotlightTour() {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -127,14 +157,14 @@ export function DashboardSpotlightTour() {
 
   useEffect(() => {
     if (!shouldRun) return;
-    if (pathname !== "/dashboard") {
+    if (!pathname.startsWith("/dashboard")) {
       navigate({ to: "/dashboard", replace: true });
     }
   }, [shouldRun, pathname, navigate]);
 
   useEffect(() => {
     if (!shouldRun || typeof window === "undefined") return;
-    if (pathname !== "/dashboard") return;
+    if (!pathname.startsWith("/dashboard")) return;
     const t = window.setTimeout(() => setActive(true), 500);
     return () => window.clearTimeout(t);
   }, [shouldRun, pathname]);
@@ -145,8 +175,8 @@ export function DashboardSpotlightTour() {
       setHole(null);
       return;
     }
-    const el = document.querySelector(`[data-tour="${target}"]`);
-    if (!el || !(el instanceof HTMLElement)) {
+    const el = findVisibleTourTargetElement(target);
+    if (!el) {
       setHole(null);
       return;
     }
@@ -180,14 +210,40 @@ export function DashboardSpotlightTour() {
 
   useEffect(() => {
     if (!active) return;
-    const onResize = () => updateHole();
+    const onResize = () =>
+      window.requestAnimationFrame(() => {
+        updateHole();
+      });
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onResize, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onResize);
+    vv?.addEventListener("scroll", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onResize, true);
+      vv?.removeEventListener("resize", onResize);
+      vv?.removeEventListener("scroll", onResize);
     };
   }, [active, updateHole]);
+
+  useEffect(() => {
+    if (!active || !step.target) return;
+    let ro: ResizeObserver | null = null;
+    const delay = step.opensSidebar ? 420 : 90;
+    const t = window.setTimeout(() => {
+      const el = findVisibleTourTargetElement(step.target!);
+      if (!el) return;
+      ro = new ResizeObserver(() => {
+        window.requestAnimationFrame(() => updateHole());
+      });
+      ro.observe(el);
+    }, delay);
+    return () => {
+      window.clearTimeout(t);
+      ro?.disconnect();
+    };
+  }, [active, step.target, stepIndex, step.opensSidebar, updateHole]);
 
   const finish = useCallback(() => {
     if (user?.id) markDashboardTourCompleted(user.id);
@@ -217,10 +273,14 @@ export function DashboardSpotlightTour() {
 
   useEffect(() => {
     if (!active) return;
-    const prev = document.body.style.overflow;
+    const html = document.documentElement;
+    const prevHtml = html.style.overflow;
+    const prevBody = document.body.style.overflow;
+    html.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
+      html.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
     };
   }, [active]);
 
@@ -257,7 +317,11 @@ export function DashboardSpotlightTour() {
       aria-describedby="tour-body"
     >
       <Backdrop
+        type="button"
+        aria-label={step.id === "done" ? "Zatvori uvod" : undefined}
         $fullScrim={isIntroOrOutro || !hasRing}
+        $interactiveDismiss={step.id === "done"}
+        onClick={step.id === "done" ? finish : undefined}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -337,14 +401,28 @@ const Overlay = styled.div`
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 `;
 
-const Backdrop = styled(motion.div)<{ $fullScrim: boolean }>`
+const Backdrop = styled(motion.button)<{
+  $fullScrim: boolean;
+  $interactiveDismiss: boolean;
+}>`
   position: absolute;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: ${({ $interactiveDismiss }) =>
+    $interactiveDismiss ? "pointer" : "default"};
+  pointer-events: ${({ $interactiveDismiss }) =>
+    $interactiveDismiss ? "auto" : "none"};
   background: ${({ $fullScrim }) =>
     $fullScrim ? "var(--tour-scrim-light)" : "transparent"};
   backdrop-filter: ${({ $fullScrim }) => ($fullScrim ? "blur(4px)" : "none")};
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
 `;
 
 /** Jednostavan prsten + scrim — bez plave sjene / glowa */
@@ -495,7 +573,7 @@ const PrimaryButton = styled.button`
   }
 
   &:active {
-    transform: scale(0.98);
+    filter: brightness(0.97);
   }
 
   &:focus-visible {

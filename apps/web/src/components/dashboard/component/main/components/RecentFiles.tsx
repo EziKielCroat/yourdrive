@@ -12,6 +12,10 @@ import { FILES_REFRESH_EVENT } from "../../../../../events/fileEvents";
 import { useEvent } from "../../../../../events/useEvent";
 import { eventBus } from "../../../../../events/eventBus";
 import api from "../../../../../lib/axios";
+import {
+  uploadDashboardFileList,
+  getUploadErrorMessage,
+} from "../../../../../lib/fileUpload";
 
 interface ApiFile {
   id: string;
@@ -153,54 +157,32 @@ const RecentFiles: React.FC = () => {
       return;
     }
 
-    const formData = new FormData();
-    const folderPaths: Record<string, string> = {};
-
-    // Check if files have folder structure
     const hasStructure = Array.from(fileList).some(
       (file) => (file as File & { webkitRelativePath?: string }).webkitRelativePath,
     );
 
-    Array.from(fileList).forEach((file, index) => {
-      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
-
-      if (hasStructure && relativePath) {
-        const folderPath =
-          relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
-        folderPaths[index] = folderPath;
-      }
-
-      formData.append("files", file);
-    });
-
-    if (hasStructure) {
-      formData.append("folderPaths", JSON.stringify(folderPaths));
-    }
-
     try {
-      const response = await api.post("/files/upload", formData);
-      const result = response.data;
+      await uploadDashboardFileList(fileList, (file) => {
+        const relativePath =
+          (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+        if (hasStructure && relativePath) {
+          return relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
+        }
+        return "";
+      });
 
       addUsage(totalSize);
 
-      // Refresh storage after successful upload
       try {
         await refreshStorage();
       } catch (storageErr) {
         console.warn("Storage refresh failed after upload:", storageErr);
-        // Don't fail the upload if storage refresh fails
       }
 
       eventBus.emit(FILES_REFRESH_EVENT);
-
-      return result;
     } catch (err) {
       console.error("Upload error:", err);
-      if (err instanceof Error) {
-        alert(err.message);
-      } else {
-        alert("Upload failed. Please try again.");
-      }
+      alert(getUploadErrorMessage(err));
       throw err;
     }
   };

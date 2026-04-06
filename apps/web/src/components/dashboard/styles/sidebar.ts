@@ -1,6 +1,7 @@
 import styled from "styled-components";
 
 import { motion } from "framer-motion";
+import { DASHBOARD_NAV_HEIGHT_PX } from "./application";
 
 interface SidebarWrapperProps {
   $isOpen: boolean;
@@ -30,11 +31,12 @@ export const SidebarWrapper = styled(motion.aside).attrs<SidebarWrapperProps>(
 
   @media (max-width: 768px) {
     position: fixed;
-    top: 80px;
+    top: ${DASHBOARD_NAV_HEIGHT_PX}px;
     left: 0;
     bottom: 0;
     margin-right: 0;
-    height: calc(100vh - 80px);
+    height: calc(100dvh - ${DASHBOARD_NAV_HEIGHT_PX}px);
+    max-height: calc(100dvh - ${DASHBOARD_NAV_HEIGHT_PX}px);
     background: rgba(248, 249, 250, 0.98);
     box-shadow: 2px 0 16px rgba(15, 23, 42, 0.25);
   }

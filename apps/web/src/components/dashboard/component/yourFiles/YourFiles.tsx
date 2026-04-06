@@ -3,6 +3,10 @@ import styled from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
 import api from "../../../../lib/axios";
+import {
+  uploadDashboardFileList,
+  getUploadErrorMessage,
+} from "../../../../lib/fileUpload";
 
 import { type FileItem } from "../../../shared/files_table/FilesTable";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
@@ -144,41 +148,27 @@ const YourFiles: React.FC = () => {
       return;
     }
 
-    const formData = new FormData();
-    const folderPaths: Record<string, string> = {};
-
     const hasStructure = Array.from(fileList).some(
-      (file) => (file as any).webkitRelativePath,
+      (file) => (file as File & { webkitRelativePath?: string }).webkitRelativePath,
     );
 
-    Array.from(fileList).forEach((file, index) => {
-      const relativePath = (file as any).webkitRelativePath || "";
-
-      if (hasStructure && relativePath) {
-        const folderPath =
-          relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
-        folderPaths[index] = folderPath;
-      }
-
-      formData.append("files", file);
-    });
-
-    if (hasStructure) {
-      formData.append("folderPaths", JSON.stringify(folderPaths));
-    }
-
     try {
-      const response = await api.post("/files/upload", formData);
-      const result = response.data;
+      await uploadDashboardFileList(fileList, (file) => {
+        const relativePath =
+          (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+        if (hasStructure && relativePath) {
+          return relativePath.substring(0, relativePath.lastIndexOf("/")) || "";
+        }
+        return "";
+      });
 
       addUsage(totalSize);
 
       await refreshStorage();
       eventBus.emit(FILES_REFRESH_EVENT);
-
-      return result;
     } catch (err) {
       console.error("Upload error:", err);
+      alert(getUploadErrorMessage(err));
       throw err;
     }
   };

@@ -34,7 +34,7 @@ const StyledNavButton = styled(Button).attrs({
   will-change: transform;
 
   &:hover {
-    transform: translateY(-1px) scale(1.02);
+    transform: translateY(-1px);
     background: linear-gradient(
       140deg,
       rgba(57, 133, 215, 0.9) 4%,

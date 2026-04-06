@@ -364,6 +364,10 @@ No Dockerfile is provided for the app itself; you can run Node and a static serv
      server_name your-domain.com;
      root /opt/yourdrive/apps/web/dist;
      index index.html;
+
+     # Required for large uploads (multipart chunks, direct upload). Default nginx limit is 1m.
+     client_max_body_size 512m;
+
      location / {
        try_files $uri $uri/ /index.html;
      }
@@ -375,6 +379,10 @@ No Dockerfile is provided for the app itself; you can run Node and a static serv
        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
        proxy_set_header X-Forwarded-Proto $scheme;
        proxy_set_header Cookie $http_cookie;
+       proxy_connect_timeout 600s;
+       proxy_send_timeout 600s;
+       proxy_read_timeout 600s;
+       send_timeout 600s;
      }
    }
    ```

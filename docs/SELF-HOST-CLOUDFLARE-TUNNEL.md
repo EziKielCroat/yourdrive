@@ -143,6 +143,8 @@ server {
     root /home/pi/yourdrive/apps/web/dist;
     index index.html;
 
+    client_max_body_size 512m;
+
     location / {
         try_files $uri $uri/ /index.html;
     }
@@ -157,6 +159,10 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+        send_timeout 600s;
     }
 }
 EOF

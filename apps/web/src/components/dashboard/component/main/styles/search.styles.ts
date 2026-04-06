@@ -99,18 +99,24 @@ export const FilterButtons = styled.div`
   margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  row-gap: 10px;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   width: 100%;
   box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    gap: 8px;
+    justify-content: stretch;
+  }
 `;
 
 export const FilterButton = styled.button`
   background: #e9eef6;
-  border: none;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   color: #1a1a1a;
   cursor: pointer;
   font-size: 11px;
@@ -120,8 +126,10 @@ export const FilterButton = styled.button`
   justify-content: center;
   align-items: center;
   transition: all 0.15s ease;
-  min-height: 32px;
-  flex: 0 1 auto;
+  min-height: 36px;
+  flex: 1 1 calc(50% - 6px);
+  max-width: 100%;
+  min-width: 0;
 
   &:hover {
     background: #dde4f0;
@@ -129,13 +137,12 @@ export const FilterButton = styled.button`
 
   &:active {
     background: #d1dae8;
-    transform: scale(0.98);
+    filter: brightness(0.98);
   }
 
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
-    transform: none;
   }
 
   span {
@@ -150,8 +157,11 @@ export const FilterButton = styled.button`
     }
   }
 
-  @media (min-width: 480px) {
+  @media (min-width: 768px) {
+    flex: 0 1 auto;
     padding: 6px 12px;
+    min-height: 32px;
+    border: none;
   }
 `;
 
