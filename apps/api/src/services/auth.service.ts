@@ -6,6 +6,7 @@ import { authenticator } from "@otplib/preset-default";
 import QRCode from "qrcode";
 
 import { BigIntHelper } from "../lib/bigint-helper";
+import { resolveConfiguredFrontendBase } from "../lib/frontend-base";
 
 import crypto from "crypto";
 import {
@@ -1250,7 +1251,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       await verifyRegistrationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: process.env.FRONTEND_URL || "http://localhost:5173",
+        expectedOrigin: resolveConfiguredFrontendBase(),
         expectedRPID: process.env.RP_ID || "localhost",
       });
 
@@ -1326,7 +1327,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       await verifyAuthenticationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: process.env.FRONTEND_URL || "http://localhost:5173",
+        expectedOrigin: resolveConfiguredFrontendBase(),
         expectedRPID: process.env.RP_ID || "localhost",
         credential: {
           id: credential.credentialId,

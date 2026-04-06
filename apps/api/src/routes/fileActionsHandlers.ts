@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { buildContentDisposition } from "../lib/contentDisposition";
+import { resolveConfiguredFrontendBase } from "../lib/frontend-base";
 import archiver from "archiver";
 import unzipper from "unzipper";
 import { Readable } from "stream";
@@ -1202,7 +1203,7 @@ export class FileActionsHandlers {
         expiresIn: 7 * 24 * 60 * 60,
       });
 
-      const shareableLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/share/${file.id}`;
+      const shareableLink = `${resolveConfiguredFrontendBase()}/share/${file.id}`;
 
       res.json({
         success: true,

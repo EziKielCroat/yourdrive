@@ -2,6 +2,7 @@ import { getEducationalTotalGb, PLANS } from "@yourdrive/plans";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { resolveConfiguredFrontendBase } from "./frontend-base";
 
 interface EmailConfig {
   host: string;
@@ -78,7 +79,8 @@ export class EmailService {
     resetToken: string,
     userId: string,
   ): Promise<void> {
-    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${resetToken}&userId=${userId}`;
+    const appBase = resolveConfiguredFrontendBase();
+    const resetLink = `${appBase}/reset-password?token=${resetToken}&userId=${userId}`;
     const brandColor = "#1F9AFE";
 
     const html = `
@@ -279,7 +281,8 @@ export class EmailService {
     verificationToken: string,
     isSkoleUser: boolean = false,
   ): Promise<void> {
-    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const appBase = resolveConfiguredFrontendBase();
+    const verificationLink = `${appBase}/verify-email?token=${verificationToken}`;
     const brandColor = "#1F9AFE";
 
     const bonusText = isSkoleUser
@@ -867,7 +870,7 @@ export class EmailService {
               </div>
               
               <div style="text-align: center; margin: 40px 0;">
-                <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard" class="button">
+                <a href="${resolveConfiguredFrontendBase()}/dashboard" class="button">
                   🚀 Launch Your Dashboard
                 </a>
                 <p style="color: #666; font-size: 14px; margin-top: 15px;">
@@ -878,7 +881,7 @@ export class EmailService {
               <div style="background: #f8fafc; padding: 20px; border-radius: 10px; margin: 30px 0;">
                 <p style="margin: 0; color: #555; text-align: center;">
                   <strong>Need help getting started?</strong><br>
-                  Check out our <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}/help" style="color: #1F9AFE; text-decoration: none; font-weight: 600;">Getting Started Guide</a>
+                  Check out our <a href="${resolveConfiguredFrontendBase()}/help" style="color: #1F9AFE; text-decoration: none; font-weight: 600;">Getting Started Guide</a>
                 </p>
               </div>
               

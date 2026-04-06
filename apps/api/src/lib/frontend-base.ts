@@ -36,6 +36,37 @@ export function normalizeFrontendBase(rawBase: string): string {
   }
 }
 
+function tryStableBase(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  try {
+    const url = new URL(t);
+    if (isEphemeralTunnelHost(url.hostname)) return null;
+    return normalizeFrontendBase(t);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Canonical public app URL from configuration only.
+ * Ignores ephemeral tunnel hosts so stale quick-tunnel env vars do not leak into links.
+ */
+export function resolveConfiguredFrontendBase(): string {
+  const configured = [
+    process.env.FRONTEND_URL || "",
+    process.env.VERT_URL || "",
+    process.env.BACKEND_URL || "",
+  ];
+
+  for (const candidate of configured) {
+    const stable = tryStableBase(candidate);
+    if (stable) return stable;
+  }
+
+  return "http://localhost:5173";
+}
+
 /**
  * Public base URL for share links, emails, etc.
  * 1) FRONTEND_URL when set — always (canonical prod URL; avoids tunnel Host/Origin).
@@ -43,24 +74,13 @@ export function normalizeFrontendBase(rawBase: string): string {
  */
 export function resolveFrontendBase(req: Request): string {
   const envBase = (process.env.FRONTEND_URL || "").trim();
-  if (envBase) {
-    return normalizeFrontendBase(envBase);
+  const stableEnvBase = tryStableBase(envBase);
+  if (stableEnvBase) {
+    return stableEnvBase;
   }
 
-  const tryBase = (raw: string): string | null => {
-    const t = raw.trim();
-    if (!t) return null;
-    try {
-      const url = new URL(t);
-      if (isEphemeralTunnelHost(url.hostname)) return null;
-      return normalizeFrontendBase(t);
-    } catch {
-      return null;
-    }
-  };
-
   const origin = String(req.headers.origin || "").trim();
-  const fromOrigin = tryBase(origin);
+  const fromOrigin = tryStableBase(origin);
   if (fromOrigin) return fromOrigin;
 
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "")
@@ -70,9 +90,17 @@ export function resolveFrontendBase(req: Request): string {
     .split(",")[0]
     .trim();
   if (forwardedProto && forwardedHost) {
-    const fromFwd = tryBase(`${forwardedProto}://${forwardedHost}`);
+    const fromFwd = tryStableBase(`${forwardedProto}://${forwardedHost}`);
     if (fromFwd) return fromFwd;
   }
 
-  return "http://localhost:5173";
+  const host = String(req.headers.host || "").split(",")[0].trim();
+  if (host) {
+    const inferredProto =
+      forwardedProto || (req.secure ? "https" : "http");
+    const fromHost = tryStableBase(`${inferredProto}://${host}`);
+    if (fromHost) return fromHost;
+  }
+
+  return resolveConfiguredFrontendBase();
 }
