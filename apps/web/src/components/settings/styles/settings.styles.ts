@@ -11,7 +11,11 @@ export const PageWrapper = styled.div`
 export const Container = styled.div`
   width: min(1140px, 100%);
   margin: 0 auto;
-  padding: 28px 24px 88px;
+  padding: clamp(16px, 4vw, 28px) clamp(14px, 4vw, 24px) 88px;
+  padding-left: max(clamp(14px, 4vw, 24px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(14px, 4vw, 24px), env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  min-width: 0;
 `;
 
 export const Header = styled.div`

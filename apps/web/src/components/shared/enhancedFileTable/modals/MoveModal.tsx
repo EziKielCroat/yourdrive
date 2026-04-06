@@ -53,9 +53,9 @@ const ModalContent = styled.div`
   background: white;
   border-radius: 16px;
   padding: 0;
-  width: 500px;
-  max-width: 90vw;
-  max-height: 80vh;
+  width: min(500px, calc(100vw - 24px));
+  max-width: 100%;
+  max-height: min(80vh, 100dvh - 24px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   animation: ${slideUp} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;

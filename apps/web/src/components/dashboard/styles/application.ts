@@ -2,14 +2,13 @@ import styled from "styled-components";
 
 export const Root = styled.div`
   width: 100%;
+  min-width: 0;
   height: calc(100vh - 80px); /* Adjust based on your navbar height */
-  padding: 0 28px;
+  padding: 0 clamp(10px, 3vw, 28px);
+  padding-left: max(clamp(10px, 3vw, 28px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(10px, 3vw, 28px), env(safe-area-inset-right, 0px));
   box-sizing: border-box;
   overflow: hidden; /* Prevent scrolling */
-
-  @media (max-width: 768px) {
-    padding: 0 12px;
-  }
 `;
 
 export const Layout = styled.div`

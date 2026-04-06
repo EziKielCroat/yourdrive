@@ -16,6 +16,7 @@ import { AccountSection } from "./components/AccountSection";
 import { SecuritySection } from "./components/SecuritySection";
 import { StorageSection } from "./components/StorageSection";
 import { SharingSection } from "./components/SharingSection";
+import { PreferencesNotificationsPrivacy } from "./components/PreferencesNotificationsPrivacy";
 
 import {
   PageWrapper,
@@ -77,6 +78,9 @@ const Settings = () => {
     updateSecurity,
     updateAppearance,
     updateLanguage,
+    updatePreferences,
+    updatePrivacy,
+    updateStorage,
   } = useSettings();
   const [appearanceSaving, setAppearanceSaving] = useState(false);
   const [languageSaving, setLanguageSaving] = useState(false);
@@ -279,6 +283,15 @@ const Settings = () => {
           </InfoCard>
         )}
       </Section>
+
+      {settings && (
+        <PreferencesNotificationsPrivacy
+          preferences={settings.preferences}
+          privacy={settings.privacy}
+          updatePreferences={updatePreferences}
+          updatePrivacy={updatePrivacy}
+        />
+      )}
       </>
     );
   };
@@ -313,7 +326,12 @@ const Settings = () => {
         );
 
       case "storage":
-        return settings ? <StorageSection /> : null;
+        return settings ? (
+          <StorageSection
+            storage={settings.storage}
+            updateStorage={updateStorage}
+          />
+        ) : null;
 
       case "preferences":
         return renderPreferences();

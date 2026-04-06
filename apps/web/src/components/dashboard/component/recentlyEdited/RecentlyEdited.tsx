@@ -208,16 +208,18 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px;
+  padding: clamp(12px, 3vw, 16px);
+  min-width: 0;
   font-family: "Inter", sans-serif;
 `;
 
 const Header = styled.div`
   display: flex;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  margin-bottom: clamp(16px, 4vw, 24px);
   flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
 `;
 
 const TitleSection = styled.div`
@@ -225,30 +227,44 @@ const TitleSection = styled.div`
   align-items: center;
   gap: 12px;
   color: #202124;
+  min-width: 0;
 `;
 
 const Title = styled.h1`
-  font-size: 28px;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 500;
   margin: 0;
+  line-height: 1.2;
 `;
 
 const Controls = styled.div`
   display: flex;
   align-items: center;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    width: auto;
+    margin-left: auto;
+    flex: 1;
+    justify-content: flex-end;
+    gap: 24px;
+  }
 `;
 
 const FilterButtons = styled.div`
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   background: #f1f3f4;
   padding: 4px;
   border-radius: 8px;
+  max-width: 100%;
 `;
 
 const FilterButton = styled.button<{ $active?: boolean }>`
-  padding: 8px 16px;
+  padding: 8px clamp(10px, 2vw, 16px);
   background: ${(props) => (props.$active ? "#fff" : "transparent")};
   border: none;
   border-radius: 6px;
@@ -268,8 +284,9 @@ const FilterButton = styled.button<{ $active?: boolean }>`
 `;
 
 const FileCount = styled.div`
-  font-size: 14px;
+  font-size: clamp(13px, 2.5vw, 14px);
   color: #5f6368;
+  white-space: nowrap;
 `;
 
 const EmptyState = styled.div`

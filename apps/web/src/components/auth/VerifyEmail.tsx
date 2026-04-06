@@ -1,3 +1,4 @@
+import { PLANS } from "@yourdrive/plans";
 import React, { useEffect, useState, useRef } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import api from "../../lib/axios";
@@ -110,7 +111,7 @@ export const VerifyEmail: React.FC = () => {
                 margin: "24px 0",
                 fontWeight: 600
               }}>
-                🎓 +50GB Educational Bonus Added!
+                🎓 +{PLANS.educational.bonusGb}GB Educational Bonus Added!
               </div>
             )}
             <p style={{ color: "#999", fontSize: "14px", marginTop: "24px" }}>

@@ -308,6 +308,8 @@ const RecentFiles: React.FC = () => {
 
 const Container = styled.div`
   margin-top: 24px;
+  width: 100%;
+  min-width: 0;
 `;
 
 const FilterIndicator = styled.div`

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from "react";
 import styled from "styled-components";
+import { useUserUiPreferencesStore } from "../../../store/userUiPreferencesStore";
 import FileTypeIcon from "./FileTypeIcon";
 import FolderSmallIcon from "../icons/smallFolder";
 import { Upload, ChevronRight, ChevronDown, Folder } from "lucide-react";
@@ -80,6 +81,18 @@ const FilesTable: React.FC<FilesTableProps> = ({
   checkStorageLimit,
   showFolderStructure = false,
 }) => {
+  const fileView = useUserUiPreferencesStore((s) => s.appearance?.fileView);
+  const tableDensityStyle = useMemo(
+    () =>
+      ({
+        ["--file-cell-pad" as string]:
+          fileView === "compact" ? "6px 10px" : "10px 16px",
+        ["--file-header-pad" as string]:
+          fileView === "compact" ? "8px 12px" : "12px 16px",
+      }) as React.CSSProperties,
+    [fileView],
+  );
+
   const [isDragging, setIsDragging] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
@@ -438,7 +451,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
 
   if (loading) {
     return (
-      <TableContainer>
+      <TableContainer style={tableDensityStyle}>
         <LoadingState>
           <LoadingSpinner />
           <span>Loading files...</span>
@@ -450,6 +463,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
   if (files.length === 0) {
     return (
       <TableContainer
+        style={tableDensityStyle}
         ref={dropZoneRef}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -481,6 +495,7 @@ const FilesTable: React.FC<FilesTableProps> = ({
 
   return (
     <TableContainer
+      style={tableDensityStyle}
       ref={dropZoneRef}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -712,10 +727,11 @@ const ScrollContainer = styled.div<{ $maxHeight: number }>`
 const ScrollableArea = styled.div`
   height: 100%;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
 
   &::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
   }
 
   &::-webkit-scrollbar-track {
@@ -803,7 +819,7 @@ const FolderRow = styled(TableRow)<{ $level: number }>`
 
 const TableHeader = styled.th`
   text-align: left;
-  padding: 12px 16px;
+  padding: var(--file-header-pad, 12px 16px);
   font-size: 12px;
   font-weight: 500;
   color: #5f6368;
@@ -813,7 +829,7 @@ const TableHeader = styled.th`
 `;
 
 const TableCell = styled.td`
-  padding: 10px 16px;
+  padding: var(--file-cell-pad, 10px 16px);
   font-size: 14px;
   color: #202124;
   vertical-align: middle;

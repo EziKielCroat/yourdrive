@@ -12,11 +12,18 @@ const BaseLeftSection = styled.div`
   padding-left: 8px;
   justify-content: center;
   align-items: center;
-  margin-left: 20px;
-  gap: 86px;
+  margin-left: clamp(8px, 2vw, 20px);
+  gap: clamp(16px, 4vw, 86px);
+  min-width: 0;
+
+  img {
+    max-width: min(135px, 38vw);
+    width: auto;
+    height: auto;
+  }
 
   @media (max-width: 768px) {
-    gap: 16px;
+    gap: 12px;
   }
 `;
 

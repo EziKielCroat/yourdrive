@@ -1,3 +1,4 @@
+import { PLANS } from "@yourdrive/plans";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -263,8 +264,8 @@ export class AuthService {
 
   // Base storage - NO BONUS YET (bonus comes after email verification)
   // FIX: Use BigIntHelper for consistent BigInt handling
-  const BASE_STORAGE = BigIntHelper.gbToBytes(50); // 50GB base
-  
+  const BASE_STORAGE = BigIntHelper.gbToBytes(PLANS.free.storageGb);
+
   // Generate email verification token
   const verificationToken = crypto.randomBytes(32).toString("hex");
   const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -305,7 +306,7 @@ export class AuthService {
         userId: createdUser.id,
         deviceName: "Primary Device",
         deviceType: "web",
-        storageLimit: BASE_STORAGE, // Start with base 50GB
+        storageLimit: BASE_STORAGE,
         isCurrent: true,
       },
     });
@@ -330,8 +331,8 @@ export class AuthService {
     // Don't fail registration if email fails
   }
 
-  const message = isSkoleUser 
-    ? "Registration successful! Please check your email to verify your account and receive your 50GB educational bonus."
+  const message = isSkoleUser
+    ? `Registration successful! Please check your email to verify your account and receive your ${PLANS.educational.bonusGb}GB educational bonus.`
     : "Registration successful! Please check your email to verify your account.";
 
   return {
@@ -376,8 +377,8 @@ static async verifyEmail(token: string): Promise<{
       
       if (isSkoleUser && alreadyVerifiedUser.userDevices[0]) {
         const currentLimit = BigIntHelper.toBigInt(alreadyVerifiedUser.userDevices[0].storageLimit);
-        const baseStorage = BigIntHelper.gbToBytes(50);
-        const bonusStorage = BigIntHelper.gbToBytes(50);
+        const baseStorage = BigIntHelper.gbToBytes(PLANS.free.storageGb);
+        const bonusStorage = BigIntHelper.gbToBytes(PLANS.educational.bonusGb);
         const expectedStorageWithBonus = baseStorage + bonusStorage;
         
         hasBonus = currentLimit >= expectedStorageWithBonus;
@@ -386,13 +387,13 @@ static async verifyEmail(token: string): Promise<{
 
       return {
         success: true,
-        message: hasBonus 
-          ? `Email already verified! You have ${currentStorage} total storage (includes 50GB educational bonus).`
+        message: hasBonus
+          ? `Email already verified! You have ${currentStorage} total storage (includes ${PLANS.educational.bonusGb}GB educational bonus).`
           : "Email already verified!",
         bonusGranted: hasBonus,
         alreadyVerified: true,
         newStorageLimit: alreadyVerifiedUser.userDevices[0]?.storageLimit?.toString(),
-        educationalBonus: hasBonus ? "50GB" : undefined,
+        educationalBonus: hasBonus ? `${PLANS.educational.bonusGb}GB` : undefined,
       };
     }
 
@@ -469,12 +470,12 @@ static async verifyEmail(token: string): Promise<{
           console.log(`📦 Current storage limit: ${currentDevice.storageLimit}`);
           
           // Get current limit or use 50GB as base
-          const BASE_STORAGE = BigIntHelper.gbToBytes(50);
-          const currentLimit = currentDevice.storageLimit 
+          const BASE_STORAGE = BigIntHelper.gbToBytes(PLANS.free.storageGb);
+          const currentLimit = currentDevice.storageLimit
             ? BigIntHelper.toBigInt(currentDevice.storageLimit)
             : BASE_STORAGE;
-          
-          const BONUS = BigIntHelper.gbToBytes(50); // 50GB bonus
+
+          const BONUS = BigIntHelper.gbToBytes(PLANS.educational.bonusGb);
           
           console.log(`💰 Current limit: ${currentLimit} (${BigIntHelper.formatBytes(currentLimit)})`);
           console.log(`🎁 Bonus to add: ${BONUS} (${BigIntHelper.formatBytes(BONUS)})`);
@@ -496,9 +497,8 @@ static async verifyEmail(token: string): Promise<{
         } else {
           console.log('⚠️ No current device found for user, creating one with bonus...');
           
-          // Create a device with 100GB (50GB base + 50GB bonus)
-          const BASE_STORAGE = BigIntHelper.gbToBytes(50);
-          const BONUS = BigIntHelper.gbToBytes(50);
+          const BASE_STORAGE = BigIntHelper.gbToBytes(PLANS.free.storageGb);
+          const BONUS = BigIntHelper.gbToBytes(PLANS.educational.bonusGb);
           newStorageLimit = BigIntHelper.add(BASE_STORAGE, BONUS);
           bonusGranted = true;
           educationalBonus = BigIntHelper.formatBytes(BONUS);
@@ -600,7 +600,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
   }
 
   const message = isSkoleUser
-    ? "Verification email sent! Verify to receive 50GB educational bonus."
+    ? `Verification email sent! Verify to receive ${PLANS.educational.bonusGb}GB educational bonus.`
     : "Verification email sent successfully.";
 
   return {
@@ -771,7 +771,9 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
   const currentDevice = user.userDevices[0];
   
   // FIX: Use BigIntHelper for safe BigInt conversion
-  const storageLimit = BigIntHelper.toBigInt(currentDevice?.storageLimit || BigIntHelper.gbToBytes(50));
+  const storageLimit = BigIntHelper.toBigInt(
+    currentDevice?.storageLimit || BigIntHelper.gbToBytes(PLANS.free.storageGb),
+  );
   const used = BigIntHelper.toBigInt(usedStorage._sum.size);
   const isSkoleUser = user.email.toLowerCase().endsWith("@skole.hr");
   

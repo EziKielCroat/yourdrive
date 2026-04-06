@@ -1,3 +1,4 @@
+import { getStorageTierLabel } from "@yourdrive/plans";
 import type {
   UserSettings,
   UpdateProfileRequest,
@@ -117,8 +118,13 @@ export const settingsService = {
   },
 
   async getActiveSessions(): Promise<ActiveSession[]> {
-    const response = await api.get("/settings/sessions");
-    return response.data;
+    const response = await api.get<{
+      success?: boolean;
+      sessions?: ActiveSession[];
+    }>("/settings/sessions");
+    const raw = response.data;
+    const sessions = raw?.sessions ?? (Array.isArray(raw) ? raw : []);
+    return Array.isArray(sessions) ? sessions : [];
   },
 
   async signOutSession(sessionId: string): Promise<void> {
@@ -323,8 +329,11 @@ export const settingsService = {
     return `${(bytesNum / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   },
 
-  // Get storage tier name
-  getStorageTier(limitBytes: string | bigint | number): string {
+  // Get storage tier name (aligned with API @yourdrive/plans getStorageTierLabel)
+  getStorageTier(
+    limitBytes: string | bigint | number,
+    isEducational = false,
+  ): string {
     let bytes: number;
 
     if (typeof limitBytes === "string") {
@@ -336,11 +345,7 @@ export const settingsService = {
     }
 
     const inGB = bytes / (1024 * 1024 * 1024);
-
-    if (inGB >= 150) return "150GB (Educational Plan)";
-    if (inGB >= 100) return "100GB (Pro Plan)";
-    if (inGB >= 50) return "50GB (Free Plan)";
-    return `${Math.round(inGB)}GB`;
+    return getStorageTierLabel(inGB, isEducational);
   },
 
   // Get color based on usage percentage
@@ -381,8 +386,8 @@ export const mockSettingsService = {
             timezone: "UTC",
           },
           storage: {
-            totalStorage: 10737418240,
-            usedStorage: 6979321856,
+            totalStorage: 32212254720,
+            usedStorage: 20937995520,
             autoSync: true,
             fileVersioning: true,
             maxVersionsToKeep: 10,

@@ -46,7 +46,11 @@ const HiddenInput = styled.input`
 
 interface AccountSectionProps {
   settings: UserSettings | null;
-  updateProfile: (data: { email?: string; firstName?: string }) => Promise<void>;
+  updateProfile: (data: {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  }) => Promise<void>;
 }
 
 export const AccountSection: React.FC<AccountSectionProps> = ({
@@ -57,12 +61,14 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
   const [formData, setFormData] = useState({
     email: settings?.profile?.email || "",
     firstName: settings?.profile?.firstName || "",
+    lastName: settings?.profile?.lastName || "",
   });
   const [avatarUrl, setAvatarUrl] = useState(
     settings?.profile?.avatarUrl || null,
   );
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingFirstName, setSavingFirstName] = useState(false);
+  const [savingLastName, setSavingLastName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const [message, setMessage] = useState("");
@@ -75,6 +81,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
     setFormData({
       email: settings.profile.email || "",
       firstName: settings.profile.firstName || "",
+      lastName: settings.profile.lastName || "",
     });
     setAvatarUrl(settings.profile.avatarUrl || null);
   }, [settings?.profile]);
@@ -85,6 +92,10 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
 
   const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, firstName: e.target.value }));
+  };
+
+  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, lastName: e.target.value }));
   };
 
   const handleSaveEmail = async () => {
@@ -112,6 +123,22 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
       setMessage(error instanceof Error ? error.message : "Failed to save name");
     } finally {
       setSavingFirstName(false);
+    }
+  };
+
+  const handleSaveLastName = async () => {
+    try {
+      setSavingLastName(true);
+      setMessage("");
+      await updateProfile({ lastName: formData.lastName.trim() });
+      setMessage("Last name saved");
+      setTimeout(() => setMessage(""), 2500);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Failed to save last name",
+      );
+    } finally {
+      setSavingLastName(false);
     }
   };
 
@@ -220,7 +247,10 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
 
   const getInitials = () => {
     const first = formData.firstName?.charAt(0).toUpperCase() || "";
+    const last = formData.lastName?.charAt(0).toUpperCase() || "";
+    if (first && last) return `${first}${last}`;
     if (first) return first;
+    if (last) return last;
 
     const email = formData.email || settings?.profile?.email || "";
     const emailInitial = email.charAt(0).toUpperCase();
@@ -329,7 +359,28 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
               onClick={handleSaveFirstName}
               disabled={savingFirstName}
             >
-              {savingFirstName ? "Saving..." : "Save name"}
+              {savingFirstName ? "Saving..." : "Save"}
+            </Button>
+          </FieldRow>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Last name</Label>
+          <FieldRow>
+            <Input
+              type="text"
+              value={formData.lastName}
+              onChange={handleLastNameChange}
+              placeholder="Last name"
+              style={{ flex: 1, minWidth: 220 }}
+            />
+            <Button
+              type="button"
+              $variant="default"
+              onClick={handleSaveLastName}
+              disabled={savingLastName}
+            >
+              {savingLastName ? "Saving..." : "Save"}
             </Button>
           </FieldRow>
         </FormGroup>

@@ -1,3 +1,5 @@
+import { PLANS } from "@yourdrive/plans";
+
 export interface UserSettings {
   // Account Information
   profile: {
@@ -242,7 +244,7 @@ export const defaultSettings: Partial<UserSettings> = {
     timezone: "UTC",
   },
   storage: {
-    totalStorage: 10 * 1024 * 1024 * 1024, // 10GB
+    totalStorage: PLANS.free.storageGb * 1024 * 1024 * 1024,
     usedStorage: 0,
     autoSync: true,
     fileVersioning: true,

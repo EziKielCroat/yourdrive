@@ -225,7 +225,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
       await executeAction(actionId, filesAsFileItems);
     },
-    [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup],
+    [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup, router],
   );
 
   const handleRename = useCallback(
@@ -308,7 +308,8 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
       } else {
         setInternalSelectedFiles((prev) => {
           const next = new Set(prev);
-          next.has(file.id) ? next.delete(file.id) : next.add(file.id);
+          if (next.has(file.id)) next.delete(file.id);
+          else next.add(file.id);
           return next;
         });
       }
@@ -544,7 +545,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
             <IconButton
               onClick={() => setShowShortcutsHelp(!showShortcutsHelp)}
               title="View keyboard shortcuts"
-              style={{ marginLeft: "8px" }}
             >
               <Keyboard size={18} />
             </IconButton>
@@ -711,21 +711,30 @@ const ShortcutIndicator = styled.div`
   transform: translateX(-50%);
   background: #363840;
   color: white;
-  padding: 12px 24px;
+  padding: 10px 16px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 10000;
   animation: ${slideDown} 0.3s ease-out;
   font-weight: 500;
   justify-content: center;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+
+  @media (min-width: 480px) {
+    padding: 12px 24px;
+    gap: 12px;
+  }
 `;
 
 const ShortcutText = styled.span`
-  font-size: 14px;
+  font-size: clamp(12px, 3vw, 14px);
   flex: 1;
+  min-width: 0;
+  text-align: center;
 `;
 
 const ShortcutKeyDisplay = styled.span`
@@ -739,37 +748,95 @@ const ShortcutKeyDisplay = styled.span`
 
 const SelectionBar = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  row-gap: 10px;
+  column-gap: 8px;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: clamp(10px, 2.5vw, 12px) clamp(12px, 3vw, 20px);
   background: #fff;
   border-radius: 16px;
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.06),
     0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #e8eaed;
+
+  @media (min-width: 900px) {
+    flex-wrap: nowrap;
+    row-gap: 0;
+  }
 `;
 
 const LeftSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 140px;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+  order: 1;
+
+  @media (min-width: 900px) {
+    gap: 12px;
+    min-width: 120px;
+    flex: 0 0 auto;
+  }
 `;
 
 const CenterSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 1;
-  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+  order: 3;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  padding: 4px 0 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 transparent;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #dadce0;
+    border-radius: 3px;
+  }
+
+  @media (min-width: 900px) {
+    order: 2;
+    flex: 1 1 auto;
+    padding: 0;
+    justify-content: center;
+    gap: 6px;
+    /* When many actions, still scroll instead of breaking layout */
+    overflow-x: auto;
+  }
 `;
 
 const RightSection = styled.div`
-  min-width: 140px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+  order: 2;
+  margin-left: auto;
+
+  @media (min-width: 900px) {
+    order: 3;
+    margin-left: 0;
+    min-width: 120px;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
 `;
 
 const SelectionCount = styled.span`
@@ -808,6 +875,7 @@ const IconButton = styled.button<{ $danger?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -833,17 +901,28 @@ const IconButton = styled.button<{ $danger?: boolean }>`
 const VerticalDivider = styled.div`
   width: 1px;
   height: 24px;
+  flex-shrink: 0;
   background: #dadce0;
-  margin: 0 8px;
+  margin: 0 4px;
+
+  @media (min-width: 900px) {
+    margin: 0 8px;
+  }
 `;
 
 const TextButton = styled.button`
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
+
+  @media (min-width: 900px) {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
   font-family:
     "Inter",
     -apple-system,
@@ -952,15 +1031,18 @@ const ShortcutsHelp = styled.div`
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.1),
     0 4px 16px rgba(0, 0, 0, 0.08);
-  padding: 24px;
+  padding: clamp(16px, 4vw, 24px);
   animation: ${slideDown} 0.3s ease-out;
   position: absolute;
-  top: 80px;
+  top: clamp(72px, 18vw, 80px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  width: 90%;
-  max-width: 800px;
+  width: calc(100% - 16px);
+  max-width: min(800px, 100vw - 16px);
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  box-sizing: border-box;
 `;
 
 const ShortcutsHeader = styled.div`
@@ -996,8 +1078,13 @@ const CloseButton = styled.button`
 
 const ShortcutsContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: 20px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+  }
 `;
 
 const ShortcutSection = styled.div`

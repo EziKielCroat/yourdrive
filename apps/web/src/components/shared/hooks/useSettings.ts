@@ -3,6 +3,7 @@ import { settingsService } from "../../settings/service/settingsService";
 import type { UserSettings } from "../../settings/types/UserSettings";
 
 import { useAuthStore } from "../../../store/authStore";
+import { useUserUiPreferencesStore } from "../../../store/userUiPreferencesStore";
 
 interface UseSettingsReturn {
   settings: UserSettings | null;
@@ -39,6 +40,7 @@ export const useSettings = (): UseSettingsReturn => {
       setError(null);
       const data = await settingsService.getSettings();
       setSettings(data);
+      useUserUiPreferencesStore.getState().hydrate(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
       console.error("Failed to load settings:", err);

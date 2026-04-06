@@ -287,32 +287,37 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px;
+  padding: clamp(12px, 3vw, 16px);
+  min-width: 0;
   font-family: "Inter", sans-serif;
 `;
 
 const Header = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 8px 12px;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: clamp(16px, 4vw, 24px);
   flex-wrap: wrap;
+  min-width: 0;
 `;
 
 const Title = styled.h1`
-  font-size: 28px;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 500;
   color: #202124;
   margin: 0;
-  margin-right: 16px;
+  margin-right: clamp(0px, 2vw, 16px);
+  line-height: 1.2;
+  min-width: 0;
 `;
 
 const FileCount = styled.div`
-  font-size: 14px;
+  font-size: clamp(13px, 2.5vw, 14px);
   color: #5f6368;
   background: #f1f3f4;
   padding: 4px 12px;
   border-radius: 16px;
+  white-space: nowrap;
 `;
 
 const ActionButtons = styled.div`

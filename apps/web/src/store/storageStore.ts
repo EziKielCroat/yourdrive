@@ -1,3 +1,4 @@
+import { PLANS } from "@yourdrive/plans";
 import { create } from "zustand";
 import api from "../lib/axios";
 
@@ -17,8 +18,7 @@ interface StorageState {
   refreshStorage: () => Promise<void>;
 }
 
-// 50 GB in bytes
-const DEFAULT_TOTAL_BYTES = 50 * 1024 * 1024 * 1024;
+const DEFAULT_TOTAL_BYTES = PLANS.free.storageGb * 1024 * 1024 * 1024;
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";

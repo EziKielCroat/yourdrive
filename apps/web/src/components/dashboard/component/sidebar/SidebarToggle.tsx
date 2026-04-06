@@ -9,6 +9,7 @@ const SidebarToggle: FC = () => {
 
   return (
     <ToggleButton
+      data-tour="tour-sidebar-toggle"
       onClick={toggle}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}

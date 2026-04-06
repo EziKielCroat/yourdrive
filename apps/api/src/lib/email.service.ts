@@ -1,3 +1,4 @@
+import { getEducationalTotalGb, PLANS } from "@yourdrive/plans";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -286,7 +287,7 @@ export class EmailService {
       <div style="font-size: 24px; margin-bottom: 8px;">🎓</div>
       <strong style="font-size: 18px;">Educational Account Detected!</strong>
       <p style="margin: 8px 0 0 0; opacity: 0.95; font-size: 14px;">
-        After verifying your email, you'll receive <strong>+50GB bonus storage</strong> on top of your plan!
+        After verifying your email, you'll receive <strong>+${PLANS.educational.bonusGb}GB bonus storage</strong> on top of your plan!
       </p>
     </div>`
       : "";
@@ -453,7 +454,7 @@ export class EmailService {
     await this.sendEmail({
       to: email,
       subject: isSkoleUser
-        ? "Verify Your Email - Get +50GB Educational Bonus! 🎓"
+        ? `Verify Your Email - Get +${PLANS.educational.bonusGb}GB Educational Bonus! 🎓`
         : "Verify Your Email - Welcome to NexaCore!",
       html,
     });
@@ -688,8 +689,8 @@ export class EmailService {
   ): Promise<void> {
     const brandColor = "#1F9AFE";
     const storageInfo = hasBonus
-      ? "<strong>100GB total storage</strong> (includes 50GB educational bonus)"
-      : "<strong>50GB of free storage</strong>";
+      ? `<strong>${getEducationalTotalGb()}GB total storage</strong> (includes ${PLANS.educational.bonusGb}GB educational bonus)`
+      : `<strong>${PLANS.free.storageGb}GB of free storage</strong>`;
 
     const html = `
       <!DOCTYPE html>
@@ -830,7 +831,7 @@ export class EmailService {
                 Your NexaCore account has been successfully created and is ready to use.
               </p>
               
-              ${hasBonus ? '<div class="bonus-badge">🎓 +50GB EDUCATIONAL BONUS ACTIVATED</div>' : ""}
+              ${hasBonus ? `<div class="bonus-badge">🎓 +${PLANS.educational.bonusGb}GB EDUCATIONAL BONUS ACTIVATED</div>` : ""}
               
               <div class="storage-card">
                 <h3 style="margin-top: 0; color: #1a1a1a; font-size: 20px;">📦 Your Storage Plan</h3>

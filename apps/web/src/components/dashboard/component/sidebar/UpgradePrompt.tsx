@@ -20,7 +20,7 @@ const UpgradePrompt: React.FC<UpgradePromptProps> = ({
   onUpgrade,
 }) => {
   return (
-    <UpgradeWrapper>
+    <UpgradeWrapper data-tour="tour-storage">
       <ProgressBar>
         <ProgressFill percentage={percentage} />
       </ProgressBar>

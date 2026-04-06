@@ -1,10 +1,11 @@
-import { 
-  Cont, 
-  BlueTitle, 
-  SwitchCont, 
-  Title, 
-  PlanWrapper, 
-  Option 
+import { PLANS } from "@yourdrive/plans";
+import {
+  Cont,
+  BlueTitle,
+  SwitchCont,
+  Title,
+  PlanWrapper,
+  Option,
 } from "./styles/PlanSection";
 import Plan from "./components/plan/Plan";
 import Switch from "../../../shared/switch/Switch";
@@ -28,22 +29,22 @@ const PlanSection: React.FC = () => {
       capabilities: [
         "Upload, edit & share files",
         "Real-time collaboration",
-        "Secure cloud storage (20 GB)",
+        `Secure cloud storage (${PLANS.free.storageGb} GB)`,
         "Access from any device",
         "Basic support",
-      ]
+      ],
     },
     {
       planTitle: "Pro Plan",
-      price: 10,
+      price: PLANS.pro.priceEurPerMonth,
       special: true,
       capabilities: [
         "Everything in Free, plus:",
-        "Increased storage capacity (50 GB)",
+        `Increased storage capacity (${PLANS.pro.storageGb} GB)`,
         "Advanced file editing tools",
         "Version history & recovery",
         "Priority customer support",
-      ]
+      ],
     },
     {
       planTitle: "Investor Plan",

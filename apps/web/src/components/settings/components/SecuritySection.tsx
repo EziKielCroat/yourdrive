@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import styled from "styled-components";
 import type { UserSettings } from "../types/UserSettings";
 import TwoFactorSettings from "./TwoFactorSettings";
+import { SessionsSection } from "./SessionsSection";
 import { settingsService } from "../service/settingsService";
 import {
   Section,
@@ -15,16 +16,11 @@ import {
   InfoCard,
   InfoText,
   SmallText,
-  ToggleWrapper,
-  ToggleInfo,
-  ToggleTitle,
-  ToggleDescription,
-  Toggle,
 } from "../styles/settings.styles";
 
 interface SecuritySectionProps {
-  settings: UserSettings | null;
-  updateSecurity: (data: Partial<UserSettings["security"]>) => Promise<void>;
+  settings?: UserSettings | null;
+  updateSecurity?: (data: Partial<UserSettings["security"]>) => Promise<void>;
 }
 
 const PasswordFieldWrap = styled.div`
@@ -53,18 +49,7 @@ const getErrorMessage = (error: unknown): string => {
   return "Failed to update security setting. Please try again.";
 };
 
-export const SecuritySection: React.FC<SecuritySectionProps> = ({
-  settings,
-  updateSecurity,
-}) => {
-  const [securitySaving, setSecuritySaving] = useState(false);
-  const [securityMessage, setSecurityMessage] = useState("");
-  const [securityError, setSecurityError] = useState("");
-  const [securityFlags, setSecurityFlags] = useState({
-    clientSideEncryption: settings?.security?.clientSideEncryption ?? false,
-    offlineModeEnabled: settings?.security?.offlineModeEnabled ?? false,
-  });
-
+export const SecuritySection: React.FC<SecuritySectionProps> = () => {
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -79,13 +64,6 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  useEffect(() => {
-    setSecurityFlags({
-      clientSideEncryption: settings?.security?.clientSideEncryption ?? false,
-      offlineModeEnabled: settings?.security?.offlineModeEnabled ?? false,
-    });
-  }, [settings?.security?.clientSideEncryption, settings?.security?.offlineModeEnabled]);
-
   const validatePassword = (password: string): string | null => {
     if (password.length < 8) return "Password must be at least 8 characters";
     if (!/[A-Z]/.test(password))
@@ -97,27 +75,6 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
     if (!/[^A-Za-z0-9]/.test(password))
       return "Password must contain at least one special character";
     return null;
-  };
-
-  const handleSecurityToggle = async (
-    key: "clientSideEncryption" | "offlineModeEnabled",
-  ) => {
-    const nextValue = !securityFlags[key];
-    setSecurityFlags((prev) => ({ ...prev, [key]: nextValue }));
-    setSecurityMessage("");
-    setSecurityError("");
-    setSecuritySaving(true);
-
-    try {
-      await updateSecurity({ [key]: nextValue });
-      setSecurityMessage("Security preference updated.");
-      setTimeout(() => setSecurityMessage(""), 2200);
-    } catch (error: unknown) {
-      setSecurityFlags((prev) => ({ ...prev, [key]: !nextValue }));
-      setSecurityError(getErrorMessage(error));
-    } finally {
-      setSecuritySaving(false);
-    }
   };
 
   const handlePasswordUpdate = async () => {
@@ -170,55 +127,9 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
 
   return (
     <>
-      <Section>
-        <SectionTitle>Security Preferences</SectionTitle>
-        <SectionDescription>
-          Configure account protection behavior and advanced safeguards.
-        </SectionDescription>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Client-side encryption</ToggleTitle>
-            <ToggleDescription>
-              Encrypt file payloads in your browser before upload.
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            $active={securityFlags.clientSideEncryption}
-            onClick={() => handleSecurityToggle("clientSideEncryption")}
-            disabled={securitySaving}
-            type="button"
-          />
-        </ToggleWrapper>
-
-        <ToggleWrapper>
-          <ToggleInfo>
-            <ToggleTitle>Offline mode</ToggleTitle>
-            <ToggleDescription>
-              Cache file metadata for faster load and offline resilience.
-            </ToggleDescription>
-          </ToggleInfo>
-          <Toggle
-            $active={securityFlags.offlineModeEnabled}
-            onClick={() => handleSecurityToggle("offlineModeEnabled")}
-            disabled={securitySaving}
-            type="button"
-          />
-        </ToggleWrapper>
-
-        {securityMessage && (
-          <InfoCard>
-            <InfoText style={{ color: "#167144" }}>{securityMessage}</InfoText>
-          </InfoCard>
-        )}
-        {securityError && (
-          <InfoCard style={{ backgroundColor: "#fff4f4", borderColor: "#ffd1d1" }}>
-            <InfoText style={{ color: "#991b1b" }}>{securityError}</InfoText>
-          </InfoCard>
-        )}
-      </Section>
-
       <TwoFactorSettings />
+
+      <SessionsSection />
 
       <Section>
         <SectionTitle>Change Password</SectionTitle>

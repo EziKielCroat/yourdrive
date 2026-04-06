@@ -57,11 +57,14 @@ const ModalOverlay = styled.div`
 
 const ModalContent = styled.div`
   background: white;
-  width: 420px;
+  width: min(420px, 100vw);
+  max-width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   animation: ${slideIn} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
 `;
 
 const ModalHeader = styled.div`

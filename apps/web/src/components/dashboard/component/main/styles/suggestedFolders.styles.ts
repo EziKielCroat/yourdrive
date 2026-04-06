@@ -20,8 +20,16 @@ export const Title = styled.h2`
 
 export const FoldersGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr));
   gap: 12px;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  }
+
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
 `;
 
 export const FolderCard = styled.div`

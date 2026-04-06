@@ -7,6 +7,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // ESM bundle: avoid Rollup failing on CJS `exports.PLANS = void 0` from dist
+      "@yourdrive/plans": path.resolve(
+        __dirname,
+        "../../packages/plans/src/index.ts",
+      ),
     },
   },
   server: {

@@ -11,23 +11,43 @@ import {
   ButtonGroup,
   InfoCard,
   InfoText,
+  ToggleWrapper,
+  ToggleInfo,
+  ToggleTitle,
+  ToggleDescription,
+  Toggle,
+  FormGroup,
+  Label,
+  Select,
+  SmallText,
 } from "../styles/settings.styles";
 import api from "../../../lib/axios";
+import type { UserSettings } from "../types/UserSettings";
 
 interface StorageInfo {
-  limit: string; // bytes as string
-  used: string; // bytes as string
-  available: string; // bytes as string
+  limit: string;
+  used: string;
+  available: string;
   usagePercentage: number;
   tier: string;
   deviceName: string;
 }
 
-export const StorageSection: React.FC = () => {
+type Props = {
+  storage: UserSettings["storage"];
+  updateStorage: (data: Partial<UserSettings["storage"]>) => Promise<void>;
+};
+
+export const StorageSection: React.FC<Props> = ({ storage, updateStorage }) => {
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [storageLoading, setStorageLoading] = useState(true);
   const [feedback, setFeedback] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  const autoSync = storage.autoSync !== false;
+  const fileVersioning = storage.fileVersioning !== false;
+  const maxVersions = storage.maxVersionsToKeep ?? 10;
 
   useEffect(() => {
     fetchStorageInfo();
@@ -77,15 +97,29 @@ export const StorageSection: React.FC = () => {
   };
 
   const getUsageColor = (percentage: number): string => {
-    if (percentage < 70) return "#10b981"; // green
-    if (percentage < 90) return "#f59e0b"; // yellow
-    return "#ef4444"; // red
+    if (percentage < 70) return "#10b981";
+    if (percentage < 90) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  const persist = async (patch: Partial<UserSettings["storage"]>) => {
+    setSaving(true);
+    setFeedback("");
+    try {
+      await updateStorage(patch);
+      setFeedback("Storage preferences saved.");
+      setTimeout(() => setFeedback(""), 3000);
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "Could not save settings.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleClearCache = async () => {
     if (
       !confirm(
-        "Are you sure you want to clear the cache? This may affect offline access.",
+        "Clear locally cached file data on this device? Files stay in the cloud.",
       )
     ) {
       return;
@@ -93,9 +127,9 @@ export const StorageSection: React.FC = () => {
     try {
       setLoading(true);
       await api.post("/storage/clear-cache");
-      setFeedback("Cache cleared successfully.");
+      setFeedback("Cache cleared.");
     } catch {
-      setFeedback("Failed to clear cache.");
+      setFeedback("Could not clear cache.");
     } finally {
       setLoading(false);
     }
@@ -104,7 +138,7 @@ export const StorageSection: React.FC = () => {
   const handleRemoveDuplicates = async () => {
     if (
       !confirm(
-        "This will scan for and remove duplicate files. This may take some time.",
+        "Scan for duplicate files? This can take a while on large libraries.",
       )
     ) {
       return;
@@ -112,16 +146,14 @@ export const StorageSection: React.FC = () => {
     try {
       setLoading(true);
       await api.post("/storage/remove-duplicates");
-      setFeedback("Duplicate files removed successfully.");
-      fetchStorageInfo(); // Refresh storage info
+      setFeedback("Duplicate scan completed.");
+      fetchStorageInfo();
     } catch {
-      setFeedback("Failed to remove duplicates.");
+      setFeedback("Duplicate scan failed.");
     } finally {
       setLoading(false);
     }
   };
-
-  // File versioning is not supported in this version; no max versions setting.
 
   if (storageLoading) {
     return (
@@ -142,7 +174,7 @@ export const StorageSection: React.FC = () => {
       <Section>
         <SectionTitle>Storage Usage</SectionTitle>
         <SectionDescription>
-          Monitor and manage your storage space
+          Monitor quota and how much of your plan is in use.
         </SectionDescription>
 
         {storageInfo?.tier && (
@@ -150,9 +182,7 @@ export const StorageSection: React.FC = () => {
             <HardDrive size={20} color="#1F9AFE" />
             <div>
               <TierTitle>{storageInfo.tier}</TierTitle>
-              <TierMeta>
-                Current storage plan
-              </TierMeta>
+              <TierMeta>Current storage plan</TierMeta>
             </div>
           </TierCard>
         )}
@@ -200,48 +230,98 @@ export const StorageSection: React.FC = () => {
                 style={{ display: "inline", marginRight: "0.5rem" }}
               />
               {usedPercentage > 90
-                ? "⚠️ Your storage is almost full! Please delete files or upgrade your plan."
-                : "You're running low on storage space. Consider upgrading or deleting unused files."}
+                ? "Storage is almost full. Delete files or upgrade your plan."
+                : "You are using most of your space. Consider freeing files or upgrading."}
             </InfoText>
           </InfoCard>
         )}
       </Section>
 
       <Section>
-        <SectionTitle>Storage Settings</SectionTitle>
+        <SectionTitle>Sync &amp; versions</SectionTitle>
         <SectionDescription>
-          Storage behavior settings will be expanded in the next release.
+          Controls how this app keeps data fresh and how many file versions are
+          retained when versioning is on.
         </SectionDescription>
+
+        <ToggleWrapper>
+          <ToggleInfo>
+            <ToggleTitle>Background sync</ToggleTitle>
+            <ToggleDescription>
+              Periodically refresh folder listings and metadata while the app is
+              open.
+            </ToggleDescription>
+          </ToggleInfo>
+          <Toggle
+            type="button"
+            $active={autoSync}
+            disabled={saving}
+            onClick={() => void persist({ autoSync: !autoSync })}
+          />
+        </ToggleWrapper>
+
+        <ToggleWrapper>
+          <ToggleInfo>
+            <ToggleTitle>File versioning</ToggleTitle>
+            <ToggleDescription>
+              Keep prior versions when you replace files (subject to your plan
+              limits).
+            </ToggleDescription>
+          </ToggleInfo>
+          <Toggle
+            type="button"
+            $active={fileVersioning}
+            disabled={saving}
+            onClick={() => void persist({ fileVersioning: !fileVersioning })}
+          />
+        </ToggleWrapper>
+
+        <FormGroup>
+          <Label>Versions to keep per file</Label>
+          <Select
+            value={String(maxVersions)}
+            disabled={saving || !fileVersioning}
+            onChange={(e) =>
+              void persist({ maxVersionsToKeep: parseInt(e.target.value, 10) })
+            }
+          >
+            {[3, 5, 10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n} versions
+              </option>
+            ))}
+          </Select>
+          <SmallText>Older versions may be removed automatically when the limit is reached.</SmallText>
+        </FormGroup>
+
+        {feedback && (
+          <InfoCard style={{ marginTop: "0.5rem" }}>
+            <InfoText>{feedback}</InfoText>
+          </InfoCard>
+        )}
       </Section>
 
       <Section>
-        <SectionTitle>Storage Management</SectionTitle>
+        <SectionTitle>Free up space</SectionTitle>
         <SectionDescription>
-          Free up space by managing cached files and versions
+          Clear cached copies on this device or run a duplicate scan.
         </SectionDescription>
 
         <ButtonGroup>
           <Button onClick={handleClearCache} disabled={loading}>
             <Trash2 size={16} />
-            Clear Cache
+            Clear cache
           </Button>
           <Button onClick={handleRemoveDuplicates} disabled={loading}>
             <RefreshCw size={16} />
-            Remove Duplicates
+            Scan duplicates
           </Button>
         </ButtonGroup>
 
-        {feedback && (
-          <InfoCard style={{ marginTop: "0.8rem" }}>
-            <InfoText>{feedback}</InfoText>
-          </InfoCard>
-        )}
-
         <InfoCard style={{ marginTop: "1rem" }}>
           <InfoText>
-            <strong>Note:</strong> Clearing cache will remove offline copies of
-            your files. They will be re-downloaded when you access them next
-            time.
+            Clearing cache removes offline copies; files load again from the cloud
+            when opened. Duplicate scan depends on server support.
           </InfoText>
         </InfoCard>
       </Section>

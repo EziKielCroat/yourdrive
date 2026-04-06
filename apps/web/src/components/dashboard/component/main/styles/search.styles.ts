@@ -3,7 +3,13 @@ import styled from "styled-components";
 export const SearchContainer = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  width: 100%;
+  max-width: min(720px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  padding: 0 env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica",
     "Arial", sans-serif;
@@ -11,9 +17,12 @@ export const SearchContainer = styled.div`
 
 export const InputWrapper = styled.div`
   position: relative;
-  min-width: 450px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   justify-content: center;
+  box-sizing: border-box;
 
   > svg {
     position: absolute;
@@ -30,7 +39,7 @@ export const InputWrapper = styled.div`
 
   > button[data-advanced-filter="true"] {
     position: absolute;
-    right: 14px;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
@@ -52,15 +61,17 @@ export const InputWrapper = styled.div`
 
   input {
     background: #e9eef6;
-    min-width: 450px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding: 10px 44px;
     border: none;
     outline: none;
     border-radius: 8px;
-    height: 42px;
+    height: 44px;
     box-sizing: border-box;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 400;
     color: #1a1a1a;
     transition: background 0.15s ease;
@@ -76,21 +87,30 @@ export const InputWrapper = styled.div`
       color: #6b7280;
       letter-spacing: -0.01em;
     }
+
+    @media (min-width: 768px) {
+      font-size: 14px;
+      height: 42px;
+    }
   }
 `;
 
 export const FilterButtons = styled.div`
   margin-top: 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 export const FilterButton = styled.button`
   background: #e9eef6;
   border: none;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   color: #1a1a1a;
   cursor: pointer;
   font-size: 11px;
@@ -100,7 +120,8 @@ export const FilterButton = styled.button`
   justify-content: center;
   align-items: center;
   transition: all 0.15s ease;
-  height: 32px;
+  min-height: 32px;
+  flex: 0 1 auto;
 
   &:hover {
     background: #dde4f0;
@@ -109,6 +130,12 @@ export const FilterButton = styled.button`
   &:active {
     background: #d1dae8;
     transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
   }
 
   span {
@@ -122,11 +149,15 @@ export const FilterButton = styled.button`
       height: 14px;
     }
   }
+
+  @media (min-width: 480px) {
+    padding: 6px 12px;
+  }
 `;
 
 export const FilterText = styled.span`
   font-weight: 500;
-  font-size: 13px;
+  font-size: clamp(12px, 2.8vw, 13px);
   line-height: 16px;
   letter-spacing: -0.01em;
   color: #374151;

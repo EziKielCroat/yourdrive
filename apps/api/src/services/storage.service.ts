@@ -1,3 +1,5 @@
+import { getEducationalTotalGb, getStorageTierLabel, PLANS } from "@yourdrive/plans";
+
 import prisma from "../lib/prisma";
 
 import { BigIntHelper } from "../lib/bigint-helper";
@@ -36,13 +38,13 @@ export class StorageService {
 
   const isSkoleUser = user?.email?.toLowerCase().endsWith("@skole.hr") ?? false;
   const hasEducationalBonus = isSkoleUser && (user?.emailVerified === true);
-  const educationalLimitBytes = BigIntHelper.gbToBytes(100); // 50GB base + 50GB bonus
+  const educationalTargetBytes = BigIntHelper.gbToBytes(getEducationalTotalGb());
 
-  let limit = BigIntHelper.toBigInt(currentDevice?.storageLimit ?? null) || BigIntHelper.gbToBytes(50);
+  let limit = BigIntHelper.toBigInt(currentDevice?.storageLimit ?? null) || BigIntHelper.gbToBytes(PLANS.free.storageGb);
 
-  // If user has educational plan (verified @skole.hr) but current device shows base 50GB or no limit, use 100GB and persist
-  if (hasEducationalBonus && limit < educationalLimitBytes) {
-    limit = educationalLimitBytes;
+  // Verified @skole.hr: ensure at least educational total (e.g. 80GB). Never downgrade legacy rows above this.
+  if (hasEducationalBonus && limit < educationalTargetBytes) {
+    limit = educationalTargetBytes;
     if (currentDevice?.id) {
       await prisma.userDevice.update({
         where: { id: currentDevice.id },
@@ -54,7 +56,10 @@ export class StorageService {
   const used = BigIntHelper.toBigInt(usedStorage._sum.size);
   const available = BigIntHelper.subtract(limit, used);
   const usagePercentage = BigIntHelper.calculatePercentage(used, limit);
-  const tier = this.getStorageTier(limit, hasEducationalBonus);
+  const tier = getStorageTierLabel(
+    Number(limit) / (1024 * 1024 * 1024),
+    hasEducationalBonus,
+  );
 
   return {
     limit: limit.toString(),
@@ -65,7 +70,7 @@ export class StorageService {
     deviceName: currentDevice?.deviceName || "Primary Device",
     isEducational: hasEducationalBonus,
     hasBonus: hasEducationalBonus,
-    educationalBonus: hasEducationalBonus ? "50GB" : "0GB",
+    educationalBonus: hasEducationalBonus ? `${PLANS.educational.bonusGb}GB` : "0GB",
   };
 }
 
@@ -175,22 +180,6 @@ export class StorageService {
       uploaded: file.createdAt,
     })),
   };
-}
-
-  private static getStorageTier(limit: bigint, hasEducationalBonus: boolean = false): string {
-  const inGB = Number(limit) / (1024 * 1024 * 1024);
-  
-  // Check for educational tier (100GB for verified skole.hr users)
-  if (hasEducationalBonus && inGB >= 100) {
-    return "100GB Educational Plan (50GB + 50GB School Bonus)";
-  }
-  
-  // Standard tiers
-  if (inGB >= 150) return "150GB (Pro Plan)";
-  if (inGB >= 100) return "100GB (Plus Plan)";
-  if (inGB >= 50) return "50GB (Free Plan)";
-  
-  return `${Math.round(inGB)}GB`;
 }
 
   static async clearCache(userId: string): Promise<void> {

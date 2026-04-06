@@ -5,6 +5,7 @@ import {
   type SearchFilters,
   type PersonFilter,
 } from "../../../store/searchStore";
+import { useUserUiPreferencesStore } from "../../../store/userUiPreferencesStore";
 
 const MIME_TYPE_CATEGORIES = {
   documents: [
@@ -263,8 +264,15 @@ function convertToBytes(size: number, unit: string): number {
 export function useFileSearch(files: FileItem[]) {
   const filters = useSearchStore((s) => s.filters);
   const hasActiveFilters = useSearchStore((s) => s.hasActiveFilters);
+  const searchEnabled = useUserUiPreferencesStore(
+    (s) => s.privacy?.indexFilesForSearch !== false,
+  );
 
   const filteredFiles = useMemo(() => {
+    if (!searchEnabled) {
+      return files;
+    }
+
     if (!hasActiveFilters()) {
       return files;
     }
@@ -278,9 +286,10 @@ export function useFileSearch(files: FileItem[]) {
         matchesAdvancedFilters(file, filters)
       );
     });
-  }, [files, filters, hasActiveFilters]);
+  }, [files, filters, hasActiveFilters, searchEnabled]);
 
   const calculateActiveFilterCount = () => {
+    if (!searchEnabled) return 0;
     let count = 0;
 
     if (filters.query !== "") count++;
@@ -301,7 +310,7 @@ export function useFileSearch(files: FileItem[]) {
 
   return {
     filteredFiles,
-    hasActiveFilters: hasActiveFilters(),
+    hasActiveFilters: searchEnabled && hasActiveFilters(),
     activeFilterCount: calculateActiveFilterCount(),
   };
 }

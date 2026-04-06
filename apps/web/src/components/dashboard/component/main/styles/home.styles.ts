@@ -5,6 +5,8 @@ export const MainContainer = styled.div`
   display: flex;
   justify-content: center;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
 `;
 
 export const SearchWrapper = styled.div`

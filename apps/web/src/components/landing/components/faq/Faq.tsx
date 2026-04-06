@@ -23,7 +23,7 @@ const Faq: React.FC = () => {
   const faqs = [
     {
       q: "Is NexaCore free?",
-      a: "Yes! NexaCore offers a free plan with essential features. You can upgrade to Pro for only €2/month to unlock unlimited storage and advanced tools."
+      a: "Yes! NexaCore offers a free plan with essential features. You can upgrade to Pro for €5/month to unlock more storage and advanced tools."
     },
     {
       q: "Who is NexaCore for?",

@@ -35,7 +35,7 @@ const NavigationMenu = () => {
     typeof window !== "undefined" ? window.location.pathname : "/";
 
   return (
-    <Navigation>
+    <Navigation data-tour="tour-sidebar-nav">
       {navigationItems.map(({ label, link, Icon }) => {
         const isActive = currentPath === link;
 

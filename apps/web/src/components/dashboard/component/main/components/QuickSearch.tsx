@@ -16,6 +16,7 @@ import CalendarIcon from "../../../../shared/icons/calendar";
 
 import { usePopupStore } from "../../../../shared/popups/popup.store";
 import { useSearchStore } from "../../../../../store/searchStore";
+import { useUserUiPreferencesStore } from "../../../../../store/userUiPreferencesStore";
 import FileTypePopup from "./filters/FileTypePopup";
 import PersonPopup from "./filters/PersonPopup";
 import LastModifiedPopup from "./filters/LastModifiedPopup";
@@ -46,6 +47,9 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   const query = useSearchStore((s) => s.filters.query);
   const setQuery = useSearchStore((s) => s.setQuery);
   const hasActiveFilters = useSearchStore((s) => s.hasActiveFilters);
+  const searchEnabled = useUserUiPreferencesStore(
+    (s) => s.privacy?.indexFilesForSearch !== false,
+  );
 
   const iconColor = "#1A1A1A";
 
@@ -54,7 +58,13 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   };
 
   return (
-    <SearchContainer>
+    <SearchContainer data-tour="tour-search" data-search-disabled={!searchEnabled}>
+      {!searchEnabled && (
+        <SearchDisabledNote>
+          Search and filters are turned off in Settings → Privacy. Enable
+          &quot;Search &amp; filters&quot; to use them here.
+        </SearchDisabledNote>
+      )}
       {showFilters && (
         <>
           <LastModifiedPopup anchorRef={lastModifiedFilterRef} />
@@ -76,6 +86,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
               placeholder={placeholder}
               value={query}
               onChange={handleInputChange}
+              disabled={!searchEnabled}
             />
             {showFilters && (
               <button
@@ -83,6 +94,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
                 data-advanced-filter="true"
                 ref={advancedFilterRef}
                 onClick={toggleAdvancedPopup}
+                disabled={!searchEnabled}
                 style={{
                   opacity: hasActiveFilters() ? 1 : 0.6,
                 }}
@@ -97,13 +109,21 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
 
       {showFilters && (
         <FilterButtons>
-          <FilterButton ref={fileTypeFilterRef} onClick={toggleFileTypePopup}>
+          <FilterButton
+            ref={fileTypeFilterRef}
+            onClick={toggleFileTypePopup}
+            disabled={!searchEnabled}
+          >
             <span>
               <FileIcon color={iconColor} />
             </span>
             <FilterText>Type</FilterText>
           </FilterButton>
-          <FilterButton ref={personFilterRef} onClick={togglePersonPopup}>
+          <FilterButton
+            ref={personFilterRef}
+            onClick={togglePersonPopup}
+            disabled={!searchEnabled}
+          >
             <span>
               <PersonIcon color={iconColor} />
             </span>
@@ -112,6 +132,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
           <FilterButton
             ref={lastModifiedFilterRef}
             onClick={toggleLastModifiedPopup}
+            disabled={!searchEnabled}
           >
             <span>
               <CalendarIcon color={iconColor} />
@@ -167,4 +188,17 @@ const RightSection = styled.div`
     order: 3;
     width: auto;
   }
+`;
+
+const SearchDisabledNote = styled.p`
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #5c6b7d;
+  background: #f3f7fc;
+  border: 1px solid #dbe7f4;
+  border-radius: 10px;
+  width: 100%;
+  box-sizing: border-box;
 `;

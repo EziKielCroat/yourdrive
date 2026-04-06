@@ -43,6 +43,7 @@ const Navbar = () => {
           ref={uploadRefDesktop}
           onClick={activateUploadPopup}
           className="desktop-only"
+          data-tour="tour-upload"
         >
           <PlusIcon />
         </NavButton>
@@ -53,10 +54,14 @@ const Navbar = () => {
           ref={uploadRefMobile}
           onClick={activateUploadPopup}
           className="mobile-only"
+          data-tour="tour-upload"
         >
           <PlusIcon />
         </NavButton>
-        <NavButton onClick={() => navigate({ to: ROUTES.SETTINGS })}>
+        <NavButton
+          onClick={() => navigate({ to: ROUTES.SETTINGS })}
+          data-tour="tour-settings"
+        >
           <SettingsIcon />
         </NavButton>
         <NavButton onClick={logout}>

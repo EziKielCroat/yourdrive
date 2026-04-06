@@ -15,7 +15,7 @@ YourDrive is a full-stack web application that lets users store files, organize 
 - **Auth**: Register, login, email verification, password reset, 2FA (TOTP), OAuth (Google, GitHub, Facebook)
 - **Files**: Upload, download, organize in folders, preview (images, PDF, text, etc.), edit text files
 - **Sharing**: Create share links with view/comment/edit permissions, optional expiry
-- **Storage**: Per-user storage limits; educational bonus for verified @skole.hr users (e.g. +50GB)
+- **Storage**: Per-user storage limits (free tier 30GB by default); verified @skole.hr users receive an educational bonus (e.g. +50GB on top of the free base)
 - **Devices**: List and manage devices; optional conversion service (Vert) for document conversion
 - **Dashboard**: Your files, recently edited, shared with you, recycle bin, favorites, settings
 

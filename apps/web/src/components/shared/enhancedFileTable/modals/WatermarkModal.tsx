@@ -56,10 +56,11 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
   background: white;
   border-radius: 16px;
-  padding: 24px;
-  width: 500px;
-  max-width: 90vw;
-  max-height: 90vh;
+  padding: clamp(16px, 4vw, 24px);
+  width: min(500px, calc(100vw - 24px));
+  max-width: 100%;
+  max-height: min(90vh, 100dvh - 16px);
+  box-sizing: border-box;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   animation: ${slideUp} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
