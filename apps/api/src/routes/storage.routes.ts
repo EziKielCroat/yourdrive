@@ -1,8 +1,40 @@
 import express from "express";
 import { authMiddleware, AuthRequest } from "../middleware/auth.middleware";
 import { StorageService } from "../services/storage.service";
+import { ensureWelcomeReadme } from "../services/welcomeReadme.service";
+import { s3Client } from "./files.routes";
+
+const BUCKET_NAME = process.env.B2_BUCKET_NAME;
 
 const storageRoutes = express.Router();
+
+/** Idempotent: create root README.md if missing (excluded from quota). */
+storageRoutes.post(
+  "/ensure-welcome-readme",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.userId || !BUCKET_NAME) {
+        return res.status(401).json({
+          success: false,
+          error: "Unauthorized",
+        });
+      }
+      const result = await ensureWelcomeReadme(
+        req.userId,
+        s3Client,
+        BUCKET_NAME,
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      console.error("ensure-welcome-readme error:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to ensure welcome README",
+      });
+    }
+  },
+);
 
 // Get storage info
 storageRoutes.get("/info", authMiddleware, async (req: AuthRequest, res) => {

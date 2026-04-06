@@ -130,6 +130,7 @@ const chunkUpload = multer({
 
 filesRoutes.use("/favorites", favoritesRoutes);
 
+/** @deprecated Prefer POST /api/storage/ensure-welcome-readme — kept for older clients. */
 filesRoutes.post(
   "/ensure-welcome-readme",
   authMiddleware,
@@ -140,10 +141,14 @@ filesRoutes.post(
           .status(401)
           .json({ success: false, error: "Unauthorized" });
       }
-      const result = await ensureWelcomeReadme(req.userId, s3Client, BUCKET_NAME);
+      const result = await ensureWelcomeReadme(
+        req.userId,
+        s3Client,
+        BUCKET_NAME,
+      );
       return res.json({ success: true, ...result });
     } catch (err) {
-      console.error("ensure-welcome-readme error:", err);
+      console.error("ensure-welcome-readme (files) error:", err);
       return res.status(500).json({
         success: false,
         error: "Failed to ensure welcome README",
