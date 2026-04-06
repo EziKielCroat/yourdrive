@@ -6,6 +6,7 @@ name: Deploy to Pi
 on:
   push:
     branches: [main]
+  workflow_dispatch: # lets you test from GitHub → Actions → Deploy to Pi → Run workflow
 
 jobs:
   deploy:
