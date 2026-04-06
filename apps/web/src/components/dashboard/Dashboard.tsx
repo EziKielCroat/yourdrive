@@ -33,7 +33,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!accessToken) return;
     api
-      .post("/storage/ensure-welcome-readme")
+      .post("/files/ensure-welcome-readme")
       .then(() => {
         useStorageStore.getState().refreshStorage();
       })

@@ -77,6 +77,8 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/file-actions", fileActionsRoutes);
 app.use("/api/storage", storageRoutes);
+// Same routes when a reverse proxy forwards only the path after `/api` (Node sees `/storage/...` not `/api/storage/...`).
+app.use("/storage", storageRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK" });
