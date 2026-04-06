@@ -6,19 +6,27 @@ name: Deploy to Pi
 on:
   push:
     branches: [main]
-  workflow_dispatch: # lets you test from GitHub → Actions → Deploy to Pi → Run workflow
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: self-hosted
     steps:
       - name: Deploy
+        shell: bash
         run: |
           set -euo pipefail
           cd /opt/yourdrive
           git fetch origin
           git reset --hard origin/main
-          npm install
+          # --include=optional: Rollup/Vite need platform-specific @rollup/* binaries on ARM.
+          # apps/web lists @rollup/rollup-linux-arm64-gnu as optionalDependency (skipped on Windows dev; installed on Pi).
+          # Fallback covers npm optional-deps bugs (https://github.com/npm/cli/issues/4828).
+          npm install --include=optional
+          if [ ! -d node_modules/@rollup/rollup-linux-arm64-gnu ]; then
+            ROLLUP_VER=$(node -p "require('./node_modules/rollup/package.json').version")
+            npm install "@rollup/rollup-linux-arm64-gnu@${ROLLUP_VER}" -w web
+          fi
           npm run db:generate
           (cd apps/api && npx prisma migrate deploy)
           npm run build
