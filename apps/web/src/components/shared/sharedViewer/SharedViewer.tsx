@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
-  Lock,
-  AlertCircle,
-  Download,
-  MessageSquare,
-  Edit3,
-  Eye,
-  User,
-} from "lucide-react";
+  LockIcon as Lock,
+  AlertCircleIcon as AlertCircle,
+  DownloadIcon as Download,
+  MessageSquareIcon as MessageSquare,
+  Edit3Icon as Edit3,
+  EyeIcon as Eye,
+  UserIcon as User,
+} from "../icons/index";
 import { useParams } from "@tanstack/react-router";
 import api, { getApiBaseURL } from "../../../lib/axios";
 

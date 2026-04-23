@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { prisma } from "../lib/prisma";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 import { StorageService } from "./storage.service";
 

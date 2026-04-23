@@ -6,10 +6,18 @@ import { DeviceService } from "../services/device.service";
 
 const authRoutes = express.Router();
 
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
+// Only set cookie domain in production (setting it on "localhost" can break browsers)
+const COOKIE_DOMAIN =
+  process.env.BACKEND_DOMAIN && process.env.BACKEND_DOMAIN !== "localhost"
+    ? process.env.BACKEND_DOMAIN
+    : undefined;
+
 /**
- * Cookie options derived only from the request Origin (no env).
+ * Cookie options derived from the request Origin + env.
  * - HTTPS origin (tunnel, custom domain): secure + sameSite=none so cookies work.
  * - HTTP origin (localhost, LAN): sameSite=lax, secure=false so local dev is unchanged.
+ * - BACKEND_DOMAIN drives the cookie domain in production.
  */
 function getCookieOptions(req: Request, maxAgeMs: number) {
   const origin = (req.headers.origin || "").toLowerCase();
@@ -20,6 +28,7 @@ function getCookieOptions(req: Request, maxAgeMs: number) {
     sameSite: isHttpsOrigin ? ("none" as const) : ("lax" as const),
     maxAge: maxAgeMs,
     path: "/",
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
   };
 }
 
@@ -31,6 +40,7 @@ function getClearCookieOptions(req: Request) {
     secure: isHttpsOrigin || process.env.NODE_ENV === "production",
     sameSite: isHttpsOrigin ? ("none" as const) : ("lax" as const),
     path: "/",
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
   };
 }
 
@@ -698,7 +708,7 @@ authRoutes.post(
       // Create session
       const { default: prisma } = await import("../lib/prisma");
       const bcrypt = await import("bcryptjs");
-      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
       await prisma.session.create({
         data: {
           userId: user.id,

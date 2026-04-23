@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import JSZip from "jszip";
-import { Download, Search, Folder, File as FileIcon } from "lucide-react";
+import { DownloadIcon as Download, SearchIcon as Search, FolderIcon as Folder, FileIcon } from "../../../icons/index";
 import api from "../../../../../lib/axios";
 
 interface ArchivePreviewProps {

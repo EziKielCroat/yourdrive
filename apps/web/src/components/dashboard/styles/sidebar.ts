@@ -23,9 +23,9 @@ export const SidebarWrapper = styled(motion.aside).attrs<SidebarWrapperProps>(
     return {
       initial: { width: 0, opacity: 0, marginRight: 0 },
       animate: {
-        width: "180px",
+        width: "200px",
         opacity: 1,
-        marginRight: "20px",
+        marginRight: "16px",
       },
       transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const },
     };
@@ -87,35 +87,41 @@ export const UserDevice = styled.h3`
 export const Navigation = styled.ul`
   list-style: none;
   padding: 0;
-  max-width: 165px;
+  width: 100%;
+  max-width: 190px;
 
   margin-top: 22px;
   margin-bottom: 22px;
 `;
 
 export const NavItem = styled.li<{ isActive: boolean; color: string }>`
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
   border-radius: 10px;
   background: ${({ isActive }) => (isActive ? "#0F85FF" : "transparent")};
 
   a {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     text-decoration: none;
     color: ${({ color }) => color};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   span {
-    font-size: 14px;
-    font-weight: ${({ isActive }) => (isActive ? 450 : 400)};
+    font-size: 13px;
+    font-weight: ${({ isActive }) => (isActive ? 500 : 400)};
     line-height: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 `;
 
 export const UpgradeWrapper = styled.div`
-  max-width: 165px;
+  max-width: 190px;
   display: flex;
   flex-direction: column;
   gap: 12px;

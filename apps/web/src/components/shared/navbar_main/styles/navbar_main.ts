@@ -4,80 +4,66 @@ export const NavbarContainer = styled.div`
   width: 100%;
   height: 64px;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   background-color: #ffffff;
   position: relative;
   z-index: 1000;
+  padding: 0 5%;
 
-  @media (max-width: 968px) {
+  @media (max-width: 1280px) {
+    padding: 0 4%;
+  }
+
+  @media (max-width: 1100px) {
     position: fixed;
     top: 0;
     left: 0;
-    justify-content: space-between;
+    padding: 0 20px;
   }
 `;
 
 export const NContLeft = styled.div`
-  width: 35%;
-  height: 64px;
-  margin-left: 15%;
   display: flex;
   align-items: center;
+  gap: 0;
+  flex-shrink: 0;
 
-  @media (max-width: 1400px) {
-    margin-left: 8%;
-    width: 38%;
-  }
-
-  @media (max-width: 1200px) {
-    margin-left: 5%;
-    width: 42%;
-  }
-
-  @media (max-width: 968px) {
-    margin-left: 0;
-    width: 100%;
+  @media (max-width: 1100px) {
+    flex: 1;
     justify-content: center;
-    padding-left: 60px;
-    padding-right: 60px;
   }
 `;
 
 export const NavLinkCont = styled.div`
-  height: 100%;
-  width: 100%;
+  height: 64px;
   display: flex;
   align-items: center;
+  gap: 2px;
 
-  @media (max-width: 1200px) {
-    gap: 4px;
+  @media (max-width: 1280px) {
+    gap: 0;
   }
 
-  @media (max-width: 968px) {
+  @media (max-width: 1100px) {
     display: none;
   }
 `;
 
 export const NavLink = styled.div`
-  width: auto;
-  margin: auto;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
   font-family: 'Inter', sans-serif;
-  font-style: normal;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 20px;
-  letter-spacing: -0.35px;
+  letter-spacing: -0.3px;
   color: #2E3038;
+  white-space: nowrap;
 
-  @media (max-width: 1400px) {
-    font-size: 15px;
-  }
-
-  @media (max-width: 1200px) {
+  @media (max-width: 1280px) {
     font-size: 14px;
   }
 
@@ -85,10 +71,10 @@ export const NavLink = styled.div`
     color: #2E3038;
     text-decoration: none;
     position: relative;
-    padding: 10px 14px;
+    padding: 10px 13px;
     white-space: nowrap;
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1280px) {
       padding: 8px 10px;
     }
 
@@ -111,25 +97,16 @@ export const NavLink = styled.div`
 `;
 
 export const NContRight = styled.div`
-  width: 45%;
-  height: 64px;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  margin-right: 5%;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-shrink: 0;
 
-  @media (max-width: 1400px) {
-    margin-right: 4%;
-    gap: 0.8rem;
+  @media (max-width: 1280px) {
+    gap: 0.6rem;
   }
 
-  @media (max-width: 1200px) {
-    margin-right: 5%;
-    width: auto;
-  }
-
-  @media (max-width: 968px) {
+  @media (max-width: 1100px) {
     display: none;
   }
 `;
@@ -144,18 +121,14 @@ export const HamburgerButton = styled.button<{ $isOpen: boolean }>`
   border: none;
   cursor: pointer;
   padding: 0;
-  margin-right: 20px;
   z-index: 1001;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
 
   &:focus {
     outline: none;
   }
 
-  @media (max-width: 968px) {
+  @media (max-width: 1100px) {
     display: flex;
   }
 `;
@@ -187,7 +160,7 @@ export const HamburgerLine = styled.div<{ $isOpen: boolean }>`
 export const Overlay = styled.div`
   display: none;
 
-  @media (max-width: 968px) {
+  @media (max-width: 1100px) {
     display: block;
     position: fixed;
     top: 64px;
@@ -200,19 +173,15 @@ export const Overlay = styled.div`
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 `;
 
 export const MobileMenu = styled.div<{ $isOpen: boolean }>`
   display: none;
 
-  @media (max-width: 968px) {
+  @media (max-width: 1100px) {
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -248,13 +217,8 @@ export const MobileNavLink = styled.div`
     display: block;
     width: 100%;
 
-    &:hover {
-      color: #1F9AFE;
-    }
-
-    &:active {
-      color: #0d7dd4;
-    }
+    &:hover { color: #1F9AFE; }
+    &:active { color: #0d7dd4; }
   }
 `;
 

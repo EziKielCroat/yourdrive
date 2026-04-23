@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { Download, Search, Download as DownloadIcon } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Download, Search } from "lucide-react";
+const DownloadIcon = Download;
+import ExcelJS from "exceljs";
 import api from "../../../../../lib/axios";
 
 interface SpreadsheetPreviewProps {
@@ -64,20 +65,23 @@ const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
         });
         arrayBuffer = response.data;
       }
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
 
-      const sheetData: SheetData[] = workbook.SheetNames.map((sheetName: string) => {
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-        }) as any[][];
+      const sheetData: SheetData[] = workbook.worksheets.map((worksheet) => {
+        const rows: any[][] = [];
+        worksheet.eachRow((row) => {
+          // ExcelJS row.values is 1-indexed; index 0 is always undefined
+          const cells = (row.values as any[]).slice(1);
+          rows.push(cells);
+        });
 
         // Extract headers (first row)
-        const headers = data[0] || [];
+        const headers = rows[0] || [];
 
         return {
-          name: sheetName,
-          data: data.slice(1), // Skip header row
+          name: worksheet.name,
+          data: rows.slice(1), // Skip header row
           headers: headers.map(String),
         };
       });

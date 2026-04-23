@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { Download, Search, Copy, FileText, Hash, Type } from "lucide-react";
+import { DownloadIcon as Download, SearchIcon as Search, CopyIcon as Copy, FileTextIcon as FileText, HashIcon as Hash, TypeIcon as Type } from "../../../icons/index";
 import api from "../../../../../lib/axios";
+import { useUserUiPreferencesStore } from "../../../../../store/userUiPreferencesStore";
 
 interface TextPreviewProps {
   url: string;
@@ -19,6 +20,7 @@ const TextPreview: React.FC<TextPreviewProps> = ({
   onError,
   headers,
 }) => {
+  const isDark = useUserUiPreferencesStore((s) => s.resolvedTheme === "dark");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<string>("");
@@ -147,36 +149,40 @@ const TextPreview: React.FC<TextPreviewProps> = ({
 
   if (loading) {
     return (
-      <LoadingContainer>
-        <Spinner />
-        <p>Loading text file...</p>
-      </LoadingContainer>
+      <Container $isDark={isDark}>
+        <LoadingContainer>
+          <Spinner />
+          <p>Loading text file...</p>
+        </LoadingContainer>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <ErrorContainer>
-        <ErrorIcon>⚠️</ErrorIcon>
-        <h3>Unable to load text file</h3>
-        <p>{error}</p>
-        <ButtonGroup>
-          <Button onClick={() => window.open(url, "_blank")}>
-            Open in new tab
-          </Button>
-          {onDownload && (
-            <Button $primary onClick={onDownload}>
-              <Download size={16} />
-              Download File
+      <Container $isDark={isDark}>
+        <ErrorContainer>
+          <ErrorIcon>⚠️</ErrorIcon>
+          <h3>Unable to load text file</h3>
+          <p>{error}</p>
+          <ButtonGroup>
+            <Button onClick={() => window.open(url, "_blank")}>
+              Open in new tab
             </Button>
-          )}
-        </ButtonGroup>
-      </ErrorContainer>
+            {onDownload && (
+              <Button $primary onClick={onDownload}>
+                <Download size={16} />
+                Download File
+              </Button>
+            )}
+          </ButtonGroup>
+        </ErrorContainer>
+      </Container>
     );
   }
 
   return (
-    <Container>
+    <Container $isDark={isDark}>
       <Toolbar>
         <SearchBox>
           <Search size={16} />
@@ -287,12 +293,29 @@ const TextPreview: React.FC<TextPreviewProps> = ({
   );
 };
 
-const Container = styled.div`
+const Container = styled.div<{ $isDark: boolean }>`
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: white;
+
+  /* CSS custom properties toggled by dark/light mode */
+  --tp-bg:          ${({ $isDark }) => ($isDark ? "#1e2024" : "#ffffff")};
+  --tp-bg-surface:  ${({ $isDark }) => ($isDark ? "#252830" : "#f8f9fa")};
+  --tp-border:      ${({ $isDark }) => ($isDark ? "#3c4048" : "#dadce0")};
+  --tp-text:        ${({ $isDark }) => ($isDark ? "#e8eaed" : "#202124")};
+  --tp-text-muted:  ${({ $isDark }) => ($isDark ? "#9aa0a6" : "#5f6368")};
+  --tp-placeholder: ${({ $isDark }) => ($isDark ? "#6b7280" : "#9aa0a6")};
+  --tp-btn-bg:      ${({ $isDark }) => ($isDark ? "#2a2f38" : "#ffffff")};
+  --tp-btn-hover:   ${({ $isDark }) => ($isDark ? "#343a44" : "#f8f9fa")};
+  --tp-active-bg:   ${({ $isDark }) => ($isDark ? "#1d3a5e" : "#e8f0fe")};
+  --tp-active-color:${({ $isDark }) => ($isDark ? "#5ba3f5" : "#1a73e8")};
+  --tp-active-hover:${({ $isDark }) => ($isDark ? "#1a3354" : "#d2e3fc")};
+  --tp-highlight:   ${({ $isDark }) => ($isDark ? "#3d3515" : "#fef7e0")};
+  --tp-selection:   ${({ $isDark }) => ($isDark ? "#1d3a5e" : "#cfe2ff")};
+
+  background: var(--tp-bg);
+  color: var(--tp-text);
 `;
 
 const LoadingContainer = styled.div`
@@ -302,23 +325,20 @@ const LoadingContainer = styled.div`
   justify-content: center;
   height: 100%;
   gap: 16px;
+  color: var(--tp-text-muted);
 `;
 
 const Spinner = styled.div`
   width: 40px;
   height: 40px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #1a73e8;
+  border: 4px solid var(--tp-border);
+  border-top-color: var(--tp-active-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 
   @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 `;
 
@@ -331,6 +351,7 @@ const ErrorContainer = styled.div`
   padding: 40px;
   text-align: center;
   gap: 16px;
+  color: var(--tp-text);
 `;
 
 const ErrorIcon = styled.div`
@@ -349,31 +370,25 @@ const Button = styled.button<{ $primary?: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  border: none;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
 
   ${({ $primary }) =>
     $primary
       ? `
-    background: #1a73e8;
-    color: white;
-    
-    &:hover {
-      background: #0d62d9;
-    }
+    background: var(--tp-active-color);
+    color: #fff;
+    border: none;
+    &:hover { filter: brightness(0.92); }
   `
       : `
-    background: white;
-    color: #202124;
-    border: 1px solid #dadce0;
-    
-    &:hover {
-      background: #f8f9fa;
-    }
+    background: var(--tp-btn-bg);
+    color: var(--tp-text);
+    border: 1px solid var(--tp-border);
+    &:hover { background: var(--tp-btn-hover); }
   `}
 `;
 
@@ -381,34 +396,35 @@ const Toolbar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #dadce0;
-  gap: 16px;
+  padding: 10px 14px;
+  background: var(--tp-bg-surface);
+  border-bottom: 1px solid var(--tp-border);
+  gap: 12px;
+  flex-wrap: wrap;
 `;
 
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  background: transparent;
-  border: 1px solid #dadce0;
+  padding: 5px 10px;
+  background: var(--tp-bg);
+  border: 1px solid var(--tp-border);
   border-radius: 4px;
   flex: 1;
-  max-width: 400px;
+  max-width: 380px;
 `;
 
 const SearchInput = styled.input`
   border: none;
   outline: none;
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
   background: transparent;
-  color: #202124;
+  color: var(--tp-text);
 
   &::placeholder {
-    color: #9aa0a6;
+    color: var(--tp-placeholder);
   }
 `;
 
@@ -417,48 +433,51 @@ const SearchResults = styled.div`
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #5f6368;
+  color: var(--tp-text-muted);
   white-space: nowrap;
 `;
 
 const SearchNavButton = styled.button`
   background: none;
   border: none;
-  color: #5f6368;
+  color: var(--tp-text-muted);
   cursor: pointer;
   font-size: 12px;
   padding: 2px 4px;
 
   &:hover {
-    color: #202124;
+    color: var(--tp-text);
   }
 `;
 
 const ToolbarButtons = styled.div`
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 `;
 
 const ToolbarButton = styled.button<{ $active?: boolean; $primary?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid
-    ${({ $active, $primary }) =>
-      $primary ? "#1a73e8" : $active ? "#1a73e8" : "#dadce0"};
-  background: ${({ $active, $primary }) =>
-    $primary ? "#1a73e8" : $active ? "#e8f0fe" : "white"};
-  color: ${({ $active, $primary }) =>
-    $primary ? "white" : $active ? "#1a73e8" : "#202124"};
+  gap: 5px;
+  padding: 5px 10px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  border: 1px solid ${({ $active, $primary }) =>
+    $primary ? "var(--tp-active-color)" : $active ? "var(--tp-active-color)" : "var(--tp-border)"};
+  background: ${({ $active, $primary }) =>
+    $primary ? "var(--tp-active-color)" : $active ? "var(--tp-active-bg)" : "var(--tp-btn-bg)"};
+  color: ${({ $active, $primary }) =>
+    $primary ? "#fff" : $active ? "var(--tp-active-color)" : "var(--tp-text)"};
 
   &:hover {
     background: ${({ $active, $primary }) =>
-      $primary ? "#0d62d9" : $active ? "#d2e3fc" : "#f8f9fa"};
+      $primary ? "var(--tp-active-color)" : $active ? "var(--tp-active-hover)" : "var(--tp-btn-hover)"};
+    filter: ${({ $primary }) => ($primary ? "brightness(0.92)" : "none")};
   }
 `;
 
@@ -466,16 +485,17 @@ const ContentContainer = styled.div`
   flex: 1;
   overflow: hidden;
   display: flex;
+  background: var(--tp-bg);
 `;
 
 const LineNumbers = styled.div`
-  background: #f8f9fa;
-  border-right: 1px solid #dadce0;
+  background: var(--tp-bg-surface);
+  border-right: 1px solid var(--tp-border);
   padding: 8px 4px 8px 12px;
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #5f6368;
+  color: var(--tp-text-muted);
   text-align: right;
   overflow-y: auto;
   user-select: none;
@@ -484,8 +504,8 @@ const LineNumbers = styled.div`
 const LineNumber = styled.div<{ $highlighted: boolean; $current: boolean }>`
   padding: 0 4px;
   background: ${({ $highlighted, $current }) =>
-    $current ? "#1a73e8" : $highlighted ? "#fef7e0" : "transparent"};
-  color: ${({ $current }) => ($current ? "white" : "inherit")};
+    $current ? "var(--tp-active-color)" : $highlighted ? "var(--tp-highlight)" : "transparent"};
+  color: ${({ $current }) => ($current ? "#fff" : "inherit")};
   border-radius: 2px;
   margin-bottom: 1px;
 `;
@@ -501,8 +521,8 @@ const TextArea = styled.textarea<{
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #202124;
-  background: white;
+  color: var(--tp-text);
+  background: var(--tp-bg);
   resize: none;
   white-space: ${({ $wordWrap }) => ($wordWrap ? "pre-wrap" : "pre")};
   overflow-wrap: ${({ $wordWrap }) => ($wordWrap ? "break-word" : "normal")};
@@ -511,7 +531,7 @@ const TextArea = styled.textarea<{
   tab-size: 2;
 
   &::selection {
-    background: #cfe2ff;
+    background: var(--tp-selection);
   }
 `;
 
@@ -519,11 +539,11 @@ const StatusBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  background: #f8f9fa;
-  border-top: 1px solid #dadce0;
+  padding: 6px 14px;
+  background: var(--tp-bg-surface);
+  border-top: 1px solid var(--tp-border);
   font-size: 11px;
-  color: #5f6368;
+  color: var(--tp-text-muted);
 `;
 
 const Stats = styled.div`

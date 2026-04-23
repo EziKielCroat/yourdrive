@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { Shield, X, AlertCircle, ArrowLeft } from "lucide-react";
+import { ShieldIcon as Shield, XIcon as X, AlertCircleIcon as AlertCircle, ArrowLeftIcon as ArrowLeft } from "../shared/icons/index";
 
 const fadeIn = keyframes`
   from {

@@ -15,7 +15,7 @@ import {
 } from "../../../dashboard/component/main/styles/filterPopup.styles";
 
 import NewFolderIcon from "../../icons/newFolder";
-import { Upload as FileUploadIcon } from "lucide-react";
+import { UploadIcon as FileUploadIcon } from "../../icons/index";
 import UploadFolderIcon from "../../icons/uploadFolder";
 
 import UppyUploadPopup from "./UppyUploadPopup";

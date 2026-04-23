@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Shield, CheckCircle2 } from "lucide-react";
+import { BellIcon as Bell, ShieldIcon as Shield, CheckCircle2Icon as CheckCircle2 } from "../../shared/icons/index";
 import type { UserSettings } from "../types/UserSettings";
 import {
   Section,
@@ -101,7 +101,7 @@ export function PreferencesNotificationsPrivacy({
     <>
       <Section>
         <SectionTitle>
-          <Bell size={17} style={{ marginRight: 8, verticalAlign: "middle" }} />
+          <Bell size={17} />
           Notifications
         </SectionTitle>
         <SectionDescription>
@@ -200,7 +200,7 @@ export function PreferencesNotificationsPrivacy({
 
       <Section>
         <SectionTitle>
-          <Shield size={17} style={{ marginRight: 8, verticalAlign: "middle" }} />
+          <Shield size={17} />
           Privacy
         </SectionTitle>
         <SectionDescription>

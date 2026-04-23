@@ -58,7 +58,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   };
 
   return (
-    <SearchContainer data-tour="tour-search" data-search-disabled={!searchEnabled}>
+    <SearchContainer data-search-disabled={!searchEnabled}>
       {!searchEnabled && (
         <SearchDisabledNote>
           Search and filters are turned off in Settings → Privacy. Enable
@@ -79,7 +79,7 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
           <SidebarToggle />
         </LeftSection>
         <CenterSection>
-          <InputWrapper>
+          <InputWrapper data-tour="tour-search">
             <SearchIcon color={iconColor} />
             <input
               type="text"

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { CheckCircle, XCircle, Info, AlertTriangle, X } from "lucide-react";
+import { CheckCircleIcon as CheckCircle, XCircleIcon as XCircle, InfoIcon as Info, AlertTriangleIcon as AlertTriangle, XIcon as X } from "../shared/icons/index";
 
 export interface ToastProps {
   type: "success" | "error" | "info" | "warning";

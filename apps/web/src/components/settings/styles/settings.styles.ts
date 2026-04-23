@@ -130,6 +130,14 @@ export const SectionTitle = styled.h2`
   margin-bottom: 0.4rem;
   color: #102033;
   letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  svg {
+    flex-shrink: 0;
+    vertical-align: unset;
+  }
 `;
 
 export const SectionDescription = styled.p`

@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import {
-  Download,
-  Search,
-  FileText,
-  ZoomIn,
-  ZoomOut,
-  BookOpen,
-  Hash,
-  Copy,
-} from "lucide-react";
+  DownloadIcon as Download,
+  SearchIcon as Search,
+  FileTextIcon as FileText,
+  ZoomInIcon as ZoomIn,
+  ZoomOutIcon as ZoomOut,
+  BookOpenIcon as BookOpen,
+  HashIcon as Hash,
+  CopyIcon as Copy,
+} from "../../../icons/index";
 import mammoth from "mammoth";
 import api from "../../../../../lib/axios";
 

@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import {
-  X,
-  Link2,
-  Mail,
-  Lock,
-  Calendar,
-  Download,
-  Eye,
-  Edit3,
-  MessageSquare,
-  Copy,
-  Check,
-  Users,
-  Globe,
-  ChevronDown,
-  Settings,
-  Trash2,
-} from "lucide-react";
+  XIcon as X,
+  Link2Icon as Link2,
+  MailIcon as Mail,
+  LockIcon as Lock,
+  CalendarIcon as Calendar,
+  DownloadIcon as Download,
+  EyeIcon as Eye,
+  Edit3Icon as Edit3,
+  MessageSquareIcon as MessageSquare,
+  CopyIcon as Copy,
+  CheckIcon as Check,
+  UsersIcon as Users,
+  GlobeIcon as Globe,
+  ChevronDownIcon as ChevronDown,
+  SettingsIcon as Settings,
+  Trash2Icon as Trash2,
+} from "../../icons/index";
 import { useSettings } from "../../hooks/useSettings";
 import api from "../../../../lib/axios";
 import { copyToClipboard } from "../../../../lib/copyToClipboard";

@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { useUserUiPreferencesStore } from "../../../store/userUiPreferencesStore";
 import FileTypeIcon from "./FileTypeIcon";
 import FolderSmallIcon from "../icons/smallFolder";
-import { Upload, ChevronRight, ChevronDown, Folder } from "lucide-react";
+import { UploadIcon as Upload, ChevronRightIcon as ChevronRight, ChevronDownIcon as ChevronDown, FolderIcon as Folder } from "../icons/index";
 
 export interface FileItem {
   id: string;

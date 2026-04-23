@@ -5,6 +5,7 @@ import RecentlyEditedIcon from "../../../shared/icons/recentlyEdited";
 import RecycleBinIcon from "../../../shared/icons/recycle";
 import SharedWithYouIcon from "../../../shared/icons/sharedWithYou";
 import StarIcon from "../../../shared/icons/starred";
+import HelpCenterIcon from "../../../shared/icons/helpCenter";
 import { Navigation, NavItem } from "../../styles/sidebar";
 import { ROUTES } from "../../../../router/router";
 
@@ -29,6 +30,7 @@ const NavigationMenu = () => {
     },
     { label: "Favorited", link: ROUTES.FAVORITED, Icon: StarIcon },
     { label: "Devices", link: ROUTES.DEVICES, Icon: DevicesIcon },
+    { label: "Help Center", link: ROUTES.HELPCENTER, Icon: HelpCenterIcon },
   ];
 
   const currentPath =
@@ -47,7 +49,7 @@ const NavigationMenu = () => {
         return (
           <NavItem key={label} {...navProps}>
             <a href={link}>
-              <Icon color={navProps.color} />
+              <Icon color={navProps.color} size={16} />
               <span>{label}</span>
             </a>
           </NavItem>

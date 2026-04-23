@@ -1,6 +1,6 @@
 import React from "react";
 import styled, { keyframes } from "styled-components";
-import { X, CheckCircle, AlertCircle, Loader, FileUp } from "lucide-react";
+import { XIcon as X, CheckCircleIcon as CheckCircle, AlertCircleIcon as AlertCircle, LoaderIcon as Loader, FileUpIcon as FileUp } from "../../icons/index";
 
 interface UploadFile {
   name: string;

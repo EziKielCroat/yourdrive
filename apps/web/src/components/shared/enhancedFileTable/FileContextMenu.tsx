@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import styled, { keyframes, css } from "styled-components";
-import { Star } from "lucide-react";
+import { StarIcon as Star } from "../icons/index";
 
 import type {
   FileActionDefinition,

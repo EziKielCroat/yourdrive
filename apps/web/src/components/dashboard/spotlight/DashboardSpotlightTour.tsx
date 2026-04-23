@@ -1,4 +1,4 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -21,8 +21,9 @@ type TourStep = {
   id: string;
   target: string | null;
   title: string;
-  body: string;
+  body: React.ReactNode;
   opensSidebar?: boolean;
+  closeSidebar?: boolean;
 };
 
 /** Kratki, siguran ton — walkthrough, ne priručnik */
@@ -38,12 +39,18 @@ const STEPS: TourStep[] = [
     target: "tour-upload",
     title: "Upload",
     body: "Plus dodaje datoteke. Isti gumb na svim širinama ekrana.",
+    closeSidebar: true,
   },
   {
     id: "sidebar-toggle",
     target: "tour-sidebar-toggle",
-    title: "Izbornik",
-    body: "Otvara i zatvara bočnu navigaciju.",
+    title: "Skrivanje i otkrivanje izbornika",
+    body: (
+      <>
+        Ovaj gumb <u>otvara i zatvara</u> bočnu navigaciju.
+      </>
+    ),
+    closeSidebar: true,
   },
   {
     id: "sidebar-nav",
@@ -63,6 +70,7 @@ const STEPS: TourStep[] = [
     target: "tour-settings",
     title: "Postavke",
     body: "Račun, sigurnost i obavijesti.",
+    closeSidebar: true,
   },
   {
     id: "storage",
@@ -202,11 +210,13 @@ export function DashboardSpotlightTour() {
     if (!active) return;
     if (step.opensSidebar) {
       setSidebarOpen(true);
+    } else if (step.closeSidebar) {
+      setSidebarOpen(false);
     }
-    const delay = step.opensSidebar ? 400 : step.target ? 64 : 0;
+    const delay = step.opensSidebar ? 400 : step.closeSidebar ? 200 : step.target ? 64 : 0;
     const id = window.setTimeout(updateHole, delay);
     return () => window.clearTimeout(id);
-  }, [active, stepIndex, step.target, step.opensSidebar, setSidebarOpen, updateHole]);
+  }, [active, stepIndex, step.target, step.opensSidebar, step.closeSidebar, setSidebarOpen, updateHole]);
 
   useEffect(() => {
     if (!active) return;
@@ -230,7 +240,7 @@ export function DashboardSpotlightTour() {
   useEffect(() => {
     if (!active || !step.target) return;
     let ro: ResizeObserver | null = null;
-    const delay = step.opensSidebar ? 420 : 90;
+    const delay = step.opensSidebar ? 420 : step.closeSidebar ? 220 : 90;
     const t = window.setTimeout(() => {
       const el = findVisibleTourTargetElement(step.target!);
       if (!el) return;
@@ -243,7 +253,7 @@ export function DashboardSpotlightTour() {
       window.clearTimeout(t);
       ro?.disconnect();
     };
-  }, [active, step.target, stepIndex, step.opensSidebar, updateHole]);
+  }, [active, step.target, stepIndex, step.opensSidebar, step.closeSidebar, updateHole]);
 
   const finish = useCallback(() => {
     if (user?.id) markDashboardTourCompleted(user.id);

@@ -35,6 +35,12 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
   };
 
   useEffect(() => {
+    // Close mobile menu if window is resized above the collapse breakpoint
+    const handleResize = () => {
+      if (window.innerWidth > 1100) setIsMobileMenuOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+
     if (isMobileMenuOpen) {
       document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
@@ -48,6 +54,7 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
     }
 
     return () => {
+      window.removeEventListener("resize", handleResize);
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.width = "";
@@ -80,6 +87,9 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
             </NavLink>
             <NavLink>
               <Link to="/howitworks">How It Works</Link>
+            </NavLink>
+            <NavLink>
+              <Link to="/helpcenter">Help Center</Link>
             </NavLink>
           </NavLinkCont>
         </NContLeft>
@@ -121,6 +131,9 @@ const Navbar_main: React.FC<NavbarMainProps> = () => {
         </MobileNavLink>
         <MobileNavLink onClick={closeMobileMenu}>
           <Link to="/howitworks">How It Works</Link>
+        </MobileNavLink>
+        <MobileNavLink onClick={closeMobileMenu}>
+          <Link to="/helpcenter">Help Center</Link>
         </MobileNavLink>
 
         <MobileButtonsContainer>

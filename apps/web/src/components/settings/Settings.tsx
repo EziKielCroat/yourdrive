@@ -2,13 +2,13 @@ import { useState } from "react";
 import styled from "styled-components";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  User,
-  Shield,
-  SlidersHorizontal,
-  HardDrive,
-  Share2,
-  CheckCircle2,
-} from "lucide-react";
+  UserIcon as User,
+  ShieldIcon as Shield,
+  SlidersHorizontalIcon as SlidersHorizontal,
+  HardDriveIcon as HardDrive,
+  Share2Icon as Share2,
+  CheckCircle2Icon as CheckCircle2,
+} from "../shared/icons/index";
 import { useSettings } from "../shared/hooks/useSettings";
 import SidebarToggle from "../dashboard/component/sidebar/SidebarToggle";
 
@@ -63,8 +63,7 @@ const SaveRow = styled.div`
 
 const SectionIcon = styled.span`
   display: inline-flex;
-  vertical-align: middle;
-  margin-right: 8px;
+  flex-shrink: 0;
 `;
 
 const MotionContent = styled(motion.div)`

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
-import { Download, File, AlertCircle, ExternalLink, Archive } from "lucide-react";
+import { DownloadIcon as Download, FileIcon as File, AlertCircleIcon as AlertCircle, ExternalLinkIcon as ExternalLink, ArchiveIcon as Archive } from "../../../icons/index";
 import { type FileTypeInfo } from "../../utils/FileTypeDetector";
 import api from "../../../../../lib/axios";
 import MarkdownDocumentView from "./MarkdownDocumentView";

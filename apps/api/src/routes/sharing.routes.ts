@@ -13,6 +13,7 @@ import { resolveFrontendBase } from "../lib/frontend-base";
 
 const sharingRoutes = express.Router();
 const prisma = new PrismaClient();
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
 
 const addCommentSchema = z.object({
   text: z.string().min(1).max(1000),
@@ -197,7 +198,7 @@ sharingRoutes.post("/create", authMiddleware, async (req: AuthRequest, res) => {
 
     let hashedPassword: string | null = null;
     if (validated.password && validated.password.trim().length > 0) {
-      hashedPassword = await bcrypt.hash(validated.password, 12);
+      hashedPassword = await bcrypt.hash(validated.password, BCRYPT_ROUNDS);
     }
 
     let expiresAt: Date | null = null;

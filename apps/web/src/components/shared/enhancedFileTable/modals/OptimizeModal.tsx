@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { X, Sliders, Download, Image } from "lucide-react";
+import { XIcon as X, SlidersIcon as Sliders, DownloadIcon as Download, ImageIcon as Image } from "../../icons/index";
 import type { EnhancedFileItem } from "../types/fileActions";
 
 interface OptimizeModalProps {

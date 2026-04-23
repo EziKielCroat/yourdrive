@@ -4,6 +4,8 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { resolveConfiguredFrontendBase } from "./frontend-base";
 
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
+
 interface EmailConfig {
   host: string;
   port: number;
@@ -953,6 +955,79 @@ export class EmailService {
       .trim();
   }
 
+  async sendSupportTicketEmail(
+    to: string,
+    userName: string,
+    userEmail: string,
+    conversationSummary: string,
+  ): Promise<void> {
+    const brandColor = "#1F9AFE";
+    const submittedAt = new Date().toLocaleString("en-GB", { timeZone: "UTC" }) + " UTC";
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Support Ticket — YourDrive</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 0; background: #f8fafc; color: #1a1a1a; }
+            .wrap { max-width: 620px; margin: 0 auto; padding: 24px; }
+            .header { background: ${brandColor}; color: #fff; padding: 32px 28px; border-radius: 14px 14px 0 0; }
+            .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+            .header p  { margin: 8px 0 0; font-size: 14px; opacity: 0.85; }
+            .body { background: #fff; padding: 32px 28px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; }
+            .field { margin-bottom: 20px; }
+            .field-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
+            .field-value { font-size: 15px; color: #1e293b; }
+            .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; font-size: 13px; line-height: 1.7; color: #374151; white-space: pre-wrap; word-break: break-word; }
+            .footer { margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="header">
+              <h1>New Support Ticket</h1>
+              <p>A user has requested human assistance via the YourDrive Help Center.</p>
+            </div>
+            <div class="body">
+              <div class="field">
+                <div class="field-label">User name</div>
+                <div class="field-value">${userName}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">User email</div>
+                <div class="field-value"><a href="mailto:${userEmail}" style="color:${brandColor};text-decoration:none;">${userEmail}</a></div>
+              </div>
+              <div class="field">
+                <div class="field-label">Submitted at</div>
+                <div class="field-value">${submittedAt}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Conversation summary</div>
+                <div class="summary-box">${conversationSummary
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")}</div>
+              </div>
+              <div class="footer">
+                Reply directly to this email or contact the user at ${userEmail}.<br />
+                © ${new Date().getFullYear()} YourDrive Support System
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `[Support Ticket] ${userName} — ${userEmail}`,
+      html,
+    });
+  }
+
   // STATIC UTILITY METHODS - These don't need access to 'this'
   static generateResetCode(): string {
     // Generate a 6-digit numeric code
@@ -964,7 +1039,7 @@ export class EmailService {
   }
 
   static async hashResetCode(code: string): Promise<string> {
-    return await bcrypt.hash(code, 10);
+    return await bcrypt.hash(code, BCRYPT_ROUNDS);
   }
 
   static async verifyResetCode(

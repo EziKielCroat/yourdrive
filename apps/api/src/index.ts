@@ -1,6 +1,7 @@
+import "./env"; // must be first — loads .env before prisma is required
+
 import express from "express";
 import helmet from "helmet";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 
 import { Pool } from "pg";
@@ -14,16 +15,8 @@ import sharingRoutes from "./routes/sharing.routes";
 import devicesRoutes from "./routes/devices.routes";
 import conversionRoutes from "./routes/conversion.routes";
 import fileActionsRoutes from "./routes/fileActions.routes";
+import supportRoutes from "./routes/support.routes";
 
-dotenv.config();
-
-// Startup check: warn if required env is missing (avoids cryptic Prisma/DB errors later)
-if (!process.env.DATABASE_URL?.trim()) {
-  console.error(
-    "❌ DATABASE_URL is not set. Create apps/api/.env from apps/api/.env.example and set DATABASE_URL to your PostgreSQL connection string.",
-  );
-  process.exit(1);
-}
 
 const app = express();
 const PORT: number = parseInt(process.env.PORT ?? "3000", 10);
@@ -77,6 +70,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/file-actions", fileActionsRoutes);
 app.use("/api/storage", storageRoutes);
+app.use("/api/support", supportRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK" });

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import styled from "styled-components";
-import { Lock, Mail, X, Eye, EyeOff } from "lucide-react";
+import { LockIcon as Lock, MailIcon as Mail, XIcon as X, EyeIcon as Eye, EyeOffIcon as EyeOff } from "../shared/icons/index";
 import { useAuthStore } from "../../store/authStore";
 import TwoFactorModal from "../auth/TwoFactorModal";
 import ForgotPasswordModal from "../auth/ForgotPasswordModal";

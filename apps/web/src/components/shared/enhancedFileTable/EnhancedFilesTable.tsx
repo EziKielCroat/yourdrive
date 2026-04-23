@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useLayoutEffect, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { MoreVertical, X, Keyboard, Star } from "lucide-react";
+import { MoreVerticalIcon as MoreVertical, XIcon as X, StarIcon as Star } from "../icons/index";
 import { useRouter } from "@tanstack/react-router";
 
 import FilesTable, { type FileItem } from "../files_table/FilesTable";
@@ -12,7 +12,6 @@ import { WatermarkModal } from "./modals/WatermarkModal";
 import { OptimizeModal } from "./modals/OptimizeModal";
 
 import { useFileActions } from "./hooks/useFileAction";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import type {
   EnhancedFileItem,
@@ -42,6 +41,10 @@ interface EnhancedFilesTableProps {
   onRefresh?: () => void;
   onRestoreFile?: (fileId: string) => Promise<void>;
   onDeletePermanently?: (fileId: string) => Promise<void>;
+  /** Called once on mount with a stable handle to execute any file action. */
+  onActionHandlerReady?: (
+    handler: (actionId: FileActionId, files?: EnhancedFileItem[]) => Promise<void>,
+  ) => void;
 }
 
 const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
@@ -64,6 +67,7 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
   onRefresh,
   onRestoreFile,
   onDeletePermanently,
+  onActionHandlerReady,
 }) => {
   const [internalSelectedFiles, setInternalSelectedFiles] = useState<
     Set<string>
@@ -72,7 +76,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
 
   const [hoveredFileId, setHoveredFileId] = useState<string | null>(null);
   const [quickActionsFile, setQuickActionsFile] = useState<string | null>(null);
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const isSharingPopupOpen = usePopupStore((state) => state.isSharingPopupOpen);
 
   const [shareFile, setShareFile] = useState<EnhancedFileItem | null>(null);
@@ -158,24 +161,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     onDeletePermanently,
   });
 
-  const { isPrefixActive, currentKey, shortcutInfo } = useKeyboardShortcuts({
-    selectedFiles: selectedFileObjects,
-    isRecycleBin,
-    isShared,
-    currentUser,
-    enabled:
-      !renameModal.isOpen &&
-      !moveModal.isOpen &&
-      !watermarkModal.isOpen &&
-      !optimizeModal.isOpen &&
-      !detailsModal.isOpen,
-    onActionExecuted: async (actionId) => {
-      await handleActionClick(actionId, selectedFileObjects);
-    },
-    onSelectAll: handleSelectAll,
-    onUnselectAll: handleClearSelection,
-  });
-
   const selectionBarActions = useMemo(
     () => getSelectionBarActions(selectedFileObjects, isRecycleBin, isShared),
     [getSelectionBarActions, selectedFileObjects, isRecycleBin, isShared],
@@ -227,6 +212,19 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
     },
     [executeAction, selectedFileObjects, onFilePreview, toggleSharingPopup, router],
   );
+
+  // Keep a ref that always points to the latest handleActionClick so the
+  // stable wrapper handed to onActionHandlerReady never goes stale.
+  const handleActionClickRef = useRef(handleActionClick);
+  useLayoutEffect(() => {
+    handleActionClickRef.current = handleActionClick;
+  });
+
+  useEffect(() => {
+    if (!onActionHandlerReady) return;
+    onActionHandlerReady((...args) => handleActionClickRef.current(...args));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRename = useCallback(
     async (fileId: string, newName: string) => {
@@ -477,19 +475,6 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
         />
       )}
 
-      {isPrefixActive && (
-        <ShortcutIndicator>
-          <ShortcutText>
-            {shortcutInfo
-              ? `Press ${shortcutInfo.key.toUpperCase()} → ${shortcutInfo.description}`
-              : "Press action key"}
-          </ShortcutText>
-          {currentKey && (
-            <ShortcutKeyDisplay>{currentKey.toUpperCase()}</ShortcutKeyDisplay>
-          )}
-        </ShortcutIndicator>
-      )}
-
       {selectedFiles.size > 0 && (
         <SelectionBar>
           <LeftSection>
@@ -539,119 +524,11 @@ const EnhancedFilesTable: React.FC<EnhancedFilesTableProps> = ({
           </CenterSection>
 
           <RightSection>
-            <TextButton onClick={handleSelectAll} title="Select all (Ctrl+A)">
+            <TextButton onClick={handleSelectAll} title="Select all">
               Select all
             </TextButton>
-            <IconButton
-              onClick={() => setShowShortcutsHelp(!showShortcutsHelp)}
-              title="View keyboard shortcuts"
-            >
-              <Keyboard size={18} />
-            </IconButton>
           </RightSection>
         </SelectionBar>
-      )}
-
-      {showShortcutsHelp && (
-        <ShortcutsHelp>
-          <ShortcutsHeader>
-            <h3>Keyboard Shortcuts</h3>
-            <CloseButton onClick={() => setShowShortcutsHelp(false)}>
-              <X size={20} />
-            </CloseButton>
-          </ShortcutsHeader>
-          <ShortcutsContent>
-            <ShortcutSection>
-              <SectionTitle>General</SectionTitle>
-              <ShortcutRow>
-                <ShortcutKey>Ctrl+A</ShortcutKey>
-                <ShortcutDesc>Select all files</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>Esc</ShortcutKey>
-                <ShortcutDesc>Clear selection</ShortcutDesc>
-              </ShortcutRow>
-            </ShortcutSection>
-
-            <ShortcutSection>
-              <SectionTitle>File Actions (Alt+K then…)</SectionTitle>
-              <ShortcutRow>
-                <ShortcutKey>P</ShortcutKey>
-                <ShortcutDesc>Preview file</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>R</ShortcutKey>
-                <ShortcutDesc>Rename</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>D</ShortcutKey>
-                <ShortcutDesc>Duplicate</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>W</ShortcutKey>
-                <ShortcutDesc>Download</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>S</ShortcutKey>
-                <ShortcutDesc>Share</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>L</ShortcutKey>
-                <ShortcutDesc>Get link</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>F</ShortcutKey>
-                <ShortcutDesc>Star / Unstar</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>Z</ShortcutKey>
-                <ShortcutDesc>Compress</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>E</ShortcutKey>
-                <ShortcutDesc>Extract archive</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>X</ShortcutKey>
-                <ShortcutDesc>Delete</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>V</ShortcutKey>
-                <ShortcutDesc>Move</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>M</ShortcutKey>
-                <ShortcutDesc>Watermark</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>O</ShortcutKey>
-                <ShortcutDesc>Optimize</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>I</ShortcutKey>
-                <ShortcutDesc>Details</ShortcutDesc>
-              </ShortcutRow>
-              <ShortcutRow>
-                <ShortcutKey>K</ShortcutKey>
-                <ShortcutDesc>Lock / Unlock</ShortcutDesc>
-              </ShortcutRow>
-            </ShortcutSection>
-
-            {isRecycleBin && (
-              <ShortcutSection>
-                <SectionTitle>Recycle Bin (Alt+K then…)</SectionTitle>
-                <ShortcutRow>
-                  <ShortcutKey>U</ShortcutKey>
-                  <ShortcutDesc>Restore</ShortcutDesc>
-                </ShortcutRow>
-                <ShortcutRow>
-                  <ShortcutKey>Shift+X</ShortcutKey>
-                  <ShortcutDesc>Delete permanently</ShortcutDesc>
-                </ShortcutRow>
-              </ShortcutSection>
-            )}
-          </ShortcutsContent>
-        </ShortcutsHelp>
       )}
 
       <TableWrapper>
@@ -702,48 +579,6 @@ const Container = styled.div`
   flex-direction: column;
   gap: 16px;
   position: relative;
-`;
-
-const ShortcutIndicator = styled.div`
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #363840;
-  color: white;
-  padding: 10px 16px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  z-index: 10000;
-  animation: ${slideDown} 0.3s ease-out;
-  font-weight: 500;
-  justify-content: center;
-  max-width: calc(100vw - 24px);
-  box-sizing: border-box;
-
-  @media (min-width: 480px) {
-    padding: 12px 24px;
-    gap: 12px;
-  }
-`;
-
-const ShortcutText = styled.span`
-  font-size: clamp(12px, 3vw, 14px);
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-`;
-
-const ShortcutKeyDisplay = styled.span`
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-family: monospace;
-  font-size: 16px;
 `;
 
 const SelectionBar = styled.div`
@@ -1025,104 +860,3 @@ const QuickActionDivider = styled.div`
   margin: 8px 0;
 `;
 
-const ShortcutsHelp = styled.div`
-  background: white;
-  border-radius: 16px;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(0, 0, 0, 0.08);
-  padding: clamp(16px, 4vw, 24px);
-  animation: ${slideDown} 0.3s ease-out;
-  position: absolute;
-  top: clamp(72px, 18vw, 80px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: calc(100% - 16px);
-  max-width: min(800px, 100vw - 16px);
-  max-height: min(70vh, 560px);
-  overflow-y: auto;
-  box-sizing: border-box;
-`;
-
-const ShortcutsHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #202124;
-  }
-`;
-
-const CloseButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  color: #5f6368;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  &:hover {
-    background: #f1f3f4;
-    color: #202124;
-  }
-`;
-
-const ShortcutsContent = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 24px;
-  }
-`;
-
-const ShortcutSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const SectionTitle = styled.h4`
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #5f6368;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const ShortcutRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-`;
-
-const ShortcutKey = styled.kbd`
-  min-width: 60px;
-  padding: 6px 12px;
-  background: #f1f3f4;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: monospace;
-  text-align: center;
-  color: #202124;
-`;
-
-const ShortcutDesc = styled.span`
-  font-size: 14px;
-  color: #5f6368;
-  flex: 1;
-`;

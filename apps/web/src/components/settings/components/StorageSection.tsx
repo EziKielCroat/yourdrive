@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { HardDrive, Trash2, RefreshCw, AlertTriangle } from "lucide-react";
+import { HardDriveIcon as HardDrive, Trash2Icon as Trash2, RefreshCwIcon as RefreshCw, AlertTriangleIcon as AlertTriangle } from "../../shared/icons/index";
 import styled from "styled-components";
 import {
   Section,

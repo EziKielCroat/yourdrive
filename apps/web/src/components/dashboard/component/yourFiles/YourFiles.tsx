@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import styled from "styled-components";
 import { useAuthStore } from "../../../../store/authStore";
 import { useStorageStore } from "../../../../store/storageStore";
+import { useUserUiPreferencesStore } from "../../../../store/userUiPreferencesStore";
+import { useRouter } from "@tanstack/react-router";
 import api from "../../../../lib/axios";
 import {
   uploadDashboardFileList,
@@ -19,6 +21,35 @@ import { useEvent } from "../../../../events/useEvent";
 import { eventBus } from "../../../../events/eventBus";
 
 import PageTransition from "../../../shared/PageTransition";
+import { CommandPalette } from "../../../shared/fileEditor/CommandPalette";
+import type { Command } from "../../../shared/fileEditor/CommandPalette";
+import { getEditorVars } from "../../../shared/fileEditor/editor.tokens";
+import { ROUTES } from "../../../../router/router";
+
+import type { EnhancedFileItem, FileActionId } from "../../../shared/enhancedFileTable/types/fileActions";
+
+import {
+  TerminalIcon as Terminal,
+  UploadIcon as Upload,
+  RefreshCwIcon as RefreshCw,
+  StarIcon as Star,
+  Share2Icon as Share2,
+  Trash2Icon as Trash2,
+  SettingsIcon as Settings,
+  HomeIcon as Home,
+  ClockIcon as Clock,
+  DownloadIcon as Download,
+  EyeIcon as Eye,
+  Edit3Icon as Edit3,
+  TypeIcon as Type,
+  MoveIcon as Move,
+  CopyIcon as Copy,
+  LinkIcon as Link,
+  InfoIcon as Info,
+  LockIcon as Lock,
+  CheckCircleIcon as CheckCircle,
+  XIcon as X,
+} from "../../../shared/icons/index";
 
 export interface ApiFile {
   id: string;
@@ -79,12 +110,20 @@ const YourFiles: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const addUsage = useStorageStore((s) => s.addUsage);
   const refreshStorage = useStorageStore((s) => s.refreshStorage);
+  const resolvedTheme = useUserUiPreferencesStore((s) => s.resolvedTheme);
+  const router = useRouter();
 
   const [files, setFiles] = useState<FileItem[]>([]);
   const accessToken = useAuthStore((s) => s.accessToken);
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [cmdOpen, setCmdOpen] = useState(false);
+
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const actionHandlerRef = useRef<
+    ((actionId: FileActionId, files?: EnhancedFileItem[]) => Promise<void>) | null
+  >(null);
 
   const { filteredFiles, hasActiveFilters, activeFilterCount } =
     useFileSearch(files);
@@ -173,7 +212,7 @@ const YourFiles: React.FC = () => {
     }
   };
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -228,7 +267,7 @@ const YourFiles: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (accessToken) {
@@ -239,6 +278,251 @@ const YourFiles: React.FC = () => {
   useEvent(FILES_REFRESH_EVENT, () => {
     fetchFiles();
   });
+
+  // ── Global Ctrl+K shortcut ───────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // ── Command palette commands ─────────────────────────────────
+  const selectedFileObjects = useMemo(
+    () => filteredFiles.filter((f) => selectedFiles.has(f.id)) as EnhancedFileItem[],
+    [filteredFiles, selectedFiles],
+  );
+
+  const execAction = useCallback(
+    (actionId: FileActionId) => {
+      actionHandlerRef.current?.(actionId, selectedFileObjects);
+    },
+    [selectedFileObjects],
+  );
+
+  const isSingle = selectedFiles.size === 1;
+  const hasSelection = selectedFiles.size > 0;
+  const singleFile = isSingle ? selectedFileObjects[0] : null;
+  const isTextFile = singleFile
+    ? ["text/", "application/json", "application/xml", "application/javascript"].some(
+        (t) => (singleFile.mimeType ?? "").includes(t),
+      )
+    : false;
+  const isStarred = hasSelection && selectedFileObjects.every((f) => f.isStarred);
+
+  const paletteCommands = useMemo<Command[]>(() => {
+    const cmds: Command[] = [];
+
+    // ── Selection actions (only when files are selected) ──────
+    if (hasSelection) {
+      cmds.push({
+        id: "download",
+        label: selectedFiles.size === 1 ? "Download file" : `Download ${selectedFiles.size} files`,
+        icon: <Download size={14} />,
+        group: "Selection",
+        action: () => execAction("download"),
+      });
+
+      if (isSingle && singleFile && !singleFile.isFolder) {
+        cmds.push({
+          id: "preview",
+          label: "Preview file",
+          icon: <Eye size={14} />,
+          group: "Selection",
+          action: () => execAction("preview"),
+        });
+      }
+
+      if (isSingle && isTextFile) {
+        cmds.push({
+          id: "edit",
+          label: "Edit file",
+          icon: <Edit3 size={14} />,
+          group: "Selection",
+          action: () => execAction("edit"),
+        });
+      }
+
+      if (isSingle) {
+        cmds.push({
+          id: "rename",
+          label: "Rename",
+          icon: <Type size={14} />,
+          group: "Selection",
+          action: () => execAction("rename"),
+        });
+      }
+
+      cmds.push({
+        id: "move",
+        label: selectedFiles.size === 1 ? "Move file" : `Move ${selectedFiles.size} files`,
+        icon: <Move size={14} />,
+        group: "Selection",
+        action: () => execAction("move"),
+      });
+
+      cmds.push({
+        id: "share",
+        label: "Share",
+        icon: <Share2 size={14} />,
+        group: "Selection",
+        action: () => execAction("share"),
+      });
+
+      cmds.push({
+        id: "get-link",
+        label: "Copy link",
+        icon: <Link size={14} />,
+        group: "Selection",
+        action: () => execAction("getLink"),
+      });
+
+      cmds.push({
+        id: "duplicate",
+        label: selectedFiles.size === 1 ? "Duplicate file" : `Duplicate ${selectedFiles.size} files`,
+        icon: <Copy size={14} />,
+        group: "Selection",
+        action: () => execAction("duplicate"),
+      });
+
+      cmds.push({
+        id: "star-toggle",
+        label: isStarred ? "Remove from Favorites" : "Add to Favorites",
+        icon: <Star size={14} />,
+        group: "Selection",
+        action: () => execAction(isStarred ? "unstar" : "star"),
+      });
+
+      if (isSingle) {
+        cmds.push({
+          id: "details",
+          label: "File details",
+          icon: <Info size={14} />,
+          group: "Selection",
+          action: () => execAction("details"),
+        });
+      }
+
+      cmds.push({
+        id: "lock-toggle",
+        label: selectedFileObjects.every((f) => f.isLocked) ? "Unlock" : "Lock",
+        icon: <Lock size={14} />,
+        group: "Selection",
+        action: () =>
+          execAction(selectedFileObjects.every((f) => f.isLocked) ? "unlock" : "lock"),
+      });
+
+      cmds.push({
+        id: "delete",
+        label: selectedFiles.size === 1 ? "Delete file" : `Delete ${selectedFiles.size} files`,
+        icon: <Trash2 size={14} />,
+        group: "Selection",
+        action: () => execAction("delete"),
+      });
+
+      cmds.push({
+        id: "clear-selection",
+        label: `Clear selection (${selectedFiles.size} selected)`,
+        icon: <X size={14} />,
+        group: "Selection",
+        action: () => {
+          filteredFiles.forEach((f) => handleFileSelect(f as FileItem, false));
+          setSelectedFiles(new Set());
+        },
+      });
+    }
+
+    // ── Always-available actions ──────────────────────────────
+    cmds.push({
+      id: "select-all",
+      label: "Select all files",
+      icon: <CheckCircle size={14} />,
+      group: "Files",
+      action: () => {
+        filteredFiles.forEach((f) => handleFileSelect(f as FileItem, true));
+      },
+    });
+
+    cmds.push({
+      id: "upload-file",
+      label: "Upload files",
+      icon: <Upload size={14} />,
+      group: "Files",
+      action: () => uploadInputRef.current?.click(),
+    });
+
+    cmds.push({
+      id: "refresh",
+      label: "Refresh",
+      icon: <RefreshCw size={14} />,
+      group: "Files",
+      action: fetchFiles,
+    });
+
+    // ── Navigation ────────────────────────────────────────────
+    cmds.push(
+      {
+        id: "go-home",
+        label: "Go to Home",
+        icon: <Home size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.DASHBOARD }),
+      },
+      {
+        id: "go-favorites",
+        label: "Go to Favorites",
+        icon: <Star size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.FAVORITED }),
+      },
+      {
+        id: "go-shared",
+        label: "Go to Shared with you",
+        icon: <Share2 size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.SHARED_WITH_YOU }),
+      },
+      {
+        id: "go-recent",
+        label: "Go to Recently edited",
+        icon: <Clock size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.RECENTLY_EDITED }),
+      },
+      {
+        id: "go-trash",
+        label: "Go to Recycle bin",
+        icon: <Trash2 size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.RECYCLE_BIN }),
+      },
+      {
+        id: "go-settings",
+        label: "Open Settings",
+        icon: <Settings size={14} />,
+        group: "Navigate",
+        action: () => router.navigate({ to: ROUTES.SETTINGS }),
+      },
+    );
+
+    return cmds;
+  }, [
+    hasSelection,
+    isSingle,
+    isStarred,
+    isTextFile,
+    singleFile,
+    selectedFiles.size,
+    selectedFileObjects,
+    execAction,
+    router,
+    fetchFiles,
+    filteredFiles,
+  ]);
 
   const previewFile = previewIndex >= 0 ? navigableFiles[previewIndex] : null;
 
@@ -253,6 +537,12 @@ const YourFiles: React.FC = () => {
               {files.length} {files.length === 1 ? "item" : "items"}
             </FileCount>
           )}
+          <HeaderSpacer />
+          <CommandsBtn onClick={() => setCmdOpen(true)} title="Open command palette (Ctrl+K)">
+            <Terminal size={13} />
+            <CmdBtnLabel>Commands</CmdBtnLabel>
+            <CmdKbd>K</CmdKbd>
+          </CommandsBtn>
         </Header>
 
         {hasActiveFilters && (
@@ -266,12 +556,12 @@ const YourFiles: React.FC = () => {
         )}
 
         <EnhancedFilesTable
-          files={filteredFiles as import("../../../shared/enhancedFileTable/types/fileActions").EnhancedFileItem[]}
+          files={filteredFiles as EnhancedFileItem[]}
           loading={loading}
           emptyMessage={getEmptyMessage(hasActiveFilters)}
           emptySubtext={getEmptySubtext(hasActiveFilters)}
-          onFilePreview={(f) => handleFilePreview(f as import("../../../shared/files_table/FilesTable").FileItem)}
-          onFileSelect={(f, sel) => handleFileSelect(f as import("../../../shared/files_table/FilesTable").FileItem, sel)}
+          onFilePreview={(f) => handleFilePreview(f as FileItem)}
+          onFileSelect={(f, sel) => handleFileSelect(f as FileItem, sel)}
           selectedFiles={selectedFiles}
           showOwner={false}
           showLocation={true}
@@ -280,6 +570,9 @@ const YourFiles: React.FC = () => {
           onFilesUpload={handleFilesUpload}
           checkStorageLimit={checkStorageLimit}
           onRefresh={fetchFiles}
+          onActionHandlerReady={(handler) => {
+            actionHandlerRef.current = handler;
+          }}
         />
 
         {previewFile && previewFile.type === "file" && (
@@ -295,10 +588,33 @@ const YourFiles: React.FC = () => {
             onNavigate={handleNavigate}
           />
         )}
+
+        {/* Hidden upload input triggered by command palette */}
+        <input
+          ref={uploadInputRef}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            if (e.target.files) handleFilesUpload(e.target.files);
+            e.target.value = "";
+          }}
+        />
+
+        {/* Command palette — wrapped in a themed container so CSS vars cascade */}
+        <PaletteThemeWrap style={getEditorVars(resolvedTheme)}>
+          <CommandPalette
+            isOpen={cmdOpen}
+            onClose={() => setCmdOpen(false)}
+            commands={paletteCommands}
+          />
+        </PaletteThemeWrap>
       </Container>
     </PageTransition>
   );
 };
+
+// ── Styled components ─────────────────────────────────────────────────────────
 
 const Container = styled.div`
   display: flex;
@@ -333,6 +649,62 @@ const FileCount = styled.div`
   white-space: nowrap;
 `;
 
+const HeaderSpacer = styled.div`
+  flex: 1;
+`;
+
+const CommandsBtn = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+  color: #5f6368;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease,
+    box-shadow 0.12s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.20);
+    color: #202124;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+
+  &:active {
+    background: #f1f3f4;
+  }
+`;
+
+const CmdBtnLabel = styled.span`
+  @media (max-width: 520px) {
+    display: none;
+  }
+`;
+
+const CmdKbd = styled.kbd`
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f3f4;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: #9aa0a6;
+  letter-spacing: 0.02em;
+
+  @media (max-width: 520px) {
+    display: none;
+  }
+`;
+
 const FilterIndicator = styled.div`
   font-size: 14px;
   color: #666;
@@ -340,6 +712,24 @@ const FilterIndicator = styled.div`
   padding: 8px 12px;
   border-radius: 6px;
   display: inline-block;
+`;
+
+/**
+ * Provides the `--ed-*` CSS custom properties to the CommandPalette subtree.
+ * The palette itself uses `position: fixed` but still inherits CSS vars from
+ * its DOM parent through the cascade.
+ */
+const PaletteThemeWrap = styled.div`
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+
+  /* Re-enable pointer events for the palette itself */
+  & > * {
+    pointer-events: auto;
+  }
 `;
 
 export default YourFiles;

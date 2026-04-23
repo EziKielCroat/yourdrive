@@ -5,23 +5,23 @@ import { useStorageStore } from "../../../../store/storageStore";
 import api from "../../../../lib/axios";
 import { toast } from "../../../../services/toast.service";
 import {
-  Monitor,
-  Smartphone,
-  Tablet,
-  Laptop,
-  Trash2,
-  Shield,
-  MoreVertical,
-  Edit3,
-  Lock,
-  Unlock,
-  LogOut,
-  AlertTriangle,
-  X,
-  Plus,
-  Folder,
-  Check,
-} from "lucide-react";
+  MonitorIcon as Monitor,
+  SmartphoneIcon as Smartphone,
+  TabletIcon as Tablet,
+  LaptopIcon as Laptop,
+  Trash2Icon as Trash2,
+  ShieldIcon as Shield,
+  MoreVerticalIcon as MoreVertical,
+  Edit3Icon as Edit3,
+  LockIcon as Lock,
+  UnlockIcon as Unlock,
+  LogOutIcon as LogOut,
+  AlertTriangleIcon as AlertTriangle,
+  XIcon as X,
+  PlusIcon as Plus,
+  FolderIcon as Folder,
+  CheckIcon as Check,
+} from "../../../shared/icons/index";
 import SidebarToggle from "../sidebar/SidebarToggle";
 import PageTransition from "../../../shared/PageTransition";
 

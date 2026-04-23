@@ -1,6 +1,9 @@
 ﻿node_modules/
+.venv-charts/
 .env
 .env.local
 *.log
 dist/
 .DS_Store
+.cursor
+

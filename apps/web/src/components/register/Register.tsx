@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import styled, { createGlobalStyle } from "styled-components";
-import { Mail, Lock, User, X, Eye, EyeOff } from "lucide-react";
+import { MailIcon as Mail, LockIcon as Lock, UserIcon as User, XIcon as X, EyeIcon as Eye, EyeOffIcon as EyeOff } from "../shared/icons/index";
 import { useAuthStore } from "../../store/authStore";
 
 const FontStyles = () => {

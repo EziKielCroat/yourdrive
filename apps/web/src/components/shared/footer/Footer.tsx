@@ -13,7 +13,7 @@ import {
   SocialsWrapper,
 } from "./styles/footer";
 import Image from "../image/Image";
-import { Github, Twitter, Youtube } from "lucide-react";
+import { GithubIcon as Github, TwitterIcon as Twitter, YoutubeIcon as Youtube } from "../icons/index";
 import api from "../../../lib/axios";
 
 const Footer: React.FC = () => {

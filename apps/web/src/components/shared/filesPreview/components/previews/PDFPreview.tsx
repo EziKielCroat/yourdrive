@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Download,
-  Maximize2,
-  Printer,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+  ZoomInIcon as ZoomIn,
+  ZoomOutIcon as ZoomOut,
+  RotateCwIcon as RotateCw,
+  DownloadIcon as Download,
+  MaximizeIcon as Maximize2,
+  PrinterIcon as Printer,
+  ChevronLeftIcon as ChevronLeft,
+  ChevronRightIcon as ChevronRight,
+} from "../../../icons/index";
 
 interface PDFPreviewProps {
   url: string;

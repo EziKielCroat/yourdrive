@@ -1,22 +1,22 @@
 import React from "react";
 import styled, { keyframes } from "styled-components";
 import {
-  X,
-  Calendar,
-  User,
-  Hash,
-  File as FileIcon,
-  Image,
-  FileText,
-  FileVideo,
-  FileAudio,
-  Archive,
-  Lock,
-  Star,
-  Download,
-  Share2,
-  Trash2,
-} from "lucide-react";
+  XIcon as X,
+  CalendarIcon as Calendar,
+  UserIcon as User,
+  HashIcon as Hash,
+  FileIcon,
+  ImageIcon as Image,
+  FileTextIcon as FileText,
+  FileVideoIcon as FileVideo,
+  FileAudioIcon as FileAudio,
+  ArchiveIcon as Archive,
+  LockIcon as Lock,
+  StarIcon as Star,
+  DownloadIcon as Download,
+  Share2Icon as Share2,
+  Trash2Icon as Trash2,
+} from "../../icons/index";
 import type { EnhancedFileItem } from "../types/fileActions";
 
 interface DetailsModalProps {

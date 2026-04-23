@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import styled from "styled-components";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { AlertTriangleIcon as AlertTriangle, RefreshCwIcon as RefreshCw, HomeIcon as Home } from "./icons/index";
 
 const Wrap = styled.div`
   min-height: 100vh;

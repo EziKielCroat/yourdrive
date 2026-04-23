@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
+import { EyeIcon as Eye, EyeOffIcon as EyeOff, CheckCircleIcon as CheckCircle, AlertCircleIcon as AlertCircle } from "../../shared/icons/index";
 import styled from "styled-components";
 import type { UserSettings } from "../types/UserSettings";
 import TwoFactorSettings from "./TwoFactorSettings";

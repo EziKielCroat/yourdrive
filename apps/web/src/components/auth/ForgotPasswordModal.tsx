@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { X, Mail, Lock, CheckCircle, AlertCircle } from "lucide-react";
+import { XIcon as X, MailIcon as Mail, LockIcon as Lock, CheckCircleIcon as CheckCircle, AlertCircleIcon as AlertCircle } from "../shared/icons/index";
 import api from "../../lib/axios";
 
 interface ForgotPasswordModalProps {

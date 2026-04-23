@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { Download, Search, Copy, Code, Hash, Type } from "lucide-react";
+import { DownloadIcon as Download, SearchIcon as Search, CopyIcon as Copy, CodeIcon as Code, HashIcon as Hash, TypeIcon as Type } from "../../../icons/index";
 import Prism from "prismjs";
 import api from "../../../../../lib/axios";
 import "prismjs/themes/prism.css";

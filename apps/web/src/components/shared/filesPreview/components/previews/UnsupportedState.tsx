@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { FileQuestion, Download } from "lucide-react";
+import { FileQuestionIcon as FileQuestion, DownloadIcon as Download } from "../../../icons/index";
 
 interface UnsupportedStateProps {
   fileName: string;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Lock, Calendar, Download, Share2 } from "lucide-react";
+import { LockIcon as Lock, CalendarIcon as Calendar, DownloadIcon as Download, Share2Icon as Share2 } from "../../shared/icons/index";
 import styled from "styled-components";
 import {
   Section,
@@ -120,7 +120,7 @@ export const SharingSection: React.FC = () => {
   return (
     <Section>
       <SectionTitle>
-        <Share2 size={20} style={{ display: "inline", marginRight: "0.5rem", verticalAlign: "middle" }} />
+        <Share2 size={18} />
         Default sharing options
       </SectionTitle>
       <SectionDescription>

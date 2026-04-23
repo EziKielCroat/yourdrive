@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { IconProps } from "../../icons/index";
 
 export interface FileOwner {
   id?: string;
@@ -66,7 +66,7 @@ export type ActionSlot = "selection-bar" | "context-menu" | "quick-menu";
 export interface FileActionDefinition {
   id: FileActionId;
   label: string;
-  icon: LucideIcon | React.ComponentType<{ size: number; className?: string }>;
+  icon: React.ComponentType<IconProps>;
   /** Human-readable shortcut string, e.g. "Alt+K R". */
   shortcut?: string;
   danger?: boolean;

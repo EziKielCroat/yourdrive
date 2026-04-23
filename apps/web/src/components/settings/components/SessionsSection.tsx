@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
-import { Monitor, LogOut } from "lucide-react";
+import { MonitorIcon as Monitor, LogOutIcon as LogOut } from "../../shared/icons/index";
 import { settingsService } from "../service/settingsService";
 import type { ActiveSession } from "../types/UserSettings";
 import {

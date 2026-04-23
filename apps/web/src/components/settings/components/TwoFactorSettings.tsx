@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
-import { Shield, Copy, Download, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ShieldIcon as Shield, CopyIcon as Copy, DownloadIcon as Download, AlertCircleIcon as AlertCircle, CheckCircle2Icon as CheckCircle2 } from "../../shared/icons/index";
 import { useAuthStore } from "../../../store/authStore";
 import api from "../../../lib/axios";
 import {
@@ -196,7 +196,7 @@ export default function TwoFactorSettings() {
   return (
     <Section>
       <SectionTitle>
-        <Shield size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
+        <Shield size={18} />
         Two-Factor Authentication
       </SectionTitle>
       <SectionDescription>

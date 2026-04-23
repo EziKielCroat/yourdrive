@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import EnhancedFilesTable from "../../../shared/enhancedFileTable/EnhancedFilesTable";
 import FilePreview from "../../../shared/filesPreview/FilesPreview";
-import { Clock } from "lucide-react";
+import { ClockIcon as Clock } from "../../../shared/icons/index";
 import SidebarToggle from "../sidebar/SidebarToggle";
 import PageTransition from "../../../shared/PageTransition";
 import api from "../../../../lib/axios";

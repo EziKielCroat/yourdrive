@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
-import { X, Folder, ChevronRight, Home, Search, Check } from "lucide-react";
+import { XIcon as X, FolderIcon as Folder, ChevronRightIcon as ChevronRight, HomeIcon as Home, SearchIcon as Search, CheckIcon as Check } from "../../icons/index";
 import type { EnhancedFileItem } from "../types/fileActions";
 import api from "../../../../lib/axios";
 

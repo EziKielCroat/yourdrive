@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { UserSettings } from "../components/settings/types/UserSettings";
 
+const THEME_STORAGE_KEY = "yd_resolved_theme";
+
 function getSystemDark(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
@@ -17,6 +19,24 @@ function resolveTheme(
   return getSystemDark() ? "dark" : "light";
 }
 
+function readCachedTheme(): ResolvedTheme {
+  try {
+    const cached = localStorage.getItem(THEME_STORAGE_KEY);
+    if (cached === "dark" || cached === "light") return cached;
+  } catch {
+    // localStorage unavailable (e.g. SSR or private mode)
+  }
+  return "light";
+}
+
+function writeCachedTheme(theme: ResolvedTheme): void {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // ignore
+  }
+}
+
 type State = {
   appearance: UserSettings["appearance"] | null;
   language: UserSettings["language"] | null;
@@ -29,15 +49,24 @@ type State = {
   setResolvedTheme: (t: ResolvedTheme) => void;
 };
 
+const initialTheme = readCachedTheme();
+if (typeof document !== "undefined") {
+  document.documentElement.dataset.appTheme = initialTheme;
+  document.documentElement.style.colorScheme = initialTheme === "dark" ? "dark" : "light";
+}
+
 export const useUserUiPreferencesStore = create<State>((set) => ({
   appearance: null,
   language: null,
   preferences: null,
   privacy: null,
   storage: null,
-  resolvedTheme: "light",
+  resolvedTheme: initialTheme,
 
-  setResolvedTheme: (resolvedTheme) => set({ resolvedTheme }),
+  setResolvedTheme: (resolvedTheme) => {
+    writeCachedTheme(resolvedTheme);
+    set({ resolvedTheme });
+  },
 
   hydrate: (settings) => {
     const appearance = settings.appearance ?? null;
@@ -46,6 +75,7 @@ export const useUserUiPreferencesStore = create<State>((set) => ({
     const privacy = settings.privacy ?? null;
     const storage = settings.storage ?? null;
     const resolvedTheme = resolveTheme(appearance?.theme);
+    writeCachedTheme(resolvedTheme);
     set({
       appearance,
       language,

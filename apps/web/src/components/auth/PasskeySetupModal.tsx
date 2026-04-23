@@ -1,6 +1,6 @@
 import { useState } from "react";
 import styled from "styled-components";
-import { X, Fingerprint, Check, AlertCircle } from "lucide-react";
+import { XIcon as X, FingerprintIcon as Fingerprint, CheckIcon as Check, AlertCircleIcon as AlertCircle } from "../shared/icons/index";
 import { useAuthStore } from "../../store/authStore";
 
 const Overlay = styled.div`

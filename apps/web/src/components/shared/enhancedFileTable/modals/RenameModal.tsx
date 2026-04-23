@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { X, Check } from "lucide-react";
+import { XIcon as X, CheckIcon as Check } from "../../icons/index";
 import type { EnhancedFileItem } from "../types/fileActions";
 
 interface RenameModalProps {

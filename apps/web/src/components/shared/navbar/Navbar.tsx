@@ -45,7 +45,7 @@ const Navbar = () => {
           className="desktop-only"
           data-tour="tour-upload"
         >
-          <PlusIcon />
+          <PlusIcon size={16} />
         </NavButton>
       </LeftSectionWithMobile>
 
@@ -56,16 +56,16 @@ const Navbar = () => {
           className="mobile-only"
           data-tour="tour-upload"
         >
-          <PlusIcon />
+          <PlusIcon size={16} />
         </NavButton>
         <NavButton
           onClick={() => navigate({ to: ROUTES.SETTINGS })}
           data-tour="tour-settings"
         >
-          <SettingsIcon />
+          <SettingsIcon size={16} />
         </NavButton>
         <NavButton onClick={logout}>
-          <LogOutIcon />
+          <LogOutIcon size={16} />
         </NavButton>
       </RightSection>
     </NavbarContainer>

@@ -2,11 +2,10 @@ import { PLANS } from "@yourdrive/plans";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { authenticator } from "@otplib/preset-default";
+import { authenticator } from "otplib";
 import QRCode from "qrcode";
 
 import { BigIntHelper } from "../lib/bigint-helper";
-import { resolveConfiguredFrontendBase } from "../lib/frontend-base";
 
 import crypto from "crypto";
 import {
@@ -30,6 +29,11 @@ const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "your-access-secret";
 const JWT_REFRESH_SECRET =
   process.env.JWT_REFRESH_SECRET || "your-refresh-secret";
 const JWT_TEMP_SECRET = process.env.JWT_TEMP_SECRET || "your-temp-secret";
+
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? "12", 10);
+const RP_NAME   = process.env.RP_NAME   ?? "YourDrive";
+const RP_ID     = process.env.RP_ID     ?? "localhost";
+const RP_ORIGIN = process.env.RP_ORIGIN ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
 
 // Validation schemas
 const loginSchema = z.object({
@@ -257,7 +261,7 @@ export class AuthService {
     throw new Error("User already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(validated.password, 10);
+  const hashedPassword = await bcrypt.hash(validated.password, BCRYPT_ROUNDS);
 
   // Check if it's a school email
   const isSkoleUser = validated.email.toLowerCase().endsWith("@skole.hr");
@@ -659,7 +663,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
     const refreshToken = this.generateRefreshToken(user.id);
 
     // Create session
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
     await prisma.session.create({
       data: {
         userId: user.id,
@@ -811,7 +815,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
     // Generate QR code
     const otpauthUrl = authenticator.keyuri(
       user.email,
-      process.env.RP_NAME || "YourDrive",
+      RP_NAME,
       secret,
     );
 
@@ -925,7 +929,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
       const code = crypto.randomBytes(4).toString("hex").toUpperCase();
       codes.push(code);
 
-      const codeHash = await bcrypt.hash(code, 10);
+      const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
       await prisma.totpRecoveryCode.create({
         data: {
           userId,
@@ -993,7 +997,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
     const accessToken = this.generateAccessToken(user.id);
     const refreshToken = this.generateRefreshToken(user.id);
 
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
     await prisma.session.create({
       data: {
         userId: user.id,
@@ -1039,7 +1043,7 @@ static async resendVerificationEmail(email: string): Promise<{ success: boolean;
     const accessToken = this.generateAccessToken(user.id);
     const refreshToken = this.generateRefreshToken(user.id);
 
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
     await prisma.session.create({
       data: {
         userId: user.id,
@@ -1178,7 +1182,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       }
 
       // Hash new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
       // Update password and clear reset token
       await prisma.user.update({
@@ -1218,8 +1222,8 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
     });
 
     const options = await generateRegistrationOptions({
-      rpName: process.env.RP_NAME || "YourDrive",
-      rpID: process.env.RP_ID || "localhost",
+      rpName: RP_NAME,
+      rpID: RP_ID,
       userID: Uint8Array.from(Buffer.from(userId, "utf-8")),
       userName: user.email,
       attestationType: "none",
@@ -1251,8 +1255,8 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       await verifyRegistrationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: resolveConfiguredFrontendBase(),
-        expectedRPID: process.env.RP_ID || "localhost",
+        expectedOrigin: RP_ORIGIN,
+        expectedRPID: RP_ID,
       });
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -1296,7 +1300,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
     }
 
     const options = await generateAuthenticationOptions({
-      rpID: process.env.RP_ID || "localhost",
+      rpID: RP_ID,
       allowCredentials,
       userVerification: "preferred",
     });
@@ -1327,8 +1331,8 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
       await verifyAuthenticationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: resolveConfiguredFrontendBase(),
-        expectedRPID: process.env.RP_ID || "localhost",
+        expectedOrigin: RP_ORIGIN,
+        expectedRPID: RP_ID,
         credential: {
           id: credential.credentialId,
           publicKey: Uint8Array.from(
@@ -1418,7 +1422,7 @@ static async verifyResetCode(userId: string, code: string): Promise<{ isValid: b
     // Create new user if doesn't exist
     if (!user) {
       const randomPassword = crypto.randomBytes(32).toString("hex");
-      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      const hashedPassword = await bcrypt.hash(randomPassword, BCRYPT_ROUNDS);
 
       user = await prisma.user.create({
         data: {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { X, ArrowRight, Zap } from "lucide-react";
+import { XIcon as X, ArrowRightIcon as ArrowRight, ZapIcon as Zap } from "../../icons/index";
 import { useFileConversion } from "../../hooks/useFileConversion";
 
 interface ConversionModalProps {

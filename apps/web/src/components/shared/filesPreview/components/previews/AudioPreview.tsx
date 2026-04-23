@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
-import { Download } from "lucide-react";
+import { DownloadIcon as Download } from "../../../icons/index";
 
 interface AudioPreviewProps {
   url: string;

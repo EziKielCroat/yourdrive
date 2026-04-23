@@ -1,13 +1,13 @@
 import { useRef, useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import {
-  CheckCircle,
-  AlertCircle,
-  Loader,
-  X,
-  Upload,
-  FileUp,
-} from "lucide-react";
+  CheckCircleIcon as CheckCircle,
+  AlertCircleIcon as AlertCircle,
+  LoaderIcon as Loader,
+  XIcon as X,
+  UploadIcon as Upload,
+  FileUpIcon as FileUp,
+} from "../../icons/index";
 import { eventBus } from "../../../../events/eventBus";
 import { FILES_REFRESH_EVENT } from "../../../../events/fileEvents";
 import {

@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import {
-  X,
-  Type,
-  Download,
-  Image as ImageIcon,
-  FileText,
-  FileVideo,
-  FileAudio,
-  RotateCw,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-} from "lucide-react";
+  XIcon as X,
+  TypeIcon as Type,
+  DownloadIcon as Download,
+  ImageIcon,
+  FileTextIcon as FileText,
+  FileVideoIcon as FileVideo,
+  FileAudioIcon as FileAudio,
+  RotateCwIcon as RotateCw,
+  AlignLeftIcon as AlignLeft,
+  AlignCenterIcon as AlignCenter,
+  AlignRightIcon as AlignRight,
+} from "../../icons/index";
 import type { EnhancedFileItem } from "../types/fileActions";
 
 interface WatermarkModalProps {
